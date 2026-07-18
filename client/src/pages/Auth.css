@@ -1,0 +1,256 @@
+/* =============================================
+   FLYWHEEL AUTH & LANDING STYLES
+   ============================================= */
+
+.auth-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8fafc;
+  padding: 24px;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  overflow: hidden;
+}
+
+.landing-bg {
+  background: radial-gradient(circle at top right, var(--brand-bg-light) 0%, #f8fafc 100%);
+}
+
+/* --- Flywheel Animation --- */
+.flywheel-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 30px;
+}
+
+.flywheel-spinning {
+  width: 80px;
+  height: 80px;
+  border: 4px solid var(--brand-primary);
+  border-radius: 50%;
+  position: relative;
+  animation: spin 8s linear infinite;
+}
+
+.flywheel-spinning::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  background: var(--brand-primary);
+  border-radius: 50%;
+}
+
+.spoke {
+  position: absolute;
+  width: 4px;
+  height: 50%;
+  background: var(--brand-primary);
+  left: 50%;
+  transform-origin: bottom center;
+  margin-left: -2px;
+}
+
+.spoke:nth-child(1) { transform: rotate(0deg); }
+.spoke:nth-child(2) { transform: rotate(90deg); }
+.spoke:nth-child(3) { transform: rotate(180deg); }
+.spoke:nth-child(4) { transform: rotate(270deg); }
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* --- Cards --- */
+.landing-card {
+  text-align: center;
+  max-width: 500px;
+  padding: 48px;
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.auth-card {
+  background: #ffffff;
+  padding: 40px;
+  width: 100%;
+  max-width: 420px;
+  border-radius: 20px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e2e8f0;
+  text-align: center;
+}
+
+/* --- Typography --- */
+.landing-title {
+  font-size: 42px;
+  font-weight: 800;
+  color: #1e293b;
+  letter-spacing: -0.02em;
+  margin-bottom: 8px;
+}
+
+.landing-subtitle {
+  font-size: 18px;
+  color: #64748b;
+  margin-bottom: 32px;
+}
+
+.auth-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--brand-secondary);
+  margin-bottom: 8px;
+}
+
+.auth-subtitle {
+  font-size: 15px;
+  color: #64748b;
+  margin-bottom: 32px;
+}
+
+.feature-pill {
+  display: inline-block;
+  padding: 6px 14px;
+  background: var(--brand-bg-light);
+  color: var(--brand-primary);
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+  margin: 4px;
+}
+
+/* --- Buttons --- */
+.auth-btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  background: var(--brand-primary);
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.landing-btn {
+  margin-top: 32px;
+  box-shadow: 0 4px 6px -1px rgba(241, 90, 36, 0.3);
+}
+
+.landing-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 15px -3px rgba(241, 90, 36, 0.4);
+}
+
+/* --- Animations --- */
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.6s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Footer Links --- */
+.landing-footer, .login-external-link {
+  margin-top: 40px;
+  font-size: 13px;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+
+.landing-footer a, .login-external-link a {
+  color: var(--brand-primary);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.landing-footer a:hover, .login-external-link a:hover {
+  text-decoration: underline;
+}
+
+/* --- Small Logo for Login --- */
+.auth-logo-small {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.flywheel-static {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--brand-primary);
+  border-radius: 50%;
+  position: relative;
+}
+
+.flywheel-static::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 6px; height: 6px;
+  background: var(--brand-primary);
+  border-radius: 50%;
+}
+
+.auth-form {
+  text-align: left;
+  margin-top: 32px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 8px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  font-size: 14px;
+  outline: none;
+}
+
+.form-group input:focus {
+  border-color: var(--brand-primary);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(241, 90, 36, 0.05);
+}
+
+.auth-error {
+  background: #fef2f2;
+  color: #ef4444;
+  padding: 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  border: 1px solid #fee2e2;
+  margin-bottom: 20px;
+}

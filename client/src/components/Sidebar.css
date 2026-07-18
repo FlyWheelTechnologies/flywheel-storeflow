@@ -1,0 +1,239 @@
+/* =============================================
+   SIDEBAR COMPONENT STYLES
+   FlorzyAngel Enterprise — Flywheel Technologies
+   ============================================= */
+
+.sidebar {
+  width: 220px;
+  min-height: 100vh;
+  background: var(--brand-secondary);
+  border-right: 1px solid rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 100;
+}
+
+.sidebar--collapsed {
+  width: 60px;
+}
+
+/* Logo */
+.sidebar__logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  min-height: 60px;
+}
+
+.sidebar__logo-icon {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sidebar__logo-text {
+  font-weight: 700;
+  font-size: 14px;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Nav container */
+.sidebar__nav {
+  flex: 1;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Nav items (shared) */
+.sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255,255,255,0.7);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.sidebar__item:hover {
+  background: rgba(255,255,255,0.12);
+  color: #ffffff;
+}
+
+.sidebar__item--active {
+  background: var(--brand-primary);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.sidebar__item--parent {
+  justify-content: flex-start;
+}
+
+.sidebar__icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.sidebar__label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar__chevron {
+  display: flex;
+  align-items: center;
+  opacity: 0.5;
+  transition: transform 0.2s;
+}
+
+.sidebar__chevron--open {
+  transform: rotate(180deg);
+}
+
+/* Children submenu */
+.sidebar__group {
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar__children-wrapper {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease-out, opacity 0.2s;
+  opacity: 0;
+  overflow: hidden;
+}
+
+.sidebar__children-wrapper--open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.sidebar__children {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-left: 12px;
+  padding-left: 16px;
+  border-left: 1px solid rgba(255,255,255,0.1);
+  margin-top: 2px;
+  margin-bottom: 4px;
+}
+
+.sidebar__child {
+  display: block;
+  width: 100%;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.sidebar__child:hover {
+  background: rgba(255,255,255,0.08);
+  color: #ffffff;
+}
+
+.sidebar__child--active {
+  background: transparent;
+  color: var(--brand-primary);
+  font-weight: 700;
+}
+
+/* Collapse button */
+.sidebar__collapse-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 18px;
+  border: none;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  background: transparent;
+  color: rgba(255,255,255,0.5);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sidebar__collapse-btn:hover {
+  color: #ffffff;
+  background: rgba(255,255,255,0.05);
+}
+
+/* Footer */
+.sidebar__footer {
+  padding: 12px 14px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.sidebar__footer-link {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.4);
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.sidebar__footer-link:hover {
+  color: rgba(255,255,255,0.7);
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    height: 100vh;
+    z-index: 1000;
+    width: 60px;
+  }
+  
+  .sidebar:not(.sidebar--collapsed) {
+    width: 220px;
+    box-shadow: 10px 0 15px -3px rgba(0, 0, 0, 0.2);
+  }
+}
