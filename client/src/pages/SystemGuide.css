@@ -26,7 +26,7 @@
 
 .guide-title {
   font-size: 32px;
-  fontWeight: 800;
+  font-weight: 800;
   color: #111827;
   margin-bottom: 8px;
 }
@@ -44,7 +44,7 @@
 
 .section-title {
   font-size: 22px;
-  fontWeight: 700;
+  font-weight: 700;
   color: #111827;
   margin-bottom: 16px;
   display: flex;
@@ -84,7 +84,7 @@
 
 .feature-block h3 {
   font-size: 16px;
-  fontWeight: 700;
+  font-weight: 700;
   color: #f15a24; /* Brand Primary */
   margin-bottom: 8px;
 }

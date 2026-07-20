@@ -8,13 +8,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 } else {
   console.log("Supabase Client Initialized:", supabaseUrl);
   if (supabaseAnonKey.startsWith("sb_publishable_")) {
-    console.warn("WARNING: VITE_SUPABASE_PUBLISHABLE_KEY looks like a Paystack key, not a Supabase key.");
-    // Proactively alert the user as this is likely the cause of all issues
-    if (typeof window !== 'undefined') {
-      setTimeout(() => {
-        alert("CRITICAL ERROR: Your Supabase Key (in .env.local) starts with 'sb_publishable_'. This looks like a Paystack key, NOT a Supabase key. \n\nPlease replace it with your Supabase 'anon' key from the Supabase Dashboard.");
-      }, 1000);
-    }
+    console.log("Using new Supabase Publishable Key format.");
   } else if (!supabaseAnonKey.startsWith("eyJ")) {
     console.warn("WARNING: Supabase Key does not look like a valid JWT. It should start with 'eyJ'.");
   }

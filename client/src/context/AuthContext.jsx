@@ -118,7 +118,7 @@ export function AuthProvider({ children }) {
     setImpersonatedOrg(null);
     localStorage.removeItem("user");
     localStorage.removeItem("auth_token");
-    window.location.href = "/"; // Force reload to login
+    window.location.href = "/login"; // Force reload to login
   };
 
   const updateUser = (userData) => {
