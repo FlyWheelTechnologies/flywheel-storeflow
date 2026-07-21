@@ -11,7 +11,7 @@ import {
   ArrowRight, 
   Phone 
 } from "lucide-react";
-import orangeReceiptMachine from "../assets/orange_receipt_machine.jpg";
+const orangeReceiptMachine = "/orange_receipt_machine.jpg";
 import productDashboardScreenshot from "../assets/product_dashboard_screenshot.png";
 import "./LandingPage.css";
 

@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "../services/supabaseClient";
-import orangeReceiptMachine from "../assets/orange_receipt_machine.jpg";
+const orangeReceiptMachine = "/orange_receipt_machine.jpg";
 
 const AuthContext = createContext();
 
