@@ -61,8 +61,15 @@ export default function Sidebar({ collapsed, onToggle }) {
   });
   const navigate = useNavigate();
   const location = useLocation();
-  const [isHovered, setIsHovered] = useState(false);
-  const displayCollapsed = collapsed && !isHovered;
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const displayCollapsed = isMobile && collapsed;
 
   // Save menu state
   useEffect(() => {
@@ -184,18 +191,20 @@ export default function Sidebar({ collapsed, onToggle }) {
                   <span className="sidebar__label">{item.label}</span>
                 )}
               </div>
-              <div 
-                className="sidebar__children-wrapper sidebar__children-wrapper--open"
-                aria-hidden={false}
-              >
-                <div className="sidebar__children">
-                  {item.children.map(child => (
-                    <button key={child.id} className={`sidebar__child ${isActive(child.path) ? "sidebar__child--active" : ""}`} onClick={() => handleNav(child.path)}>
-                      {child.label}
-                    </button>
-                  ))}
+              {!displayCollapsed && (
+                <div 
+                  className="sidebar__children-wrapper sidebar__children-wrapper--open"
+                  aria-hidden={false}
+                >
+                  <div className="sidebar__children">
+                    {item.children.map(child => (
+                      <button key={child.id} className={`sidebar__child ${isActive(child.path) ? "sidebar__child--active" : ""}`} onClick={() => handleNav(child.path)}>
+                        {child.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : (
             <button key={item.id} className={`sidebar__item ${isActive(item.path) ? "sidebar__item--active" : ""}`} onClick={() => handleNav(item.path)} title={displayCollapsed ? item.label : ""}>

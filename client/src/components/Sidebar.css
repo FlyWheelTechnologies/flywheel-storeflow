@@ -23,6 +23,16 @@
   width: 60px;
 }
 
+.sidebar--collapsed .sidebar__item {
+  justify-content: center;
+  padding: 9px 0;
+}
+
+.sidebar--collapsed .sidebar__logo {
+  justify-content: center;
+  padding: 18px 0;
+}
+
 /* Logo */
 .sidebar__logo {
   display: flex;

@@ -1,0 +1,8 @@
+{
+  "name": "flywheel-storeflow-root",
+  "version": "1.0.0",
+  "description": "Root wrapper to build client React application on Cloudflare Pages",
+  "scripts": {
+    "build": "npm install --prefix client && npm run build --prefix client && node -e \"const fs = require('fs'); if (fs.existsSync('dist')) fs.rmSync('dist', { recursive: true }); fs.renameSync('client/dist', 'dist')\""
+  }
+}
