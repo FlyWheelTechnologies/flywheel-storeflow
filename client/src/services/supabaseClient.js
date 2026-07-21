@@ -14,4 +14,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   }
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const dummyUrl = "https://ongyutrabagetgdebdib.supabase.co"; // fallback matching the initialized domain
+const dummyKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy";
+
+export const supabase = createClient(
+  supabaseUrl || dummyUrl,
+  supabaseAnonKey || dummyKey
+);
