@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "../services/supabaseClient";
+import orangeReceiptMachine from "../assets/orange_receipt_machine.jpg";
 
 const AuthContext = createContext();
 
@@ -39,16 +40,26 @@ export function AuthProvider({ children }) {
     let isMounted = true;
 
     const initAuth = async () => {
-      // Fail-safe: if initAuth takes more than 5 seconds, stop loading so user can at least see the login page
+      // Fail-safe: if initAuth takes more than 12 seconds, stop loading so user can see page
       const timer = setTimeout(() => {
         if (isMounted && loading) {
           console.warn("Auth initialization taking too long, forcing load completion.");
           setLoading(false);
         }
-      }, 5000);
+      }, 12000);
 
       try {
         const startTime = Date.now();
+
+        // 1. Proactively preload the large 2.7MB hero background image
+        await new Promise((resolve) => {
+          const img = new Image();
+          img.src = orangeReceiptMachine;
+          img.onload = () => resolve(true);
+          img.onerror = () => resolve(false);
+        });
+
+        // 2. Fetch active session
         const { data: { session } } = await supabase.auth.getSession();
         
         if (session && isMounted) {
@@ -161,12 +172,55 @@ export function AuthProvider({ children }) {
   // Only show the "Starting System" loader if we are truly loading and have NO cached user.
   if (loading) {
     return (
-      <div style={{ height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#374151', fontFamily: 'system-ui, sans-serif' }}>
+      <div style={{ height: '100vh', width: '100vw', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#ffffff', fontFamily: '"Plus Jakarta Sans", system-ui, sans-serif' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ width: '48px', height: '48px', border: '5px solid rgba(255,255,255,0.1)', borderTopColor: activeOrg?.primary_color || '#f97316', borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 20px' }}></div>
-          <h2 style={{ color: '#fff', fontSize: '22px', fontWeight: '700', letterSpacing: '1px' }}>{activeOrg?.name?.toUpperCase() || 'STOREFLOW'}</h2>
-          <p style={{ color: '#9ca3af', fontSize: '14px', marginTop: '8px', fontWeight: '500' }}>Initializing Secure Session...</p>
-          <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
+          {/* 3D Glossy Bubble Container */}
+          <div style={{ position: 'relative', width: '80px', height: '80px', margin: '0 auto 32px' }}>
+            {/* Ambient blur glow */}
+            <div style={{
+              position: 'absolute',
+              top: '10px', left: '10px', right: '10px', bottom: '10px',
+              background: '#eb5e28',
+              filter: 'blur(20px)',
+              opacity: 0.35,
+              borderRadius: '50%',
+              zIndex: 1,
+              animation: 'glow3d 2.5s infinite ease-in-out'
+            }}></div>
+            {/* Front glossy bubble */}
+            <div style={{
+              position: 'absolute',
+              top: 0, left: 0, right: 0, bottom: 0,
+              background: 'radial-gradient(circle at 35% 35%, #ff8e53 0%, #eb5e28 55%, #b83a0f 100%)',
+              borderRadius: '50%',
+              boxShadow: '0 16px 36px rgba(235, 94, 40, 0.28), inset -6px -6px 14px rgba(0,0,0,0.18), inset 8px 8px 16px rgba(255,255,255,0.45)',
+              zIndex: 2,
+              animation: 'float3d 3.5s infinite ease-in-out'
+            }}></div>
+          </div>
+
+          {/* Brand Name matching Navbar */}
+          <h2 style={{ margin: 0, fontSize: '26px', fontWeight: '800', color: '#1a1a24', letterSpacing: '-0.02em', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
+            <div>
+              Store<span style={{ color: '#eb5e28' }}>Flow</span>
+            </div>
+            <span style={{ fontSize: '11.5px', fontWeight: '600', color: '#8e8e9a', textTransform: 'none', letterSpacing: '0.08em', marginTop: '1px' }}>by Flywheel</span>
+          </h2>
+
+          <p style={{ color: '#6e6e7a', fontSize: '13.5px', marginTop: '16px', fontWeight: '600', letterSpacing: '0.01em' }}>
+            Initializing Secure Session...
+          </p>
+
+          <style>{`
+            @keyframes float3d {
+              0%, 100% { transform: translateY(0) scale(1); }
+              50% { transform: translateY(-8px) scale(1.03); }
+            }
+            @keyframes glow3d {
+              0%, 100% { transform: scale(1); opacity: 0.3; }
+              50% { transform: scale(1.15); opacity: 0.45; }
+            }
+          `}</style>
         </div>
       </div>
     );

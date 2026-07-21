@@ -12,7 +12,12 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { email, password, role, full_name, organization_id } = await req.json();
+    const body = await req.json();
+    const email = body.email;
+    const password = body.password;
+    const role = body.role;
+    const full_name = body.full_name || body.fullName || '';
+    const organization_id = body.organization_id || body.organizationId;
     console.log("Invite request received for:", email, "in org:", organization_id);
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -58,9 +63,13 @@ Deno.serve(async (req: Request) => {
 
     // 2. Update the profile
     console.log("Updating profile for user:", authData.user.id);
+    const updatePayload: any = { role, full_name };
+    if (organization_id !== undefined && organization_id !== null) {
+      updatePayload.organization_id = organization_id;
+    }
     const { error: profileError } = await supabaseClient
       .from('profiles')
-      .update({ role, full_name, organization_id })
+      .update(updatePayload)
       .eq('id', authData.user.id);
 
     if (profileError) {

@@ -69,7 +69,8 @@ export default function AdminSettings() {
             email: newUser.email,
             password: newUser.password,
             role: newUser.role,
-            full_name: newUser.full_name
+            full_name: newUser.full_name,
+            organization_id: user?.organization_id
           }
         });
         

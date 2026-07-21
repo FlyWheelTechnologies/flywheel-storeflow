@@ -91,8 +91,19 @@ export default function Sidebar({ collapsed, onToggle }) {
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
   }, [onToggle]);
+
+  const handleNav = (path) => {
+    navigate(path);
+    if (window.innerWidth <= 768 && !collapsed) {
+      onToggle();
+    }
+  };
 
   const toggleMenu = (id) => setOpenMenus(prev => ({ ...prev, [id]: !prev[id] }));
   const isActive = (path) => {
@@ -164,29 +175,22 @@ export default function Sidebar({ collapsed, onToggle }) {
         {itemsToRender.map(item =>
           item.children ? (
             <div key={item.id} className="sidebar__group">
-              <button
+              <div
                 className={`sidebar__item sidebar__item--parent ${isParentActive(item) ? "sidebar__item--active" : ""}`}
-                onClick={() => !displayCollapsed && toggleMenu(item.id)}
                 title={displayCollapsed ? item.label : ""}
-                aria-expanded={!displayCollapsed && openMenus[item.id]}
               >
                 <span className="sidebar__icon">{item.icon}</span>
                 {!displayCollapsed && (
-                  <>
-                    <span className="sidebar__label">{item.label}</span>
-                    <span className={`sidebar__chevron ${openMenus[item.id] ? "sidebar__chevron--open" : ""}`}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9" /></svg>
-                    </span>
-                  </>
+                  <span className="sidebar__label">{item.label}</span>
                 )}
-              </button>
+              </div>
               <div 
-                className={`sidebar__children-wrapper ${!displayCollapsed && openMenus[item.id] ? "sidebar__children-wrapper--open" : ""}`}
-                aria-hidden={displayCollapsed || !openMenus[item.id]}
+                className="sidebar__children-wrapper sidebar__children-wrapper--open"
+                aria-hidden={false}
               >
                 <div className="sidebar__children">
                   {item.children.map(child => (
-                    <button key={child.id} className={`sidebar__child ${isActive(child.path) ? "sidebar__child--active" : ""}`} onClick={() => navigate(child.path)}>
+                    <button key={child.id} className={`sidebar__child ${isActive(child.path) ? "sidebar__child--active" : ""}`} onClick={() => handleNav(child.path)}>
                       {child.label}
                     </button>
                   ))}
@@ -194,7 +198,7 @@ export default function Sidebar({ collapsed, onToggle }) {
               </div>
             </div>
           ) : (
-            <button key={item.id} className={`sidebar__item ${isActive(item.path) ? "sidebar__item--active" : ""}`} onClick={() => navigate(item.path)} title={displayCollapsed ? item.label : ""}>
+            <button key={item.id} className={`sidebar__item ${isActive(item.path) ? "sidebar__item--active" : ""}`} onClick={() => handleNav(item.path)} title={displayCollapsed ? item.label : ""}>
               <span className="sidebar__icon">{item.icon}</span>
               {!displayCollapsed && <span className="sidebar__label">{item.label}</span>}
             </button>
@@ -203,7 +207,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       </nav>
       {!displayCollapsed && (
         <div className="sidebar__footer">
-          <button className="sidebar__footer-link" onClick={() => navigate('/guide')}>
+          <button className="sidebar__footer-link" onClick={() => handleNav('/guide')}>
             System guide and Terms
           </button>
         </div>

@@ -10,95 +10,91 @@ export default function SystemGuide() {
     <div className="page-wrapper system-guide-page">
       <div className="guide-container">
         <header className="guide-header">
-          <h1 className="guide-title">System Guide & Terms of Use</h1>
-          <p className="guide-subtitle">StoreFlow by Flywheel — {orgName}</p>
+          <h1 className="guide-title">
+            Store<span style={{ color: '#eb5e28' }}>Flow</span> System Guide
+          </h1>
+          <p className="guide-subtitle">by Flywheel — Official User Manual & Terms of Use</p>
         </header>
 
         <section className="guide-section terms-section">
           <h2 className="section-title">Terms of Use</h2>
           <div className="terms-box">
             <p><strong>1. Acceptance of Terms</strong><br />
-            By accessing and using this inventory management system, you agree to be bound by these terms. This system is the property of {orgName} and is powered by Flywheel Technologies. Unauthorized access or use is strictly prohibited.</p>
+            By accessing and utilizing the StoreFlow inventory management system, you agree to comply with and be bound by these Terms of Use. This platform is powered and maintained by Flywheel Technologies (bookflywheel.com). Unauthorized access, data extraction, or tampering is strictly prohibited.</p>
 
-            <p><strong>2. User Accounts and Security</strong><br />
-            You are responsible for maintaining the confidentiality of your login credentials. Any actions performed under your account are your responsibility. You must notify the administrator immediately of any unauthorized use of your account.</p>
+            <p><strong>2. User Accounts and Role Security</strong><br />
+            You are responsible for maintaining the absolute confidentiality of your login credentials. Actions performed in the system are logged to your profile email. If you suspect unauthorized access or a security breach, report it immediately to your organization administrator.</p>
 
-            <p><strong>3. Data Integrity and Privacy</strong><br />
-            All data entered into this system, including sales records, customer information, and financial data, is the property of {orgName}. You agree to enter accurate data and not to tamper with or manipulate records maliciously.</p>
+            <p><strong>3. Data Integrity and Tenancy</strong><br />
+            StoreFlow operates under hardened multi-tenant isolation. All entered inventory details, cost prices, invoices, and deposits are secured via Row-Level Security (RLS). Users agree to input accurate data and to refrain from performing malicious double-entry ledger manipulations.</p>
 
-            <p><strong>4. System Availability and Modifications</strong><br />
-            While we strive to ensure the system is available 24/7, we do not guarantee uninterrupted access. The system may be updated or modified at any time to improve features or fix issues.</p>
+            <p><strong>4. Service Availability & Edge Functions</strong><br />
+            The platform leverages serverless edge compute for transactional triggers (receipt PDFs, low-stock notifications, email routing). While we guarantee 99.9% availability of database nodes, scheduled maintenance may occasionally cause brief offline sync periods.</p>
 
             <p><strong>5. Limitation of Liability</strong><br />
-            Flywheel Technologies and {orgName} are not liable for any data loss, financial loss, or business interruption resulting from the use or inability to use this system.</p>
+            Flywheel Technologies is not liable for business interruptions, inventory discrepancies, or financial inaccuracies resulting from misreported ledger logs, system override actions, or incorrect cost-selling price ratios.</p>
           </div>
         </section>
 
         <section className="guide-section features-section">
-          <h2 className="section-title">System Features & How It Works</h2>
+          <h2 className="section-title">System Features & Documentation</h2>
           
           <div className="feature-block">
-            <h3>📊 Dashboard (Command Center)</h3>
-            <p>The Dashboard is your starting point. It provides a real-time overview of your business operations.</p>
+            <h3>📊 Dashboard (Real-time Command Center)</h3>
+            <p>The main operations dashboard tracks key metrics across your business:</p>
             <ul>
-              <li><strong>Today's Cash In:</strong> Shows total physical cash and mobile money collected today.</li>
-              <li><strong>Today's Revenue:</strong> Total volume of sales recorded (both paid and credit).</li>
-              <li><strong>Pending Deposits:</strong> Count of orders paid in advance awaiting fulfillment.</li>
-              <li><strong>Stock Value:</strong> Total value of all items currently in the warehouse (calculated at Cost Price).</li>
-              <li><strong>Low Stock:</strong> Number of items that have fallen below their minimum threshold.</li>
-              <li><strong>Charts:</strong> Visualize revenue trends over 7 days, 30 days, or Year-over-Year.</li>
-              <li><strong>Quick Insights:</strong> Displays your best-selling items and gross margin profitability.</li>
+              <li><strong>Today's Cash In:</strong> Aggregates physical cash, checks, and Mobile Money (MoMo) payments collected.</li>
+              <li><strong>Today's Revenue:</strong> Tracks total invoice volumes generated today (both cleared sales and credit sales).</li>
+              <li><strong>Pending Deposits:</strong> Shows prepayments awaiting stock allocation and fulfillment.</li>
+              <li><strong>Stock Value:</strong> Calculates total warehouse valuation dynamically based on product Cost Price.</li>
+              <li><strong>Interactive Trend Charts:</strong> Analyzes revenue patterns over 7 days, 30 days, or Year-over-Year comparisons.</li>
             </ul>
           </div>
 
           <div className="feature-block">
-            <h3>💰 Sales Management</h3>
-            <p>This module handles all customer transactions and records.</p>
+            <h3>💰 Sales & Invoice Management</h3>
+            <p>This module processes transactions and logs customer relations:</p>
             <ul>
-              <li><strong>Sales Records:</strong> View all past transactions. You can filter by date, payment status (Paid, Credit, Partial, Deposit), and search by customer or product.</li>
-              <li><strong>Record Sale:</strong> Use the action button to record a new sale. You can add multiple products, specify quantities, apply discounts, and select the payment method.</li>
-              <li><strong>Customers:</strong> Manage your customer database. Track lifetime spent and view individual purchase histories.</li>
+              <li><strong>Record Sale:</strong> Add multiple items, specify quantities, calculate tax (inclusive or exclusive), and register payments (Cash, MoMo, Card, or Credit).</li>
+              <li><strong>Automatic Invoices:</strong> Automatically generates custom formatted invoice numbers (e.g., INV-103) with details for customers.</li>
+              <li><strong>Fulfillment Tracking:</strong> Track if items are physically dispatched or pending collection (essential for bulk hardware materials like cement, pipes, and iron rods).</li>
             </ul>
           </div>
 
           <div className="feature-block">
-            <h3>📦 Stock & Products</h3>
-            <p>Manage your inventory and product catalog here.</p>
+            <h3>📦 Inventory & Products Catalog</h3>
+            <p>Provides complete control over stock quantities and conversion settings:</p>
             <ul>
-              <li><strong>Products List:</strong> View all products with their current stock levels, cost price, and selling price.</li>
-              <li><strong>Add/Edit Product:</strong> Add new items to the inventory or update existing ones. Set low stock thresholds to get alerts when inventory runs low.</li>
-              <li><strong>Stock Deductions:</strong> The system automatically deducts stock when a sale is recorded or fulfilled.</li>
+              <li><strong>UOM Conversion Factors:</strong> Supports purchasing wholesale (e.g., bags/boxes) and selling retail (e.g., pcs/single items) with automatic conversion ratios.</li>
+              <li><strong>Low Stock Thresholds:</strong> Triggers SMS/email warnings through Edge functions to notify storekeepers when an item's count drops below the set limit.</li>
+              <li><strong>Automatic Deductions:</strong> Sales immediately reduce stock quantities. Fulfilling prepayments updates warehouse values in real-time.</li>
             </ul>
           </div>
 
           <div className="feature-block">
-            <h3>🧾 Accounting & Reports</h3>
-            <p>Keep track of the financial health of the business.</p>
+            <h3>🧾 Double-Entry Accounting & Ledger</h3>
+            <p>Maintains high-integrity financial records automatically for auditing:</p>
             <ul>
-              <li><strong>Daily Report (Entries):</strong> View a detailed ledger of all financial entries (Sales, Expenses, Deposits) for any given day.</li>
-              <li><strong>Expenses:</strong> Record business operational costs. Categorize expenses to understand where money is going.</li>
-              <li><strong>Deposits:</strong> Manage customer prepayments (Pure Deposits). This is used when a customer pays in advance for goods to be collected later.</li>
+              <li><strong>Automatic Journal Postings:</strong> Every transaction auto-posts debit/credit records to the Ledger (balancing Cash, Receivables, Cost of Goods Sold, and Revenue).</li>
+              <li><strong>Customer Deposits:</strong> Track "Pure Deposits" where customers deposit cash in advance to lock in prices, and fulfill items progressively as they are picked up.</li>
+              <li><strong>Expenses Ledger:</strong> Track operational costs (salaries, fuel, utilities) to compute accurate Net Profit margins.</li>
             </ul>
           </div>
 
           <div className="feature-block">
-            <h3>⚙️ Admin & Security</h3>
-            <p>Restricted features for system maintenance and monitoring.</p>
+            <h3>⚙️ Security, Access Roles & Audit Logs</h3>
+            <p>Enforces strict access control and operational visibility:</p>
             <ul>
-              <li><strong>System Logs:</strong> A complete audit trail of actions performed in the system (e.g., who recorded a sale, who deleted a product). This ensures accountability.</li>
-              <li><strong>User & Roles:</strong> Manage staff access. Roles include:
-                <ul>
-                  <li><em>Admin:</em> Full access to all features and settings.</li>
-                  <li><em>Storekeeper:</em> Access to stock and sales recording, but restricted from financial charts and logs.</li>
-                  <li><em>Auditor:</em> Access to reports and logs for verification purposes.</li>
-                </ul>
-              </li>
+              <li><strong>Auditor Role:</strong> Read-only access to ledger reports, daily transaction journals, and audit logs.</li>
+              <li><strong>Storekeeper Role:</strong> Permitted to write sales and products, but blocked from viewing overall financial charts or logs.</li>
+              <li><strong>Admin Role:</strong> Full system access, including invite permissions and organization-wide configuration updates.</li>
+              <li><strong>System Audit Trail:</strong> Complete historical logs of critical operations, capturing who performed every action (insert, update, delete) and when.</li>
             </ul>
           </div>
         </section>
 
         <footer className="guide-footer">
-          <p>© 2026 Flywheel Technologies. All rights reserved.</p>
+          <p>© 2026 Flywheel Technologies (bookflywheel.com). All rights reserved.</p>
         </footer>
       </div>
     </div>

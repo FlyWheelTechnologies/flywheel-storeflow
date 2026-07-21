@@ -93,6 +93,14 @@
 
 .sidebar__item--parent {
   justify-content: flex-start;
+  cursor: default;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.sidebar__item--parent:hover {
+  background: transparent;
+  color: rgba(255,255,255,0.7);
 }
 
 .sidebar__icon {
@@ -126,15 +134,13 @@
 }
 
 .sidebar__children-wrapper {
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 0.3s ease-out, opacity 0.2s;
-  opacity: 0;
-  overflow: hidden;
+  display: block;
+  opacity: 1;
+  overflow: visible;
 }
 
 .sidebar__children-wrapper--open {
-  grid-template-rows: 1fr;
+  display: block;
   opacity: 1;
 }
 
