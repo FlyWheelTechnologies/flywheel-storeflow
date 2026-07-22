@@ -132,18 +132,13 @@ export default function LandingPage() {
       const currentScrollY = window.scrollY;
       const lastScrollY = lastScrollYRef.current;
       
-      // Always show at the top of the page
+      // WhatsApp floating chat bubble visibility
       if (currentScrollY <= 80) {
-        setHeaderVisible(true);
         setChatVisible(true);
       } else {
         if (currentScrollY > lastScrollY) {
-          // Scroll down -> hide
-          setHeaderVisible(false);
           setChatVisible(false);
         } else {
-          // Scroll up -> show
-          setHeaderVisible(true);
           setChatVisible(true);
         }
       }
@@ -284,7 +279,7 @@ export default function LandingPage() {
       </a>
 
       {/* ─── HEADER ─── */}
-      <header className={`lp-header ${headerVisible ? "visible" : "hidden"}`}>
+      <header className="lp-header">
         <div className="lp-header-inner">
           <Link to="/" className="lp-brand">
             <span className="lp-brand-name">
