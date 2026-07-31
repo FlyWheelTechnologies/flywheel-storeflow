@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { Trash2 } from "lucide-react";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import "./Dashboard.css";
@@ -69,6 +70,47 @@ export default function SuperAdminDashboard() {
   const handleImpersonate = (org) => {
     impersonateOrg(org);
     navigate("/dashboard");
+  };
+
+  const [orgToDelete, setOrgToDelete] = useState(null);
+  const [deleteConfirmationInput, setDeleteConfirmationInput] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteOrg = async () => {
+    if (!orgToDelete) return;
+    if (deleteConfirmationInput.trim() !== orgToDelete.name.trim()) {
+      alert("The typed business name does not match.");
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      // Delete organization (Cascade deletes products, sales, customers, etc.)
+      const { error: deleteErr } = await supabase
+        .from("organizations")
+        .delete()
+        .eq("id", orgToDelete.id);
+
+      if (deleteErr) throw deleteErr;
+
+      // Log deletion event in platform_logs
+      await supabase.from("platform_logs").insert({
+        organization_id: null,
+        organization_name: orgToDelete.name,
+        action: "ORG_DELETE",
+        details: `Permanently deleted business "${orgToDelete.name}"`,
+        user_email: user?.email,
+      });
+
+      setOrgToDelete(null);
+      setDeleteConfirmationInput("");
+      fetchData();
+    } catch (err) {
+      console.error("Delete organization error:", err);
+      alert("Error deleting business: " + err.message);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const toggleOrgStatus = async (orgId, currentStatus) => {
@@ -182,7 +224,27 @@ export default function SuperAdminDashboard() {
                         {o.is_active ? "Active" : "Suspended"}
                       </span>
                     </td>
-                    <td style={{ display: "flex", gap: 12 }}>
+                    <td style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <button
+                        onClick={() => {
+                          setOrgToDelete(o);
+                          setDeleteConfirmationInput("");
+                        }}
+                        title={`Delete ${o.name}`}
+                        style={{
+                          background: "#fef2f2",
+                          color: "#dc2626",
+                          border: "1px solid #fecaca",
+                          borderRadius: 6,
+                          padding: "5px 8px",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center"
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
                       <button
                         onClick={() => handleImpersonate(o)}
                         className="quick-action-btn"
@@ -190,7 +252,7 @@ export default function SuperAdminDashboard() {
                           background: "#e0f2fe",
                           color: "#0369a1",
                           fontSize: 12,
-                          padding: "4px 8px",
+                          padding: "4px 10px",
                           minHeight: "auto"
                         }}
                       >
@@ -233,6 +295,110 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {orgToDelete && (
+        <div style={{
+          position: "fixed",
+          top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(15, 23, 42, 0.65)",
+          backdropFilter: "blur(4px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          padding: 20
+        }}>
+          <div style={{
+            background: "#ffffff",
+            borderRadius: 16,
+            maxWidth: 480,
+            width: "100%",
+            padding: 24,
+            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+            border: "1px solid #fee2e2"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#dc2626" }}>
+                ⚠️
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1e293b" }}>Delete Organization</h3>
+                <span style={{ fontSize: 12, color: "#94a3b8" }}>Irreversible Business Erasure</span>
+              </div>
+            </div>
+
+            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: 12, marginBottom: 16 }}>
+              <p style={{ margin: 0, fontSize: 13, color: "#991b1b", lineHeight: 1.5, fontWeight: 500 }}>
+                <strong>Warning:</strong> Deleting <strong>"{orgToDelete.name}"</strong> will permanently erase all linked products, sales transactions, customer debts, expenses, and staff access.
+              </p>
+            </div>
+
+            <p style={{ fontSize: 13, color: "#475569", marginBottom: 8, lineHeight: 1.4 }}>
+              To confirm permanent deletion, please type the exact business name <strong>"{orgToDelete.name}"</strong> below:
+            </p>
+
+            <input
+              type="text"
+              value={deleteConfirmationInput}
+              onChange={(e) => setDeleteConfirmationInput(e.target.value)}
+              placeholder={orgToDelete.name}
+              style={{
+                width: "100%",
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: "1px solid #cbd5e1",
+                fontSize: 14,
+                marginBottom: 20,
+                outline: "none",
+                fontFamily: "inherit",
+                boxSizing: "border-box"
+              }}
+              autoFocus
+            />
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setOrgToDelete(null);
+                  setDeleteConfirmationInput("");
+                }}
+                disabled={isDeleting}
+                style={{
+                  background: "#f1f5f9",
+                  color: "#475569",
+                  border: "none",
+                  padding: "10px 16px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: "pointer"
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteOrg}
+                disabled={deleteConfirmationInput.trim() !== orgToDelete.name.trim() || isDeleting}
+                style={{
+                  background: (deleteConfirmationInput.trim() === orgToDelete.name.trim() && !isDeleting) ? "#dc2626" : "#fca5a5",
+                  color: "#ffffff",
+                  border: "none",
+                  padding: "10px 16px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: (deleteConfirmationInput.trim() === orgToDelete.name.trim() && !isDeleting) ? "pointer" : "not-allowed"
+                }}
+              >
+                {isDeleting ? "Deleting Business..." : "Permanently Delete Business"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

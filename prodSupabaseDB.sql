@@ -13,6 +13,13 @@ CREATE TABLE public.organizations (
   phone text,
   address text,
   is_active boolean DEFAULT true,
+  setup_fee numeric DEFAULT 0,
+  subscription_amount numeric DEFAULT 0,
+  billing_cycle text DEFAULT 'monthly'::text,
+  payment_status text DEFAULT 'active'::text,
+  payment_terms text,
+  subscription_expires_at timestamp with time zone,
+  last_payment_date timestamp with time zone,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT organizations_pkey PRIMARY KEY (id)

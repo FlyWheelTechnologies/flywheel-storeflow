@@ -63,21 +63,46 @@ export default function AdminSettings() {
         }).eq('id', editUserId);
         submitError = updateError;
       } else {
-        // Create new user via Edge Function (Prevents Admin logout)
-        const { data, error: functionError } = await supabase.functions.invoke('invite-user', {
-          body: {
+        // Create new user via Edge Function (with direct Auth fallback if unconfigured)
+        try {
+          const { data, error: functionError } = await supabase.functions.invoke('invite-user', {
+            body: {
+              email: newUser.email,
+              password: newUser.password,
+              role: newUser.role,
+              full_name: newUser.full_name,
+              organization_id: currentUser?.organization_id
+            }
+          });
+          
+          if (functionError || data?.error) {
+            throw new Error(functionError?.message || data?.error || "Edge function unavailable");
+          }
+        } catch (fnErr) {
+          console.warn("Edge function invite-user failed/unconfigured, using direct Auth fallback:", fnErr.message);
+          const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
             email: newUser.email,
             password: newUser.password,
-            role: newUser.role,
-            full_name: newUser.full_name,
-            organization_id: user?.organization_id
+            options: {
+              data: {
+                full_name: newUser.full_name,
+                role: newUser.role,
+                organization_id: currentUser?.organization_id
+              }
+            }
+          });
+
+          if (signUpErr && !signUpErr.message.includes("already registered")) {
+            submitError = signUpErr;
+          } else if (signUpData?.user) {
+            await supabase.from('profiles').upsert({
+              id: signUpData.user.id,
+              email: newUser.email,
+              full_name: newUser.full_name,
+              role: newUser.role,
+              organization_id: currentUser?.organization_id
+            });
           }
-        });
-        
-        if (functionError) {
-          submitError = functionError;
-        } else if (data?.error) {
-          submitError = { message: data.error };
         }
       }
 
