@@ -78,11 +78,15 @@ CREATE POLICY "Super admins can insert platform logs" ON public.platform_logs
 -- --- Profiles Policies ---
 DROP POLICY IF EXISTS "Super admins can manage all profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Org members can read profiles in their org" ON public.profiles;
+DROP POLICY IF EXISTS "Users can read their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Allow users to insert their own profile" ON public.profiles;
 
 CREATE POLICY "Super admins can manage all profiles" ON public.profiles
   TO authenticated FOR ALL USING ((SELECT public.is_super_admin()));
+
+CREATE POLICY "Users can read their own profile" ON public.profiles
+  TO authenticated FOR SELECT USING (id = (SELECT auth.uid()));
 
 CREATE POLICY "Org members can read profiles in their org" ON public.profiles
   TO authenticated FOR SELECT USING (organization_id = (SELECT public.get_my_organization_id()));
