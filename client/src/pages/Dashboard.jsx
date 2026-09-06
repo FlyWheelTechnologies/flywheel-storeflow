@@ -31,6 +31,7 @@ function StatCard({ icon, label, value, trend, accent, children }) {
 /* ─── MAIN DASHBOARD ───────────────────────────── */
 export default function Dashboard() {
   const { user, activeOrg } = useAuth();
+  const businessName = activeOrg?.name || user?.organizations?.name || (user?.role === 'super_admin' ? 'StoreFlow Admin' : 'StoreFlow');
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [sales, setSales] = useState([]);
@@ -261,8 +262,43 @@ export default function Dashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div className="greeting-card__content">
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#f97316', textTransform: 'uppercase', marginBottom: 2, letterSpacing: 1.5 }}>Sunyani, Ghana 🇬🇭</div>
-            <h1 className="greeting" style={{ marginBottom: 4 }}>Good {getGreeting()}, <span style={{ color: '#f15a24' }}>{user?.full_name?.split(' ')[0] || 'Member'}</span>!</h1>
+            {/* Prominent Business Name on top of Dashboard */}
+            <div style={{ 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              gap: 8, 
+              marginBottom: 8,
+              padding: '5px 14px',
+              borderRadius: 8,
+              background: 'var(--brand-bg-light, rgba(249, 115, 22, 0.08))',
+              border: '1px solid var(--brand-border, rgba(249, 115, 22, 0.2))'
+            }}>
+              {activeOrg?.logo_url ? (
+                <img 
+                  src={activeOrg.logo_url} 
+                  alt={businessName} 
+                  style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} 
+                />
+              ) : (
+                <span style={{ 
+                  width: 8, 
+                  height: 8, 
+                  borderRadius: '50%', 
+                  background: 'var(--brand-primary, #f97316)',
+                  boxShadow: '0 0 6px var(--brand-primary, #f97316)' 
+                }} />
+              )}
+              <span style={{ 
+                fontSize: 13, 
+                fontWeight: 800, 
+                color: 'var(--brand-primary, #f97316)', 
+                textTransform: 'uppercase', 
+                letterSpacing: 1.2 
+              }}>
+                {businessName}
+              </span>
+            </div>
+            <h1 className="greeting" style={{ marginBottom: 4 }}>Good {getGreeting()}, <span style={{ color: 'var(--brand-primary, #f15a24)' }}>{user?.full_name?.split(' ')[0] || 'Member'}</span>!</h1>
             <p className="greeting-sub">
               {depletedCount > 0 ? (
                 <span style={{ color: '#ef4444', fontWeight: 800 }}>⚠️ {depletedCount} items are completely depleted! </span>
