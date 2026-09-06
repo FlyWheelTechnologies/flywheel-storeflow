@@ -112,14 +112,20 @@ export default function Products() {
     };
     
     try {
+      const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
+
       if (editingId) {
+        if (resolvedOrgId && !payload.organization_id) {
+          payload.organization_id = resolvedOrgId;
+        }
         const { error: err } = await supabase.from('products').update(payload).eq('id', editingId);
         if (err) throw err;
       } else {
         payload.created_at = new Date().toISOString();
-        const orgId = activeOrgId || user?.organization_id;
-        if (orgId) {
-          payload.organization_id = orgId;
+        if (resolvedOrgId) {
+          payload.organization_id = resolvedOrgId;
+        } else if (user?.role !== 'super_admin') {
+          throw new Error("No active organization found for your account. Please refresh or contact your administrator.");
         }
         const { error: err } = await supabase.from('products').insert([payload]);
         if (err) throw err;

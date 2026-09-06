@@ -72,12 +72,14 @@ export default function Dashboard() {
     if (!depCustName || !depCustPhone || !depAmount) return setToast({ message: "Please fill all fields", type: "error" });
     setDepSaving(true);
     try {
+      const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
       const { data, error } = await supabase.rpc('record_pure_deposit', {
         p_customer_name: depCustName,
         p_customer_phone: depCustPhone,
         p_amount: parseFloat(depAmount),
-        p_recorded_by: user?.email,
-        p_payment_method: depMethod
+        p_recorded_by: user?.email || 'System',
+        p_payment_method: depMethod,
+        p_organization_id: resolvedOrgId || null
       });
 
       if (error) throw error;

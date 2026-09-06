@@ -16,18 +16,95 @@ export function AuthProvider({ children }) {
     if (!sessionUser) return null;
     
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('profiles')
         .select('*, organizations(*)')
         .eq('id', sessionUser.id)
         .maybeSingle();
 
       if (error) {
-        console.warn("Profile fetch error, using cached info if available:", error.message);
-        return user || { ...sessionUser, role: 'storekeeper' };
+        console.warn("Profile fetch error, inspecting metadata fallbacks:", error.message);
       }
       
-      const updatedUser = { ...sessionUser, ...data };
+      // 1. Resolve fallback organization ID and role from auth metadata
+      let orgId = data?.organization_id || sessionUser.user_metadata?.organization_id || sessionUser.app_metadata?.organization_id || null;
+      let role = data?.role || sessionUser.user_metadata?.role || sessionUser.app_metadata?.role || null;
+      let fullName = data?.full_name || sessionUser.user_metadata?.full_name || sessionUser.email?.split('@')[0] || '';
+      let orgData = data?.organizations || null;
+
+      // 2. If organization_id is still unknown, check if this user is the registered admin_email of any organization
+      if (!orgId && sessionUser.email) {
+        try {
+          const { data: matchedOrg } = await supabase
+            .from('organizations')
+            .select('*')
+            .ilike('admin_email', sessionUser.email)
+            .maybeSingle();
+
+          if (matchedOrg) {
+            orgId = matchedOrg.id;
+            orgData = matchedOrg;
+            if (!role) role = 'admin';
+          }
+        } catch (orgMatchErr) {
+          console.warn("Error checking admin_email organization match:", orgMatchErr);
+        }
+      }
+
+      if (!role) {
+        role = 'storekeeper';
+      }
+
+      // 3. Self-healing: If profile doesn't exist or organization_id was missing, upsert to ensure DB consistency
+      if (!data || (!data.organization_id && orgId)) {
+        try {
+          const { data: healedProfile } = await supabase
+            .from('profiles')
+            .upsert({
+              id: sessionUser.id,
+              email: sessionUser.email,
+              full_name: fullName,
+              role: role,
+              organization_id: orgId,
+              updated_at: new Date().toISOString()
+            })
+            .select('*, organizations(*)')
+            .maybeSingle();
+
+          if (healedProfile) {
+            data = healedProfile;
+            if (healedProfile.organizations) orgData = healedProfile.organizations;
+          }
+        } catch (healErr) {
+          console.warn("Profile self-healing upsert warning:", healErr);
+        }
+      }
+
+      // 4. If organization object is missing but we have orgId, fetch organizations directly
+      if (orgId && !orgData) {
+        try {
+          const { data: directOrg } = await supabase
+            .from('organizations')
+            .select('*')
+            .eq('id', orgId)
+            .maybeSingle();
+          if (directOrg) {
+            orgData = directOrg;
+          }
+        } catch (directOrgErr) {
+          console.warn("Direct organization lookup warning:", directOrgErr);
+        }
+      }
+
+      const updatedUser = {
+        ...sessionUser,
+        ...(data || {}),
+        role: role,
+        organization_id: orgId,
+        full_name: fullName,
+        organizations: orgData
+      };
+      
       localStorage.setItem("user", JSON.stringify(updatedUser));
       return updatedUser;
     } catch (err) {

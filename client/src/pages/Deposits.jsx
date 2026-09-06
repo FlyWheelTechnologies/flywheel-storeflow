@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
+import { useAuth } from "../context/AuthContext";
 import ConfirmationModal from "../components/ConfirmationModal";
 import "./Dashboard.css";
 import { formatCurrency, formatPhone } from "../services/formatters";
 
 export default function Deposits() {
+  const { user, activeOrgId } = useAuth();
   const location = useLocation();
   const [deposits, setDeposits] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -81,12 +83,15 @@ export default function Deposits() {
     // Prevent JWT expired error by proactively refreshing session if dormant
     await supabase.auth.getSession();
     try {
+      const cachedUser = JSON.parse(localStorage.getItem("user") || "{}");
+      const resolvedOrgId = activeOrgId || user?.organization_id || cachedUser?.organization_id || user?.organizations?.id;
       const { error } = await supabase.rpc('record_pure_deposit', {
         p_customer_name: depCustName,
         p_customer_phone: depCustPhone,
         p_amount: parseFloat(depAmount),
         p_payment_method: depMethod,
-        p_recorded_by: JSON.parse(localStorage.getItem("user"))?.email || 'System'
+        p_recorded_by: user?.email || cachedUser?.email || 'System',
+        p_organization_id: resolvedOrgId || null
       });
       if (error) throw error;
       

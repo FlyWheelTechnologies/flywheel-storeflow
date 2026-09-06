@@ -47,13 +47,21 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // 1. Create the user in Auth
+    // 1. Create the user in Auth with full metadata
     console.log("Creating auth user...");
     const { data: authData, error: authError } = await supabaseClient.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
-      user_metadata: { full_name }
+      user_metadata: { 
+        full_name,
+        role: role || 'storekeeper',
+        organization_id: organization_id || null
+      },
+      app_metadata: {
+        role: role || 'storekeeper',
+        organization_id: organization_id || null
+      }
     });
 
     if (authError) {
@@ -61,16 +69,21 @@ Deno.serve(async (req: Request) => {
       throw authError;
     }
 
-    // 2. Update the profile
-    console.log("Updating profile for user:", authData.user.id);
-    const updatePayload: any = { role, full_name };
+    // 2. Ensure the profile exists and is linked via UPSERT
+    console.log("Ensuring profile for user:", authData.user.id);
+    const profilePayload: any = { 
+      id: authData.user.id,
+      email,
+      full_name,
+      role: role || 'storekeeper',
+      updated_at: new Date().toISOString()
+    };
     if (organization_id !== undefined && organization_id !== null) {
-      updatePayload.organization_id = organization_id;
+      profilePayload.organization_id = organization_id;
     }
     const { error: profileError } = await supabaseClient
       .from('profiles')
-      .update(updatePayload)
-      .eq('id', authData.user.id);
+      .upsert(profilePayload);
 
     if (profileError) {
       console.error("Profile error:", profileError);
