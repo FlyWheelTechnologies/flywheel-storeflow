@@ -11,6 +11,7 @@ import Logs from "./pages/Logs";
 import Customers from "./pages/Customers";
 import AdminSettings from "./pages/AdminSettings";
 import SystemGuide from "./pages/SystemGuide";
+import StoreflowAI from "./pages/StoreflowAI";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
@@ -29,6 +30,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
+        <Route path="/ai" element={<ProtectedRoute><Layout><StoreflowAI /></Layout></ProtectedRoute>} />
         <Route path="/products" element={<ProtectedRoute><Layout><Products /></Layout></ProtectedRoute>} />
         <Route path="/sales" element={<ProtectedRoute><Layout><Sales /></Layout></ProtectedRoute>} />
         <Route path="/customers" element={<ProtectedRoute><Layout><Customers /></Layout></ProtectedRoute>} />
