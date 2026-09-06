@@ -372,9 +372,9 @@ export default function Dashboard() {
                 ))}
               </div>
             </div>
-            <div className="chart-container" style={{ height: 350, width: '100%', minWidth: 0 }}>
+            <div className="chart-container" style={{ height: 350, width: '100%', minWidth: 0, minHeight: 350, position: 'relative' }}>
               {chartData && chartData.length > 0 && (
-                <ResponsiveContainer width="100%" height="100%" minHeight={350} minWidth={0} debounce={50}>
+                <ResponsiveContainer width="100%" height={350}>
                   {timeframe === 'YoY' ? (
                     <LineChart data={chartData}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f2f6" />

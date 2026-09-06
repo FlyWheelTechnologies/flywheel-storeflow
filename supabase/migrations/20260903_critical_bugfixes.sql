@@ -16,6 +16,7 @@ DROP FUNCTION IF EXISTS public.record_sale_transaction(bigint, text, numeric, nu
 DROP FUNCTION IF EXISTS public.record_sale_transaction(integer, text, numeric, numeric, text, text, jsonb, text, numeric, boolean) CASCADE;
 DROP FUNCTION IF EXISTS public.record_sale_transaction(integer, text, numeric, numeric, text, text, jsonb, text, numeric, boolean, numeric) CASCADE;
 DROP FUNCTION IF EXISTS public.record_sale_transaction(integer, text, numeric, numeric, text, text, jsonb, text, numeric, boolean, numeric, timestamptz, text) CASCADE;
+DROP FUNCTION IF EXISTS public.record_sale_transaction(integer, text, numeric, numeric, text, text, jsonb, text, numeric, boolean, numeric, timestamptz, text, uuid) CASCADE;
 
 -- ============================================================
 -- STEP 2: RECREATE CANONICAL HARDENED record_sale_transaction
@@ -33,7 +34,8 @@ CREATE OR REPLACE FUNCTION public.record_sale_transaction(
   p_tax_inclusive boolean DEFAULT TRUE,
   p_credit_used numeric DEFAULT 0,
   p_created_at timestamptz DEFAULT NULL,
-  p_invoice_no text DEFAULT NULL
+  p_invoice_no text DEFAULT NULL,
+  p_organization_id uuid DEFAULT NULL
 )
 RETURNS uuid
 LANGUAGE plpgsql
@@ -49,8 +51,25 @@ DECLARE
   v_org_id UUID;
   v_max_seq INTEGER;
 BEGIN
-  -- 1. Identify caller's organization
-  v_org_id := public.get_my_organization_id();
+  -- 1. Identify caller's organization (with Super Admin impersonation support)
+  IF public.is_super_admin() THEN
+    v_org_id := p_organization_id;
+    IF v_org_id IS NULL THEN
+      SELECT organization_id INTO v_org_id 
+      FROM public.products 
+      WHERE id = (
+        SELECT product_id 
+        FROM pg_catalog.jsonb_to_recordset(p_items) AS x(product_id UUID, product_name TEXT, quantity NUMERIC, unit_price NUMERIC, subtotal NUMERIC) 
+        LIMIT 1
+      );
+    END IF;
+    IF v_org_id IS NULL AND p_customer_id IS NOT NULL THEN
+      SELECT organization_id INTO v_org_id FROM public.customers WHERE id = p_customer_id;
+    END IF;
+  ELSE
+    v_org_id := public.get_my_organization_id();
+  END IF;
+
   IF v_org_id IS NULL THEN
     RAISE EXCEPTION 'Unauthorized: User is not associated with an active organization';
   END IF;
@@ -138,12 +157,16 @@ $function$;
 -- ============================================================
 -- STEP 3: RECREATE CANONICAL record_pure_deposit
 -- ============================================================
+DROP FUNCTION IF EXISTS public.record_pure_deposit(text, text, numeric, text, text) CASCADE;
+DROP FUNCTION IF EXISTS public.record_pure_deposit(text, text, numeric, text, text, uuid) CASCADE;
+
 CREATE OR REPLACE FUNCTION public.record_pure_deposit(
   p_customer_name text,
   p_customer_phone text,
   p_amount numeric,
   p_payment_method text,
-  p_recorded_by text
+  p_recorded_by text,
+  p_organization_id uuid DEFAULT NULL
 )
 RETURNS uuid
 LANGUAGE plpgsql
@@ -155,7 +178,20 @@ DECLARE
   v_sale_id uuid;
   v_org_id uuid;
 BEGIN
-  v_org_id := public.get_my_organization_id();
+  IF public.is_super_admin() THEN
+    v_org_id := p_organization_id;
+    IF v_org_id IS NULL THEN
+      SELECT organization_id INTO v_org_id 
+      FROM public.customers 
+      WHERE name = p_customer_name 
+        AND (phone = p_customer_phone OR (phone IS NULL AND p_customer_phone IS NULL))
+      ORDER BY id ASC
+      LIMIT 1;
+    END IF;
+  ELSE
+    v_org_id := public.get_my_organization_id();
+  END IF;
+
   IF v_org_id IS NULL THEN
     RAISE EXCEPTION 'Unauthorized: User is not associated with an active organization';
   END IF;
@@ -213,7 +249,12 @@ AS $$
 DECLARE
   v_org_id uuid;
 BEGIN
-  v_org_id := public.get_my_organization_id();
+  IF public.is_super_admin() THEN
+    SELECT organization_id INTO v_org_id FROM public.sales WHERE id = p_sale_id;
+  ELSE
+    v_org_id := public.get_my_organization_id();
+  END IF;
+
   IF v_org_id IS NULL THEN
     RAISE EXCEPTION 'Unauthorized: User is not associated with an active organization';
   END IF;
@@ -255,19 +296,21 @@ DECLARE
   v_org_id uuid;
   v_my_org_id uuid;
 BEGIN
-  v_my_org_id := public.get_my_organization_id();
-  IF v_my_org_id IS NULL THEN
-    RAISE EXCEPTION 'Unauthorized: User is not associated with an active organization';
-  END IF;
-
   -- Fetch existing sale info
   SELECT amount_paid, customer_id, customer_name, organization_id
   INTO v_amount_paid, v_customer_id, v_customer_name, v_org_id
   FROM public.sales
   WHERE id = p_sale_id;
 
-  IF v_org_id IS NULL OR v_org_id IS DISTINCT FROM v_my_org_id THEN
-    RAISE EXCEPTION 'Sale not found or unauthorized for this organization';
+  IF v_org_id IS NULL THEN
+    RAISE EXCEPTION 'Sale not found';
+  END IF;
+
+  IF NOT public.is_super_admin() THEN
+    v_my_org_id := public.get_my_organization_id();
+    IF v_my_org_id IS NULL OR v_org_id IS DISTINCT FROM v_my_org_id THEN
+      RAISE EXCEPTION 'Sale not found or unauthorized for this organization';
+    END IF;
   END IF;
 
   -- Insert sale items and calculate total
@@ -382,8 +425,8 @@ WHERE je.organization_id IS NULL
 -- ============================================================
 -- STEP 8: GRANTS
 -- ============================================================
-GRANT EXECUTE ON FUNCTION public.record_sale_transaction(integer, text, numeric, numeric, text, text, jsonb, text, numeric, boolean, numeric, timestamptz, text) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.record_pure_deposit(text, text, numeric, text, text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.record_sale_transaction(integer, text, numeric, numeric, text, text, jsonb, text, numeric, boolean, numeric, timestamptz, text, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.record_pure_deposit(text, text, numeric, text, text, uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.fulfill_sale(uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.fulfill_pure_deposit(uuid, jsonb) TO authenticated, service_role;
 

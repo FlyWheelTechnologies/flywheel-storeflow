@@ -160,8 +160,6 @@ export default function Sidebar({ collapsed, onToggle }) {
   return (
     <aside 
       className={`sidebar ${displayCollapsed ? "sidebar--collapsed" : ""}`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       onClick={() => {
         if (displayCollapsed && window.innerWidth <= 768) {
           onToggle();

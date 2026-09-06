@@ -53,13 +53,13 @@ DROP POLICY IF EXISTS "Org members can view their own organization" ON public.or
 DROP POLICY IF EXISTS "Org admins can update their own organization" ON public.organizations;
 
 CREATE POLICY "Super admins can manage all organizations" ON public.organizations
-  TO authenticated FOR ALL USING ((SELECT public.is_super_admin()));
+  FOR ALL TO authenticated USING ((SELECT public.is_super_admin()));
 
 CREATE POLICY "Org members can view their own organization" ON public.organizations
-  TO authenticated FOR SELECT USING (id = (SELECT public.get_my_organization_id()));
+  FOR SELECT TO authenticated USING (id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org admins can update their own organization" ON public.organizations
-  TO authenticated FOR UPDATE
+  FOR UPDATE TO authenticated
   USING (id = (SELECT public.get_my_organization_id()) AND (SELECT role FROM public.profiles WHERE id = (SELECT auth.uid())) = 'admin')
   WITH CHECK (id = (SELECT public.get_my_organization_id()));
 
@@ -69,10 +69,10 @@ DROP POLICY IF EXISTS "Super admins can view all platform logs" ON public.platfo
 DROP POLICY IF EXISTS "Super admins can insert platform logs" ON public.platform_logs;
 
 CREATE POLICY "Super admins can view all platform logs" ON public.platform_logs
-  TO authenticated FOR SELECT USING ((SELECT public.is_super_admin()));
+  FOR SELECT TO authenticated USING ((SELECT public.is_super_admin()));
 
 CREATE POLICY "Super admins can insert platform logs" ON public.platform_logs
-  TO authenticated FOR INSERT WITH CHECK ((SELECT public.is_super_admin()));
+  FOR INSERT TO authenticated WITH CHECK ((SELECT public.is_super_admin()));
 
 
 -- --- Profiles Policies ---
@@ -83,21 +83,21 @@ DROP POLICY IF EXISTS "Users can update their own profile" ON public.profiles;
 DROP POLICY IF EXISTS "Allow users to insert their own profile" ON public.profiles;
 
 CREATE POLICY "Super admins can manage all profiles" ON public.profiles
-  TO authenticated FOR ALL USING ((SELECT public.is_super_admin()));
+  FOR ALL TO authenticated USING ((SELECT public.is_super_admin()));
 
 CREATE POLICY "Users can read their own profile" ON public.profiles
-  TO authenticated FOR SELECT USING (id = (SELECT auth.uid()));
+  FOR SELECT TO authenticated USING (id = (SELECT auth.uid()));
 
 CREATE POLICY "Org members can read profiles in their org" ON public.profiles
-  TO authenticated FOR SELECT USING (organization_id = (SELECT public.get_my_organization_id()));
+  FOR SELECT TO authenticated USING (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Users can update their own profile" ON public.profiles
-  TO authenticated FOR UPDATE
+  FOR UPDATE TO authenticated
   USING (id = (SELECT auth.uid()))
   WITH CHECK (id = (SELECT auth.uid()));
 
 CREATE POLICY "Allow users to insert their own profile" ON public.profiles
-  TO authenticated FOR INSERT WITH CHECK (id = (SELECT auth.uid()));
+  FOR INSERT TO authenticated WITH CHECK (id = (SELECT auth.uid()));
 
 
 -- --- Products Policies ---
@@ -105,21 +105,21 @@ DROP POLICY IF EXISTS "Super admins can manage all products" ON public.products;
 DROP POLICY IF EXISTS "Org members can manage products" ON public.products;
 
 CREATE POLICY "Super admins can manage all products" ON public.products
-  TO authenticated FOR ALL USING ((SELECT public.is_super_admin()));
+  FOR ALL TO authenticated USING ((SELECT public.is_super_admin()));
 
 CREATE POLICY "Org members can select products" ON public.products
-  TO authenticated FOR SELECT USING (organization_id = (SELECT public.get_my_organization_id()));
+  FOR SELECT TO authenticated USING (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can insert products" ON public.products
-  TO authenticated FOR INSERT WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
+  FOR INSERT TO authenticated WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can update products" ON public.products
-  TO authenticated FOR UPDATE
+  FOR UPDATE TO authenticated
   USING (organization_id = (SELECT public.get_my_organization_id()))
   WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can delete products" ON public.products
-  TO authenticated FOR DELETE USING (organization_id = (SELECT public.get_my_organization_id()));
+  FOR DELETE TO authenticated USING (organization_id = (SELECT public.get_my_organization_id()));
 
 
 -- --- Sales Policies ---
@@ -127,21 +127,21 @@ DROP POLICY IF EXISTS "Super admins can manage all sales" ON public.sales;
 DROP POLICY IF EXISTS "Org members can manage sales" ON public.sales;
 
 CREATE POLICY "Super admins can manage all sales" ON public.sales
-  TO authenticated FOR ALL USING ((SELECT public.is_super_admin()));
+  FOR ALL TO authenticated USING ((SELECT public.is_super_admin()));
 
 CREATE POLICY "Org members can select sales" ON public.sales
-  TO authenticated FOR SELECT USING (organization_id = (SELECT public.get_my_organization_id()));
+  FOR SELECT TO authenticated USING (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can insert sales" ON public.sales
-  TO authenticated FOR INSERT WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
+  FOR INSERT TO authenticated WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can update sales" ON public.sales
-  TO authenticated FOR UPDATE
+  FOR UPDATE TO authenticated
   USING (organization_id = (SELECT public.get_my_organization_id()))
   WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can delete sales" ON public.sales
-  TO authenticated FOR DELETE USING (organization_id = (SELECT public.get_my_organization_id()));
+  FOR DELETE TO authenticated USING (organization_id = (SELECT public.get_my_organization_id()));
 
 
 -- --- Sale Items Policies ---
@@ -149,21 +149,21 @@ DROP POLICY IF EXISTS "Super admins can manage all sale_items" ON public.sale_it
 DROP POLICY IF EXISTS "Org members can manage sale_items" ON public.sale_items;
 
 CREATE POLICY "Super admins can manage all sale_items" ON public.sale_items
-  TO authenticated FOR ALL USING ((SELECT public.is_super_admin()));
+  FOR ALL TO authenticated USING ((SELECT public.is_super_admin()));
 
 CREATE POLICY "Org members can select sale_items" ON public.sale_items
-  TO authenticated FOR SELECT USING (organization_id = (SELECT public.get_my_organization_id()));
+  FOR SELECT TO authenticated USING (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can insert sale_items" ON public.sale_items
-  TO authenticated FOR INSERT WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
+  FOR INSERT TO authenticated WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can update sale_items" ON public.sale_items
-  TO authenticated FOR UPDATE
+  FOR UPDATE TO authenticated
   USING (organization_id = (SELECT public.get_my_organization_id()))
   WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can delete sale_items" ON public.sale_items
-  TO authenticated FOR DELETE USING (organization_id = (SELECT public.get_my_organization_id()));
+  FOR DELETE TO authenticated USING (organization_id = (SELECT public.get_my_organization_id()));
 
 
 -- --- Customers Policies ---
@@ -171,21 +171,21 @@ DROP POLICY IF EXISTS "Super admins can manage all customers" ON public.customer
 DROP POLICY IF EXISTS "Org members can manage customers" ON public.customers;
 
 CREATE POLICY "Super admins can manage all customers" ON public.customers
-  TO authenticated FOR ALL USING ((SELECT public.is_super_admin()));
+  FOR ALL TO authenticated USING ((SELECT public.is_super_admin()));
 
 CREATE POLICY "Org members can select customers" ON public.customers
-  TO authenticated FOR SELECT USING (organization_id = (SELECT public.get_my_organization_id()));
+  FOR SELECT TO authenticated USING (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can insert customers" ON public.customers
-  TO authenticated FOR INSERT WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
+  FOR INSERT TO authenticated WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can update customers" ON public.customers
-  TO authenticated FOR UPDATE
+  FOR UPDATE TO authenticated
   USING (organization_id = (SELECT public.get_my_organization_id()))
   WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can delete customers" ON public.customers
-  TO authenticated FOR DELETE USING (organization_id = (SELECT public.get_my_organization_id()));
+  FOR DELETE TO authenticated USING (organization_id = (SELECT public.get_my_organization_id()));
 
 
 -- --- Expenses Policies ---
@@ -193,21 +193,21 @@ DROP POLICY IF EXISTS "Super admins can manage all expenses" ON public.expenses;
 DROP POLICY IF EXISTS "Org members can manage expenses" ON public.expenses;
 
 CREATE POLICY "Super admins can manage all expenses" ON public.expenses
-  TO authenticated FOR ALL USING ((SELECT public.is_super_admin()));
+  FOR ALL TO authenticated USING ((SELECT public.is_super_admin()));
 
 CREATE POLICY "Org members can select expenses" ON public.expenses
-  TO authenticated FOR SELECT USING (organization_id = (SELECT public.get_my_organization_id()));
+  FOR SELECT TO authenticated USING (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can insert expenses" ON public.expenses
-  TO authenticated FOR INSERT WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
+  FOR INSERT TO authenticated WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can update expenses" ON public.expenses
-  TO authenticated FOR UPDATE
+  FOR UPDATE TO authenticated
   USING (organization_id = (SELECT public.get_my_organization_id()))
   WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can delete expenses" ON public.expenses
-  TO authenticated FOR DELETE USING (organization_id = (SELECT public.get_my_organization_id()));
+  FOR DELETE TO authenticated USING (organization_id = (SELECT public.get_my_organization_id()));
 
 
 -- --- Journal Entries Policies ---
@@ -215,21 +215,21 @@ DROP POLICY IF EXISTS "Super admins can manage all journal_entries" ON public.jo
 DROP POLICY IF EXISTS "Org members can manage journal_entries" ON public.journal_entries;
 
 CREATE POLICY "Super admins can manage all journal_entries" ON public.journal_entries
-  TO authenticated FOR ALL USING ((SELECT public.is_super_admin()));
+  FOR ALL TO authenticated USING ((SELECT public.is_super_admin()));
 
 CREATE POLICY "Org members can select journal_entries" ON public.journal_entries
-  TO authenticated FOR SELECT USING (organization_id = (SELECT public.get_my_organization_id()));
+  FOR SELECT TO authenticated USING (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can insert journal_entries" ON public.journal_entries
-  TO authenticated FOR INSERT WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
+  FOR INSERT TO authenticated WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can update journal_entries" ON public.journal_entries
-  TO authenticated FOR UPDATE
+  FOR UPDATE TO authenticated
   USING (organization_id = (SELECT public.get_my_organization_id()))
   WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can delete journal_entries" ON public.journal_entries
-  TO authenticated FOR DELETE USING (organization_id = (SELECT public.get_my_organization_id()));
+  FOR DELETE TO authenticated USING (organization_id = (SELECT public.get_my_organization_id()));
 
 
 -- --- Logs Policies ---
@@ -237,21 +237,21 @@ DROP POLICY IF EXISTS "Super admins can manage all logs" ON public.logs;
 DROP POLICY IF EXISTS "Org members can manage logs" ON public.logs;
 
 CREATE POLICY "Super admins can manage all logs" ON public.logs
-  TO authenticated FOR ALL USING ((SELECT public.is_super_admin()));
+  FOR ALL TO authenticated USING ((SELECT public.is_super_admin()));
 
 CREATE POLICY "Org members can select logs" ON public.logs
-  TO authenticated FOR SELECT USING (organization_id = (SELECT public.get_my_organization_id()));
+  FOR SELECT TO authenticated USING (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can insert logs" ON public.logs
-  TO authenticated FOR INSERT WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
+  FOR INSERT TO authenticated WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can update logs" ON public.logs
-  TO authenticated FOR UPDATE
+  FOR UPDATE TO authenticated
   USING (organization_id = (SELECT public.get_my_organization_id()))
   WITH CHECK (organization_id = (SELECT public.get_my_organization_id()));
 
 CREATE POLICY "Org members can delete logs" ON public.logs
-  TO authenticated FOR DELETE USING (organization_id = (SELECT public.get_my_organization_id()));
+  FOR DELETE TO authenticated USING (organization_id = (SELECT public.get_my_organization_id()));
 
 
 -- 4. App Metadata Sync Trigger Function (Syncs profiles role/org to auth.users app_metadata)

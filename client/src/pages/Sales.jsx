@@ -6,8 +6,10 @@ import "./Dashboard.css";
 import { SalesService } from "../services/SalesService";
 import SalesForm from "../components/Sales/SalesForm";
 import SalesTable from "../components/Sales/SalesTable";
+import { useAuth } from "../context/AuthContext";
 
 export default function Sales() {
+  const { user, activeOrgId } = useAuth();
   const location = useLocation();
   const [sales, setSales] = useState([]);
   const [products, setProducts] = useState([]);
@@ -30,10 +32,20 @@ export default function Sales() {
   const [itemsToShow, setItemsToShow] = useState(25);
 
   const fetchData = async () => {
+    let salesQ = supabase.from('sales').select('*').order('created_at', { ascending: false });
+    let productsQ = supabase.from('products').select('*');
+    let customersQ = supabase.from('customers').select('*');
+
+    if (activeOrgId) {
+      salesQ = salesQ.eq('organization_id', activeOrgId);
+      productsQ = productsQ.eq('organization_id', activeOrgId);
+      customersQ = customersQ.eq('organization_id', activeOrgId);
+    }
+
     const [salesRes, productsRes, customersRes] = await Promise.all([
-      supabase.from('sales').select('*').order('created_at', { ascending: false }),
-      supabase.from('products').select('*'),
-      supabase.from('customers').select('*')
+      salesQ,
+      productsQ,
+      customersQ
     ]);
     if (salesRes.data) setSales(salesRes.data);
     if (productsRes.data) setProducts(productsRes.data);
@@ -43,7 +55,7 @@ export default function Sales() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [activeOrgId]);
 
   useEffect(() => {
     if (location.state?.isDeposit) {
@@ -133,7 +145,8 @@ export default function Sales() {
               p_tax_inclusive: true,
               p_credit_used: 0,
               p_created_at: row.date ? `${row.date} 00:00:00+00` : null,
-              p_invoice_no: row.invoice_no || null
+              p_invoice_no: row.invoice_no || null,
+              p_organization_id: activeOrgId || user?.organization_id
             };
 
             await SalesService.recordSaleTransaction(payload);
@@ -176,6 +189,7 @@ export default function Sales() {
           phone: pendingSaleData.customerPhone,
           email: pendingSaleData.customerEmail || '',
           is_contractor: false,
+          organization_id: activeOrgId || user?.organization_id,
           created_at: new Date().toISOString()
         }]).select().single();
         
@@ -221,7 +235,8 @@ export default function Sales() {
         p_recorded_by: userEmail,
         p_tax_percentage: pendingSaleData.taxPercentage,
         p_tax_inclusive: pendingSaleData.taxInclusive,
-        p_credit_used: parseFloat(pendingSaleData.useCredit) || 0
+        p_credit_used: parseFloat(pendingSaleData.useCredit) || 0,
+        p_organization_id: activeOrgId || user?.organization_id
       });
 
       // Clear draft on success

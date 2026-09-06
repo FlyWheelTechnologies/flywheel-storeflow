@@ -39,11 +39,11 @@ ALTER TABLE public.subscription_payments ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Super admins can manage subscription_payments" ON public.subscription_payments;
 CREATE POLICY "Super admins can manage subscription_payments" ON public.subscription_payments
-  TO authenticated FOR ALL USING ((SELECT public.is_super_admin()));
+  FOR ALL TO authenticated USING ((SELECT public.is_super_admin()));
 
 DROP POLICY IF EXISTS "Org members can view their own subscription payments" ON public.subscription_payments;
 CREATE POLICY "Org members can view their own subscription payments" ON public.subscription_payments
-  TO authenticated FOR SELECT USING (organization_id = (SELECT public.get_my_organization_id()));
+  FOR SELECT TO authenticated USING (organization_id = (SELECT public.get_my_organization_id()));
 
 
 -- 4. Explicit API Grants
