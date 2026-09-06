@@ -19,7 +19,7 @@ const UOM_PRESETS = {
 const emptyForm = { name:'', category:'General', buying_uom:'Piece', selling_uom:'Piece', conversion_factor:1, cost_price:'', selling_price:'', stock_quantity:'', low_stock_threshold: 10 };
 
 export default function Products() {
-  const { user } = useAuth();
+  const { user, activeOrgId } = useAuth();
   const location = useLocation();
   const isAuditor = user?.role === 'auditor';
   const [products, setProducts] = useState([]);
@@ -117,6 +117,10 @@ export default function Products() {
         if (err) throw err;
       } else {
         payload.created_at = new Date().toISOString();
+        const orgId = activeOrgId || user?.organization_id;
+        if (orgId) {
+          payload.organization_id = orgId;
+        }
         const { error: err } = await supabase.from('products').insert([payload]);
         if (err) throw err;
       }

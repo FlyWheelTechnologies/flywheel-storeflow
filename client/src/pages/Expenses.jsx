@@ -8,11 +8,13 @@ import { formatCurrency } from "../services/formatters";
 const CATEGORIES = ['Utilities', 'Transport', 'Salary', 'Maintenance', 'Supplies', 'Misc'];
 
 export default function Expenses() {
-  const { user } = useAuth();
+  const { user, activeOrgId } = useAuth();
   const location = useLocation();
   const [expenses, setExpenses] = useState([]);
 
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
 
   const fetchExpenses = async () => {
     const { data } = await supabase.from('expenses').select('*').order('created_at', { ascending: false });
@@ -35,18 +37,37 @@ export default function Expenses() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
 
-    // Prevent JWT expired error by proactively refreshing session if dormant
-    await supabase.auth.getSession();
-    const payload = {
-      ...form,
-      recorded_by: user?.email || 'System',
-      created_at: new Date().toISOString()
-    };
-    await supabase.from('expenses').insert([payload]);
-    setForm({ description:'', category:'Misc', amount:'' });
-    setShowForm(false);
-    fetchExpenses();
+    try {
+      // Prevent JWT expired error by proactively refreshing session if dormant
+      await supabase.auth.getSession();
+      const orgId = activeOrgId || user?.organization_id;
+      const payload = {
+        ...form,
+        amount: parseFloat(form.amount) || 0,
+        recorded_by: user?.email || 'System',
+        created_at: new Date().toISOString()
+      };
+      if (orgId) {
+        payload.organization_id = orgId;
+      }
+      const { error } = await supabase.from('expenses').insert([payload]);
+      if (error) throw error;
+
+      setToast({ message: "Expense recorded successfully!", type: "success" });
+      setForm({ description:'', category:'Misc', amount:'' });
+      setShowForm(false);
+      fetchExpenses();
+      setTimeout(() => setToast(null), 3000);
+    } catch (err) {
+      console.error("Expense record error:", err);
+      setToast({ message: `Failed to record expense: ${err.message || "Network error"}`, type: "error" });
+      setTimeout(() => setToast(null), 4000);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const [search, setSearch] = useState('');
@@ -139,8 +160,28 @@ export default function Expenses() {
               </select>
             </div>
             <div><label style={lbl}>Amount (GHS)</label><input style={inp} type="number" step="0.01" value={form.amount} onChange={e => setForm(f=>({...f, amount:e.target.value}))} required /></div>
-            <button type="submit" className="quick-action-btn" style={{ height:38 }}>Save</button>
+            <button type="submit" className="quick-action-btn" style={{ height:38 }} disabled={saving}>
+              {saving ? 'Saving...' : 'Save'}
+            </button>
           </form>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <div 
+          onClick={() => setToast(null)}
+          style={{ 
+            position:'fixed', top:24, left:'50%', transform:'translateX(-50%)', 
+            background: toast.type === 'error' ? '#991b1b' : '#064e3b', 
+            color:'#fff', padding:'14px 24px', borderRadius:'12px', 
+            boxShadow:'0 20px 25px -5px rgba(0,0,0,0.2), 0 10px 10px -5px rgba(0,0,0,0.1)', 
+            zIndex:3000, display:'flex', alignItems:'center', gap:12, 
+            animation:'slideDown 0.3s ease', cursor: 'pointer'
+          }}
+        >
+          <span style={{ fontSize: 20 }}>{toast.type === 'error' ? '⚠️' : '✅'}</span>
+          <span style={{ fontWeight: 600, fontSize: 13.5 }}>{toast.message}</span>
         </div>
       )}
 

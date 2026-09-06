@@ -288,16 +288,22 @@ const SalesForm = ({
             <label style={lbl}>Tax Options</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <select style={{ ...inp, padding: '6px' }} value={taxPercentage} onChange={e => setTaxPercentage(parseFloat(e.target.value))}>
-                <option value="20">20% Unified (VAT+NHIL+GET)</option>
-                <option value="15">15% VAT Only</option>
-                <option value="12.5">12.5% Flat Rate</option>
-                <option value="0">0% Exempt</option>
+                <option value="20">20% Unified (Act 1151)</option>
+                <option value="15">15% Standard VAT Only</option>
+                <option value="0">0% Exempt / Zero-Rated</option>
               </select>
               <label style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: 4, whiteSpace:'nowrap' }}>
                 <input type="checkbox" checked={taxInclusive} onChange={e => setTaxInclusive(e.target.checked)} /> Inclusive
               </label>
             </div>
-            <div style={{fontSize:11, color:'#6b7280', marginTop:6}}>Tax: GHS {formatCurrency(taxAmount)}</div>
+            <div style={{fontSize:11, color:'#6b7280', marginTop:6}}>
+              Tax: GHS {formatCurrency(taxAmount)}
+              {taxPercentage === 20 && (
+                <span style={{ display: 'block', fontSize: '10px', color: '#059669', fontWeight: 600, marginTop: 2 }}>
+                  🇬🇭 15% VAT • 2.5% NHIL • 2.5% GETFund
+                </span>
+              )}
+            </div>
           </div>
           <div>
             <label style={lbl}>Grand Total</label>

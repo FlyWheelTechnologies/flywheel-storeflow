@@ -11,63 +11,131 @@ export const SalesService = {
     const { data: saleItems } = await supabase.from('sale_items').select('*').eq('sale_id', sale.id);
 
     // Fetch org details for branding and currency
+    // Fetch org details for branding and currency
     let orgName = 'StoreFlow';
+    let orgTin = '';
+    let orgAddress = '';
+    let orgPhone = '';
     let currency = 'GHS';
     if (sale.organization_id) {
-      const { data: orgData } = await supabase.from('organizations').select('name, currency').eq('id', sale.organization_id).single();
+      const { data: orgData } = await supabase
+        .from('organizations')
+        .select('name, currency, tin, address, phone')
+        .eq('id', sale.organization_id)
+        .single();
       if (orgData) {
         orgName = orgData.name;
         currency = orgData.currency || 'GHS';
+        orgTin = orgData.tin || '';
+        orgAddress = orgData.address || '';
+        orgPhone = orgData.phone || '';
       }
     }
 
-    const doc = new jsPDF({ format: [80, 150] }); // POS width 80mm
+    const doc = new jsPDF({ format: [80, 165] }); // POS width 80mm
 
     // Header
-    doc.setFontSize(14);
+    doc.setFontSize(13);
     doc.setTextColor(55, 65, 81); // Charcoal
     doc.setFont(undefined, 'bold');
     doc.text(orgName, 40, 10, { align: 'center' });
 
-    doc.line(5, 13, 75, 13);
+    let headerY = 14;
+    doc.setFontSize(7);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(107, 114, 128);
+    if (orgAddress || orgPhone) {
+      doc.text([orgAddress, orgPhone].filter(Boolean).join(' • '), 40, headerY, { align: 'center' });
+      headerY += 4;
+    }
+    if (orgTin) {
+      doc.text(`TIN: ${orgTin}`, 40, headerY, { align: 'center' });
+      headerY += 4;
+    }
+
+    doc.setDrawColor(229, 231, 235);
+    doc.line(5, headerY, 75, headerY);
+    headerY += 4;
 
     // Transaction Details
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.setTextColor(55, 65, 81);
     doc.setFont(undefined, 'bold');
-    doc.text(`INVOICE: ${sale.invoice_no || '#INV-' + String(sale.id).slice(-6).padStart(3, '0')}`, 5, 19);
+    doc.text(`INVOICE: ${sale.invoice_no || '#INV-' + String(sale.id).slice(-6).padStart(3, '0')}`, 5, headerY);
     doc.setFont(undefined, 'normal');
-    doc.text(`Date: ${new Date(sale.created_at).toLocaleString()}`, 5, 23);
-    doc.text(`Customer: ${sale.customer_name}`, 5, 27);
-    doc.text(`Recorded By: ${sale.recorded_by || 'Staff'}`, 5, 31);
+    headerY += 4;
+    doc.text(`Date: ${new Date(sale.created_at).toLocaleString()}`, 5, headerY);
+    headerY += 4;
+    doc.text(`Customer: ${sale.customer_name}`, 5, headerY);
+    headerY += 4;
+    doc.text(`Cashier: ${sale.recorded_by || 'Staff'}`, 5, headerY);
+    headerY += 4;
 
     autoTable(doc, {
-      startY: 35,
+      startY: headerY,
       margin: { left: 5, right: 5 },
       head: [['ITEM', 'QTY', 'PRICE', 'TOTAL']],
-      body: saleItems.map(i => [i.product_name, i.quantity, i.unit_price.toFixed(1), i.subtotal.toFixed(1)]),
+      body: (saleItems || []).map(i => [i.product_name, i.quantity, Number(i.unit_price).toFixed(2), Number(i.subtotal).toFixed(2)]),
       theme: 'grid',
       styles: { fontSize: 7, cellPadding: 2 },
-      headStyles: { fillColor: [55, 65, 81], textColor: 255, fontStyle: 'bold' }, // Charcoal Header
+      headStyles: { fillColor: [55, 65, 81], textColor: 255, fontStyle: 'bold' },
       columnStyles: { 3: { halign: 'right' } }
     });
 
-    const finalY = doc.lastAutoTable.finalY + 6;
-    doc.setFontSize(9);
-    doc.setFont(undefined, 'bold');
-    doc.text(`GRAND TOTAL:`, 35, finalY);
-    doc.text(`${currency} ${parseFloat(sale.total_amount).toFixed(1)}`, 75, finalY, { align: 'right' });
+    let finalY = doc.lastAutoTable.finalY + 5;
+    const taxAmt = parseFloat(sale.tax_amount || 0);
+    const taxPct = parseFloat(sale.tax_percentage || 0);
+    const totalAmt = parseFloat(sale.total_amount || 0);
+    const netTaxable = Math.max(0, totalAmt - taxAmt);
 
-    let offset = 5;
-    if (sale.tax_inclusive) {
+    // If tax applied, print statutory breakdown
+    if (taxAmt > 0) {
       doc.setFontSize(7);
-      doc.setFont(undefined, 'italic');
-      doc.text(`(Tax Inclusive)`, 35, finalY + 3);
-      offset = 8;
+      doc.setTextColor(107, 114, 128);
+      doc.text(`Net Taxable Base:`, 5, finalY);
+      doc.text(`${currency} ${netTaxable.toFixed(2)}`, 75, finalY, { align: 'right' });
+      finalY += 3.5;
+
+      if (taxPct === 20) {
+        doc.text(`VAT (15.0%):`, 5, finalY);
+        doc.text(`${currency} ${(netTaxable * 0.15).toFixed(2)}`, 75, finalY, { align: 'right' });
+        finalY += 3.5;
+
+        doc.text(`NHIL (2.5%):`, 5, finalY);
+        doc.text(`${currency} ${(netTaxable * 0.025).toFixed(2)}`, 75, finalY, { align: 'right' });
+        finalY += 3.5;
+
+        doc.text(`GETFund (2.5%):`, 5, finalY);
+        doc.text(`${currency} ${(netTaxable * 0.025).toFixed(2)}`, 75, finalY, { align: 'right' });
+        finalY += 3.5;
+      } else {
+        doc.text(`VAT (${taxPct}%):`, 5, finalY);
+        doc.text(`${currency} ${taxAmt.toFixed(2)}`, 75, finalY, { align: 'right' });
+        finalY += 3.5;
+      }
+
+      doc.text(`Total Tax:`, 5, finalY);
+      doc.text(`${currency} ${taxAmt.toFixed(2)}`, 75, finalY, { align: 'right' });
+      finalY += 4.5;
     }
 
-    let amountPaidDisplay = parseFloat(sale.amount_paid);
-    let balanceDueDisplay = parseFloat(sale.balance_due);
+    doc.setFontSize(9);
+    doc.setTextColor(17, 24, 39);
+    doc.setFont(undefined, 'bold');
+    doc.text(`GRAND TOTAL:`, 5, finalY);
+    doc.text(`${currency} ${totalAmt.toFixed(2)}`, 75, finalY, { align: 'right' });
+
+    let offset = 4.5;
+    if (sale.tax_inclusive) {
+      doc.setFontSize(6.5);
+      doc.setTextColor(107, 114, 128);
+      doc.setFont(undefined, 'italic');
+      doc.text(`(Prices Tax Inclusive)`, 5, finalY + 3.5);
+      offset = 7.5;
+    }
+
+    let amountPaidDisplay = parseFloat(sale.amount_paid || 0);
+    let balanceDueDisplay = parseFloat(sale.balance_due || 0);
     let changeDisplay = 0;
 
     const changeString = `Change given: ${currency}`;
@@ -75,25 +143,31 @@ export const SalesService = {
       const match = sale.notes.match(new RegExp(`Change given: ${currency} ([\\d.]+)`));
       if (match) {
         changeDisplay = parseFloat(match[1]);
-        amountPaidDisplay = parseFloat(sale.total_amount) + changeDisplay;
+        amountPaidDisplay = totalAmt + changeDisplay;
         balanceDueDisplay = 0;
       }
     }
 
     doc.setFontSize(8);
+    doc.setTextColor(55, 65, 81);
     doc.setFont(undefined, 'normal');
-    doc.text(changeDisplay > 0 ? `Amount Tendered:` : `Amount Paid:`, 35, finalY + offset);
-    doc.text(`${currency} ${amountPaidDisplay.toFixed(1)}`, 75, finalY + offset, { align: 'right' });
+    doc.text(changeDisplay > 0 ? `Amount Tendered:` : `Amount Paid:`, 5, finalY + offset);
+    doc.text(`${currency} ${amountPaidDisplay.toFixed(2)}`, 75, finalY + offset, { align: 'right' });
 
     if (changeDisplay > 0) {
-      doc.text(`Change:`, 35, finalY + offset + 4);
-      doc.setTextColor(5, 150, 105); // Green
-      doc.text(`${currency} ${changeDisplay.toFixed(1)}`, 75, finalY + offset + 4, { align: 'right' });
+      doc.text(`Change:`, 5, finalY + offset + 4);
+      doc.setTextColor(5, 150, 105);
+      doc.text(`${currency} ${changeDisplay.toFixed(2)}`, 75, finalY + offset + 4, { align: 'right' });
+    } else if (balanceDueDisplay > 0) {
+      doc.text(`Balance Due:`, 5, finalY + offset + 4);
+      doc.setTextColor(185, 28, 28);
+      doc.text(`${currency} ${balanceDueDisplay.toFixed(2)}`, 75, finalY + offset + 4, { align: 'right' });
     }
 
     doc.setTextColor(156, 163, 175);
     doc.setFontSize(6);
-    doc.text('powered by bookflywheel.com', 40, 146, { align: 'center' });
+    doc.text('Thank you for your business!', 40, 158, { align: 'center' });
+    doc.text('powered by StoreFlow • bookflywheel.com', 40, 161, { align: 'center' });
 
     doc.save(`Receipt_${sale.invoice_no || 'INV_' + String(sale.id).slice(-6).padStart(3, '0')}.pdf`);
   },
@@ -139,12 +213,14 @@ export const SalesService = {
 
     // Fetch org details for branding and currency
     let orgName = 'StoreFlow';
+    let orgTin = '';
     let currency = 'GHS';
     if (sale.organization_id) {
-      const { data: orgData } = await supabase.from('organizations').select('name, currency').eq('id', sale.organization_id).single();
+      const { data: orgData } = await supabase.from('organizations').select('name, currency, tin').eq('id', sale.organization_id).single();
       if (orgData) {
         orgName = orgData.name;
         currency = orgData.currency || 'GHS';
+        orgTin = orgData.tin || '';
       }
     }
 
@@ -172,8 +248,34 @@ export const SalesService = {
       }
     }
 
+    const taxAmt = parseFloat(sale.tax_amount || 0);
+    const taxPct = parseFloat(sale.tax_percentage || 0);
+    const totalAmt = parseFloat(sale.total_amount || 0);
+    const netTaxable = Math.max(0, totalAmt - taxAmt);
+
+    let taxSection = '';
+    if (taxAmt > 0) {
+      if (taxPct === 20) {
+        taxSection = 
+          `*Tax Breakdown (20% Unified):*\n` +
+          `• Net Taxable: ${currency} ${formatCurrency(netTaxable)}\n` +
+          `• 15.0% VAT: ${currency} ${formatCurrency(netTaxable * 0.15)}\n` +
+          `• 2.5% NHIL: ${currency} ${formatCurrency(netTaxable * 0.025)}\n` +
+          `• 2.5% GETFund: ${currency} ${formatCurrency(netTaxable * 0.025)}\n` +
+          `• Total Tax: ${currency} ${formatCurrency(taxAmt)}\n` +
+          `${thinDivider}\n`;
+      } else {
+        taxSection = 
+          `*Tax Summary (${taxPct}%):*\n` +
+          `• Net Taxable: ${currency} ${formatCurrency(netTaxable)}\n` +
+          `• Total Tax: ${currency} ${formatCurrency(taxAmt)}\n` +
+          `${thinDivider}\n`;
+      }
+    }
+
     const message =
       `*${orgName.toUpperCase()}*\n` +
+      (orgTin ? `*TIN:* ${orgTin}\n` : '') +
       `${divider}\n` +
       `*OFFICIAL RECEIPT*\n` +
       `${divider}\n\n` +
@@ -184,6 +286,7 @@ export const SalesService = {
       `${thinDivider}\n` +
       `*FINANCIAL SUMMARY*\n` +
       `${thinDivider}\n` +
+      taxSection +
       `*Total Amount:* ${currency} ${formatCurrency(sale.total_amount)}${sale.tax_inclusive ? ' _(Tax Inclusive)_' : ''}\n` +
       `${changeDisplay > 0 ? `*Amount Tendered:* ${currency} ${formatCurrency(amountPaidDisplay)}\n*Change:*          ${currency} ${formatCurrency(changeDisplay)}` : `*Amount Paid:*  ${currency} ${formatCurrency(amountPaidDisplay)}\n*Balance Due:*  ${currency} ${formatCurrency(balanceDueDisplay)}`}\n` +
       `${thinDivider}\n\n` +

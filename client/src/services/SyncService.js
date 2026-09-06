@@ -62,6 +62,19 @@ export const SyncService = {
             if (pushPayload.balance_due) pushPayload.balance_due = Number(pushPayload.balance_due);
           }
 
+          // Ensure organization_id is present to satisfy multi-tenant RLS WITH CHECK
+          if (!pushPayload.organization_id) {
+            try {
+              const cachedUser = localStorage.getItem("user");
+              if (cachedUser) {
+                const u = JSON.parse(cachedUser);
+                if (u.organization_id) pushPayload.organization_id = u.organization_id;
+              }
+            } catch (e) {
+              console.warn("Could not determine organization_id for offline sync", e);
+            }
+          }
+
           const { error } = await supabase.from(item.table).insert([pushPayload]);
           if (!error) {
             console.log(`✅ Successfully synced INSERT for ${item.table}`);

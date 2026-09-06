@@ -10,15 +10,8 @@ import {
   Shield, 
   ArrowRight, 
   Phone,
-  Scale,
-  Lock,
-  FileCheck,
   Calculator,
-  QrCode,
   CheckCircle2,
-  Building2,
-  Database,
-  HelpCircle,
   Sparkles
 } from "lucide-react";
 const orangeReceiptMachine = "/orange_receipt_machine.jpg";
@@ -43,14 +36,14 @@ const features = [
   {
     icon: <TrendingUp size={22} />,
     color: "green",
-    title: "Automatic bookkeeping & GRA tax accounting",
-    desc: "Every sale, expense, and deposit is recorded with double-entry precision. Automatically balances VAT, NHIL, and GETFund ledger accounts for frictionless monthly filing."
+    title: "Automatic double-entry bookkeeping",
+    desc: "Every sale, expense, and customer prepayment is recorded with double-entry precision. Easily track cash flow, profit margins, and sales taxes without manual ledger work."
   },
   {
     icon: <Receipt size={22} />,
     color: "purple",
-    title: "E-VAT compliant receipts & WhatsApp delivery",
-    desc: "Generate professional digital receipts with QR clearance data and SDC identifiers, and dispatch them directly to customer WhatsApp numbers in one tap."
+    title: "Digital receipts & WhatsApp delivery",
+    desc: "Generate professional digital receipts with optional tax breakdowns and dispatch them directly to customer WhatsApp numbers in one tap."
   },
   {
     icon: <Bell size={22} />,
@@ -61,33 +54,33 @@ const features = [
   {
     icon: <Users size={22} />,
     color: "blue",
-    title: "Role-Based Access Control (Act 843 compliant)",
-    desc: "Enforce strict organizational boundaries. Storekeepers ring sales, accountants audit ledgers, and administrators hold master control with full accountability."
+    title: "Role-based staff permissions",
+    desc: "Keep your business secure. Cashiers ring sales, storekeepers update inventory, and owners hold master control over profits, cash, and reports."
   },
   {
     icon: <Shield size={22} />,
     color: "teal",
-    title: "Ghana Data Protection Act 843 & CSA certified isolation",
-    desc: "Your business data is isolated at the database layer using PostgreSQL Row-Level Security (RLS) with end-to-end encryption compliant with Cyber Security Act 1038."
+    title: "Reliable data security & daily backups",
+    desc: "Your business data is strictly isolated and encrypted at the database level with automated daily backups, keeping your store safe and audit-ready."
   }
 ];
 
 /* ─── Testimonial Data ─── */
 const testimonials = [
   {
-    text: "StoreFlow took the headache out of the 2026 VAT changes. Our 15% VAT, NHIL, and GETFund calculations are calculated automatically on every receipt, saving our accountant hours every week.",
+    text: "StoreFlow transformed how we run our hardware shop. Stock counts are always spot-on, sales take 5 seconds at the counter, and tax calculations at month-end are completely automated.",
     name: "Florence Yeboah",
     role: "Owner, FlorzyAngel Hardware, Sunyani",
     initials: "FY"
   },
   {
-    text: "Knowing our customer records and sales books comply fully with the Data Protection Act 843 gives me total peace of mind. Plus, our multi-branch inventory is always accurate down to the last pesewa.",
+    text: "With branches across Accra, knowing what is sold and what needs restocking right from my phone has saved us thousands in lost sales and inventory shrinkage.",
     name: "Kwame Mensah",
     role: "Director, KM Building Supplies, Accra",
     initials: "KM"
   },
   {
-    text: "The instant WhatsApp receipt with full tax breakdown and low stock alerts made us look 10x more professional to our corporate clients. StoreFlow is essential for any modern Ghanaian business.",
+    text: "Customers love getting instant receipts on WhatsApp. It makes our boutique look 10x more modern and professional, and our daily balancing is effortless.",
     name: "Adwoa Frimpong",
     role: "Manager, Frimpong Cosmetics, Takoradi",
     initials: "AF"
@@ -103,7 +96,6 @@ export default function LandingPage() {
   const [showPhone, setShowPhone] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedFeatures, setExpandedFeatures] = useState({});
-  const [activeComplianceTab, setActiveComplianceTab] = useState("tax");
   
   /* ─── Tax Calculator State ─── */
   const [calcAmount, setCalcAmount] = useState("500");
@@ -132,7 +124,7 @@ export default function LandingPage() {
 
   const handleWhatsAppClick = (e) => {
     if (!chatExpanded) {
-      e.preventDefault(); // Don't open link on first tap, just expand!
+      e.preventDefault();
       setChatExpanded(true);
       
       if (chatContractTimerRef.current) clearTimeout(chatContractTimerRef.current);
@@ -148,27 +140,24 @@ export default function LandingPage() {
       const currentScrollY = window.scrollY;
       const lastScrollY = lastScrollYRef.current;
       
-      // WhatsApp floating chat bubble visibility
-      if (currentScrollY <= 80) {
-        setChatVisible(true);
+      // Calculate hero screenshot 3D entry effect
+      const heroSectionHeight = 550;
+      const progress = Math.min(Math.max(currentScrollY / heroSectionHeight, 0), 1);
+      
+      setScreenshotTransform({
+        y: (1 - progress) * 35,
+        scale: 0.96 + (progress * 0.04),
+        opacity: 0.85 + (progress * 0.15)
+      });
+
+      if (currentScrollY > lastScrollY && currentScrollY > 120) {
+        setHeaderVisible(false);
+        setChatVisible(false);
       } else {
-        if (currentScrollY > lastScrollY) {
-          setChatVisible(false);
-        } else {
-          setChatVisible(true);
-        }
+        setHeaderVisible(true);
+        setChatVisible(true);
       }
       
-      // Parallax effect on the hero screenshot
-      if (currentScrollY < 1200) {
-        const factor = Math.min(currentScrollY / 900, 1);
-        setScreenshotTransform({
-          y: factor * -140, // Translate up by 140px
-          scale: 1 - factor * 0.05, // Animate out slightly
-          opacity: 1 - factor * 0.4 // Fade out slightly
-        });
-      }
-
       lastScrollYRef.current = currentScrollY;
     };
 
@@ -176,31 +165,31 @@ export default function LandingPage() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  /* ─── Interactive Playground State ─── */
+  /* ─── Interactive Playground / POS Simulator State ─── */
   const [activePlaygroundTab, setActivePlaygroundTab] = useState("pos");
-  const [simTaxEnabled, setSimTaxEnabled] = useState(true);
   const [stockLevels, setStockLevels] = useState({
-    cement: 14,
-    ironRods: 8,
-    pvcPipes: 3
+    cement: 34,
+    ironRods: 18,
+    pvcPipes: 42
   });
+  const [simTaxEnabled, setSimTaxEnabled] = useState(true);
   const [salesHistory, setSalesHistory] = useState([
-    { id: "INV-103", item: "Roofing Sheets", qty: 2, total: 450, tax: 75.00, time: "10 mins ago" }
+    { id: "INV-101", item: "Cement (50kg)", qty: 2, total: 240, tax: 40, time: "10 mins ago" },
+    { id: "INV-100", item: "Iron Rods (16mm)", qty: 1, total: 85, tax: 14.17, time: "42 mins ago" }
   ]);
   const [ledgerEntries, setLedgerEntries] = useState([
-    { account: "Momo Wallet (Cash)", type: "debit", amount: 450, desc: "Sale #INV-103" },
-    { account: "Sales Revenue", type: "credit", amount: 375, desc: "Net Revenue #INV-103" },
-    { account: "GRA VAT Payable (15%)", type: "credit", amount: 56.25, desc: "Standard VAT (Act 1151)" },
-    { account: "NHIL & GETFund Payable (5%)", type: "credit", amount: 18.75, desc: "Health & Education Levies" }
+    { account: "Momo / Cash Account", type: "debit", amount: 240, desc: "Sale #INV-101" },
+    { account: "Sales Revenue", type: "credit", amount: 200, desc: "Revenue #INV-101" },
+    { account: "VAT & Levies Payable", type: "credit", amount: 40, desc: "Tax #INV-101" }
   ]);
-  const [momoSuccess, setMomoSuccess] = useState(false);
   const [showSimAlert, setShowSimAlert] = useState(false);
+  const [momoSuccess, setMomoSuccess] = useState(false);
   const [lastSaleReceipt, setLastSaleReceipt] = useState(null);
 
   /* Scroll Fade-In Handler */
   const featuresRef = useRef(null);
   const showcaseRef = useRef(null);
-  const complianceRef = useRef(null);
+  const taxToolsRef = useRef(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -216,16 +205,16 @@ export default function LandingPage() {
 
     const fEl = featuresRef.current;
     const sEl = showcaseRef.current;
-    const cEl = complianceRef.current;
+    const tEl = taxToolsRef.current;
 
     if (fEl) observer.observe(fEl);
     if (sEl) observer.observe(sEl);
-    if (cEl) observer.observe(cEl);
+    if (tEl) observer.observe(tEl);
 
     return () => {
       if (fEl) observer.unobserve(fEl);
       if (sEl) observer.unobserve(sEl);
-      if (cEl) observer.unobserve(cEl);
+      if (tEl) observer.unobserve(tEl);
     };
   }, []);
 
@@ -251,48 +240,51 @@ export default function LandingPage() {
       };
     }
 
-    // Ghana VAT Act 2025 (Act 1151 - Effective Jan 1, 2026):
-    // Standard VAT: 15%, NHIL: 2.5%, GETFund: 2.5% on the same taxable value base.
-    // Total combined indirect tax rate = 20%. COVID levy abolished. Flat rate scheme abolished.
     const combinedRate = 0.20;
     const vatRate = 0.15;
     const nhilRate = 0.025;
     const getfundRate = 0.025;
 
-    let net = 0;
-    let totalTax = 0;
-    let gross = 0;
-
     if (inclusive) {
-      gross = num;
-      net = num / (1 + combinedRate);
-      totalTax = gross - net;
+      const net = Math.round((num / (1 + combinedRate)) * 100) / 100;
+      const vat = Math.round((net * vatRate) * 100) / 100;
+      const nhil = Math.round((net * nhilRate) * 100) / 100;
+      const getfund = Math.round((net * getfundRate) * 100) / 100;
+      const totalTax = Math.round((num - net) * 100) / 100;
+
+      return {
+        gross: num,
+        net,
+        vat,
+        nhil,
+        getfund,
+        totalTax,
+        effectiveRate: "20% Unified"
+      };
     } else {
-      net = num;
-      totalTax = net * combinedRate;
-      gross = net + totalTax;
+      const net = num;
+      const vat = Math.round((net * vatRate) * 100) / 100;
+      const nhil = Math.round((net * nhilRate) * 100) / 100;
+      const getfund = Math.round((net * getfundRate) * 100) / 100;
+      const totalTax = Math.round((net * combinedRate) * 100) / 100;
+      const gross = Math.round((net + totalTax) * 100) / 100;
+
+      return {
+        gross,
+        net,
+        vat,
+        nhil,
+        getfund,
+        totalTax,
+        effectiveRate: "20% Unified"
+      };
     }
-
-    const vat = net * vatRate;
-    const nhil = net * nhilRate;
-    const getfund = net * getfundRate;
-
-    return {
-      gross,
-      net,
-      vat,
-      nhil,
-      getfund,
-      totalTax,
-      effectiveRate: "20%"
-    };
   };
 
-  /* Simulate Selling an Item in the POS widget */
+  /* Simulate Selling an Item in POS Playground */
   const handleSimulateSale = (itemKey, name, basePrice) => {
     if (stockLevels[itemKey] <= 0) return;
-    
-    // Decrement stock
+
     const newStock = stockLevels[itemKey] - 1;
     setStockLevels(prev => ({
       ...prev,
@@ -312,44 +304,39 @@ export default function LandingPage() {
     };
     setSalesHistory(prev => [newSale, ...prev.slice(0, 3)]);
 
-    // Add Ledger entries (Double-entry conforming to Act 1151)
     let newLedger = [];
     if (simTaxEnabled) {
       newLedger = [
-        { account: "Momo / Bank Cash", type: "debit", amount: taxInfo.gross, desc: `Sale #${invId}` },
+        { account: "Momo / Cash Account", type: "debit", amount: taxInfo.gross, desc: `Sale #${invId}` },
         { account: "Sales Revenue (Net)", type: "credit", amount: taxInfo.net, desc: `Revenue #${invId}` },
-        { account: "GRA VAT Payable (15%)", type: "credit", amount: taxInfo.vat, desc: `Act 1151 VAT #${invId}` },
+        { account: "VAT Payable (15%)", type: "credit", amount: taxInfo.vat, desc: `VAT #${invId}` },
         { account: "NHIL & GETFund Payable (5%)", type: "credit", amount: taxInfo.nhil + taxInfo.getfund, desc: `Levies #${invId}` }
       ];
     } else {
       newLedger = [
-        { account: "Momo / Bank Cash", type: "debit", amount: taxInfo.gross, desc: `Sale #${invId}` },
+        { account: "Momo / Cash Account", type: "debit", amount: taxInfo.gross, desc: `Sale #${invId}` },
         { account: "Sales Revenue", type: "credit", amount: taxInfo.gross, desc: `Revenue #${invId}` }
       ];
     }
     setLedgerEntries(prev => [...newLedger, ...prev.slice(0, 4)]);
 
-    // Generate simulator SDC & E-VAT validation receipt
     setLastSaleReceipt({
       invId,
       item: name,
       taxInfo,
-      sdcCode: `SDC-GH-${Math.floor(100000 + Math.random() * 900000)}`,
+      sdcCode: `REC-GH-${Math.floor(100000 + Math.random() * 900000)}`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     });
 
-    // Show temporary simulator success alert
     setMomoSuccess(true);
     setTimeout(() => setMomoSuccess(false), 4000);
 
-    // If stock gets low, trigger simulator stock alert
     if (newStock <= 5) {
       setShowSimAlert(true);
       setTimeout(() => setShowSimAlert(false), 5000);
     }
   };
 
-  /* Simulate Restocking an Item */
   const handleSimulateRestock = (itemKey) => {
     setStockLevels(prev => ({
       ...prev,
@@ -363,7 +350,7 @@ export default function LandingPage() {
     <div className="lp">
       {/* ─── WHATSAPP FLOATING CHAT BUBBLE ─── */}
       <a 
-        href="https://wa.me/233200645732?text=Hello%20StoreFlow%2C%20I%20would%20like%20to%20know%20more%20about%20setting%20up%20my%20store%20and%20GRA%20tax%20compliance!" 
+        href="https://wa.me/233200645732?text=Hello%20StoreFlow%2C%20I%20would%20like%20to%20learn%20more%20about%20setting%20up%20my%20store%20with%20StoreFlow!" 
         target="_blank" 
         rel="noopener noreferrer" 
         className={`lp-whatsapp-chat ${chatVisible ? "visible" : "hidden"} ${chatExpanded ? "expanded" : "contracted"}`}
@@ -389,7 +376,7 @@ export default function LandingPage() {
 
           <nav className="lp-nav">
             <a href="#features">Features</a>
-            <a href="#compliance">Tax & Data Laws</a>
+            <a href="#tax-tools">Tax Calculator</a>
             <a href="#playground">Try Live Demo</a>
             <a href="#how-it-works">How It Works</a>
             <a href="#reviews">Reviews</a>
@@ -433,7 +420,7 @@ export default function LandingPage() {
           </div>
           <nav className="lp-mobile-nav-links">
             <a href="#features" onClick={() => setMobileMenuOpen(false)}>Features</a>
-            <a href="#compliance" onClick={() => setMobileMenuOpen(false)}>Ghana Tax & Data Laws</a>
+            <a href="#tax-tools" onClick={() => setMobileMenuOpen(false)}>Tax Calculator</a>
             <a href="#playground" onClick={() => setMobileMenuOpen(false)}>Live Demo</a>
             <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)}>How It Works</a>
             <a href="#reviews" onClick={() => setMobileMenuOpen(false)}>Reviews</a>
@@ -457,16 +444,16 @@ export default function LandingPage() {
         <div className="lp-hero-inner">
           <div className="lp-hero-badge">
             <span className="lp-hero-badge-dot" />
-            <span>GRA VAT Act 1151 & Data Protection Act 843 Ready</span>
+            <span>Built for modern retail & wholesale in Ghana 🇬🇭</span>
           </div>
 
           <h1>
-            Run your Ghanaian store with<br />
-            <span className="lp-highlight">absolute tax & data clarity</span>
+            Run your store with<br />
+            <span className="lp-highlight">confidence, speed & complete control</span>
           </h1>
 
           <p className="lp-hero-desc">
-            A high-performance stock management and accounting platform built for Ghana. Automatically compute 2026 unified VAT, NHIL, and GETFund, issue compliant digital receipts, and protect customer records under Act 843.
+            High-performance stock tracking, fast POS checkout, instant WhatsApp receipts, and automated bookkeeping tailored for Ghanaian businesses. Track inventory across branches, stop shrinkage, and know your daily numbers.
           </p>
 
           <div className="lp-hero-ctas">
@@ -476,8 +463,8 @@ export default function LandingPage() {
             >
               {user ? "Go to Dashboard" : "Enter Platform"} <ArrowRight className="btn-arrow" />
             </button>
-            <a href="#compliance" className="lp-btn lp-btn-secondary lp-btn-lg">
-              Explore Ghana Regulations
+            <a href="#playground" className="lp-btn lp-btn-secondary lp-btn-lg">
+              Try Interactive Demo
             </a>
           </div>
         </div>
@@ -500,11 +487,11 @@ export default function LandingPage() {
           >
             <img 
               src={productDashboardScreenshot} 
-              alt="StoreFlow Ghanaian stock management and accounting dashboard" 
+              alt="StoreFlow Ghanaian stock management and point of sale dashboard" 
               loading="eager"
             />
             <div className="lp-screenshot-overlay">
-              Run your business securely from phone or desktop. Click to test the live simulator.
+              Run your business smoothly from phone or desktop. Click to test the live simulator.
             </div>
           </div>
         </div>
@@ -514,382 +501,225 @@ export default function LandingPage() {
       <section className="lp-trust">
         <div className="lp-trust-inner">
           <div className="lp-trust-item">
-            <div className="lp-trust-number">250+</div>
-            <div className="lp-trust-label">Active Ghanaian stores</div>
+            <div className="lp-trust-number">10+</div>
+            <div className="lp-trust-label">Active stores</div>
           </div>
           <div className="lp-trust-item">
             <div className="lp-trust-number">GHS 4.2M+</div>
-            <div className="lp-trust-label">Compliant sales processed</div>
+            <div className="lp-trust-label">Sales recorded</div>
           </div>
           <div className="lp-trust-item">
-            <div className="lp-trust-number">Act 1151</div>
-            <div className="lp-trust-label">2026 Unified VAT / GRA Ready</div>
+            <div className="lp-trust-number">100%</div>
+            <div className="lp-trust-label">Offline-ready & cloud sync</div>
           </div>
           <div className="lp-trust-item">
-            <div className="lp-trust-number">Act 843</div>
-            <div className="lp-trust-label">100% Data privacy & RLS isolation</div>
+            <div className="lp-trust-number">Fast</div>
+            <div className="lp-trust-label">WhatsApp & PDF receipts</div>
           </div>
         </div>
       </section>
 
-      {/* ─── GHANA TAX & DATA LAWS COMPLIANCE HUB ─── */}
-      <section id="compliance" className="lp-compliance-section" ref={complianceRef}>
+      {/* ─── FEATURES (ACCORDIONS) ─── */}
+      <section id="features" className="lp-features" ref={featuresRef}>
+        <div className="lp-section-header">
+          <span className="lp-section-label">Core Capabilities</span>
+          <h2 className="lp-section-title">Complete control of your shop operations</h2>
+          <p className="lp-section-desc">
+            StoreFlow brings speed, accuracy, and double-entry rigor to your retail business without the complexity of traditional accounting software.
+          </p>
+        </div>
+
+        <div className="lp-features-grid">
+          {features.map((f, i) => {
+            const isExpanded = !!expandedFeatures[i];
+            return (
+              <div 
+                key={i} 
+                className={`lp-feature-card lp-feature-accordion ${isExpanded ? "expanded" : ""}`}
+                onClick={() => toggleFeature(i)}
+                style={{ cursor: "pointer" }}
+              >
+                <div className="lp-feature-card-header">
+                  <div className={`lp-feature-icon ${f.color}`}>{f.icon}</div>
+                  <h3 className="lp-feature-title">{f.title}</h3>
+                  <span className="lp-feature-chevron">
+                    {isExpanded ? "−" : "+"}
+                  </span>
+                </div>
+                <div className={`lp-feature-desc-container ${isExpanded ? "open" : ""}`}>
+                  <p className="lp-feature-desc">{f.desc}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ─── LOCAL COMMERCE & TAX TOOLS ─── */}
+      <section id="tax-tools" className="lp-compliance-section" ref={taxToolsRef}>
         <div className="lp-container">
           <div className="lp-section-header">
-            <span className="lp-section-label">Ghanaian Regulatory Framework</span>
-            <h2 className="lp-section-title">Built from the ground up for Ghana's tax & data laws</h2>
+            <span className="lp-section-label">Local Commerce Ready</span>
+            <h2 className="lp-section-title">Smart Ghana VAT & tax calculations, handled automatically</h2>
             <p className="lp-section-desc">
-              Operating in Ghana requires strict adherence to Ghana Revenue Authority (GRA) tax reforms and the Data Protection Commission (DPC) standards. StoreFlow automates compliance behind the scenes so you never face penalties or audit surprises.
+              Whether your store is VAT-registered or operating under threshold exemptions, StoreFlow takes the friction out of Ghanaian taxes. Ring up sales tax-inclusive or exclusive, separate VAT and levies in your ledger automatically, and stay audit-ready with zero guesswork.
             </p>
           </div>
 
-          {/* Compliance Tabs Navigation */}
-          <div className="lp-compliance-tabs-bar">
-            <button 
-              className={`lp-compliance-tab-btn ${activeComplianceTab === "tax" ? "active" : ""}`}
-              onClick={() => setActiveComplianceTab("tax")}
-            >
-              <Scale size={18} />
-              <span>1. Ghana Tax & GRA Laws (Act 1151 & Act 915)</span>
-            </button>
-            <button 
-              className={`lp-compliance-tab-btn ${activeComplianceTab === "data" ? "active" : ""}`}
-              onClick={() => setActiveComplianceTab("data")}
-            >
-              <Lock size={18} />
-              <span>2. Data Privacy & Cyber Laws (Act 843 & Act 1038)</span>
-            </button>
-            <button 
-              className={`lp-compliance-tab-btn ${activeComplianceTab === "calculator" ? "active" : ""}`}
-              onClick={() => setActiveComplianceTab("calculator")}
-            >
-              <Calculator size={18} />
-              <span>3. Live 2026 Tax Estimator</span>
-            </button>
-          </div>
-
-          {/* Tab 1: Tax & GRA Laws */}
-          {activeComplianceTab === "tax" && (
-            <div className="lp-compliance-panel animate-fade-in">
-              <div className="lp-compliance-grid">
-                <div className="lp-compliance-card">
-                  <div className="lp-compliance-card-header">
-                    <div className="lp-law-badge gra">GRA • Act 1151</div>
-                    <FileCheck className="lp-law-icon text-orange" size={24} />
-                  </div>
-                  <h3>Value Added Tax Act, 2025 (Act 1151)</h3>
-                  <p className="lp-law-summary">
-                    Standardized indirect tax structure effective January 1, 2026. Computes unified indirect taxes on a single taxable value without compounding:
-                  </p>
-                  <ul className="lp-law-list">
-                    <li><strong>15.0% Standard VAT:</strong> Calculated on the net transaction value.</li>
-                    <li><strong>2.5% NHIL:</strong> National Health Insurance Levy (now input-tax deductible).</li>
-                    <li><strong>2.5% GETFund Levy:</strong> Ghana Education Trust Fund Levy (now input-tax deductible).</li>
-                    <li><strong>20.0% Combined Effective Rate:</strong> Eliminates previous cascading flat-rate confusion.</li>
-                    <li><strong>Abolished COVID-19 Levy:</strong> 1% COVID health levy is completely repealed.</li>
-                  </ul>
-                  <div className="lp-law-tag">Threshold: GHS 750,000 for standard goods registration</div>
-                </div>
-
-                <div className="lp-compliance-card">
-                  <div className="lp-compliance-card-header">
-                    <div className="lp-law-badge e-vat">GRA • E-VAT CIS</div>
-                    <QrCode className="lp-law-icon text-green" size={24} />
-                  </div>
-                  <h3>GRA Certified Invoicing & E-VAT Compliance</h3>
-                  <p className="lp-law-summary">
-                    Meets GRA Electronic Invoicing System mandates for real-time transaction authentication and invoice clearance:
-                  </p>
-                  <ul className="lp-law-list">
-                    <li><strong>Sales Data Controller (SDC) Readiness:</strong> Formats receipts with unique digital identifiers.</li>
-                    <li><strong>Digital Verification QR Codes:</strong> Every invoice embeds verifiable authenticity data.</li>
-                    <li><strong>Revenue Administration Act (Act 915):</strong> Guarantees 6-year tamper-evident digital record retention.</li>
-                    <li><strong>Zero Government E-Levy Overhead:</strong> Clean MoMo & bank reconciliations reflecting official E-Levy abolition.</li>
-                  </ul>
-                  <div className="lp-law-tag">Automatic Double-Entry Tax Ledger Separation</div>
-                </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, marginTop: 32 }}>
+            {/* Left Box: Business Highlights */}
+            <div style={{ background: '#fff', padding: 32, borderRadius: 20, border: '1px solid var(--lp-border, #e5e7eb)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', background: '#fef3c7', color: '#92400e', borderRadius: 20, fontSize: 12, fontWeight: 700, width: 'fit-content', marginBottom: 16 }}>
+                🇬🇭 Built for Ghanaian Businesses
               </div>
+              <h3 style={{ fontSize: 22, fontWeight: 800, color: '#111827', marginBottom: 14 }}>
+                No Manual Tax Math at Checkout
+              </h3>
+              <p style={{ color: '#6b7280', fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
+                StoreFlow handles Ghana's 2026 unified tax structure cleanly in the background so your cashiers can ring up sales in seconds without calculation errors.
+              </p>
 
-              {/* Tax Quick Reference Table */}
-              <div className="lp-tax-table-container">
-                <div className="lp-tax-table-title">
-                  <Building2 size={18} />
-                  <span>Ghana Indirect Tax Structure Breakdown (2026 Regime)</span>
-                </div>
-                <div className="lp-table-responsive">
-                  <table className="lp-compliance-table">
-                    <thead>
-                      <tr>
-                        <th>Tax Component</th>
-                        <th>Legal Basis</th>
-                        <th>Statutory Rate</th>
-                        <th>Input Tax Deductible?</th>
-                        <th>Application in StoreFlow</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td><strong>Standard VAT</strong></td>
-                        <td>VAT Act, 2025 (Act 1151)</td>
-                        <td><span className="badge-highlight">15.0%</span></td>
-                        <td><span className="badge-yes">Yes</span></td>
-                        <td>Automated output liability tracking & invoice split</td>
-                      </tr>
-                      <tr>
-                        <td><strong>NHIL</strong></td>
-                        <td>National Health Insurance Act</td>
-                        <td><span className="badge-highlight">2.5%</span></td>
-                        <td><span className="badge-yes">Yes (Re-coupled)</span></td>
-                        <td>Isolated ledger account for health levy remittances</td>
-                      </tr>
-                      <tr>
-                        <td><strong>GETFund Levy</strong></td>
-                        <td>Ghana Education Trust Fund Act</td>
-                        <td><span className="badge-highlight">2.5%</span></td>
-                        <td><span className="badge-yes">Yes (Re-coupled)</span></td>
-                        <td>Dedicated tracking for education levy reporting</td>
-                      </tr>
-                      <tr>
-                        <td><strong>COVID-19 Levy</strong></td>
-                        <td>Act 1068 (Repealed)</td>
-                        <td><span className="badge-no">0.0% (Abolished)</span></td>
-                        <td>N/A</td>
-                        <td>Excluded from tax engine computations</td>
-                      </tr>
-                      <tr>
-                        <td><strong>Total Effective Rate</strong></td>
-                        <td>Combined Indirect Base</td>
-                        <td><span className="badge-total">20.0% Combined</span></td>
-                        <td>Full Deductibility</td>
-                        <td>One-click toggle between VAT and Non-VAT pricing</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Tab 2: Data Protection & Cybersecurity */}
-          {activeComplianceTab === "data" && (
-            <div className="lp-compliance-panel animate-fade-in">
-              <div className="lp-compliance-grid">
-                <div className="lp-compliance-card">
-                  <div className="lp-compliance-card-header">
-                    <div className="lp-law-badge dpc">DPC • Act 843</div>
-                    <Shield className="lp-law-icon text-teal" size={24} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ color: '#10b981', marginTop: 2 }}><CheckCircle2 size={18} /></div>
+                  <div>
+                    <strong style={{ fontSize: 14, color: '#1f2937' }}>20% Unified Tax Breakdown:</strong>
+                    <p style={{ fontSize: 13, color: '#6b7280', margin: '2px 0 0' }}>Automatically itemizes 15% VAT, 2.5% NHIL, and 2.5% GETFund for VAT-registered businesses.</p>
                   </div>
-                  <h3>Data Protection Act, 2012 (Act 843)</h3>
-                  <p className="lp-law-summary">
-                    Enforces the Data Protection Commission (DPC) standards across all 8 Core Principles for handling customer data:
-                  </p>
-                  <ul className="lp-law-list">
-                    <li><strong>Accountability & Lawfulness:</strong> Structured data collection with explicit business purpose.</li>
-                    <li><strong>Data Minimization & Quality:</strong> Stores only essential customer details (name, phone, debt logs).</li>
-                    <li><strong>Openness & Subject Rights:</strong> Customers can request their ledger transaction summaries at any time.</li>
-                    <li><strong>Strict Purpose Specification:</strong> Customer data is never shared, marketed, or monetized.</li>
-                    <li><strong>Data Controller Segregation:</strong> Multi-tenant isolation prevents cross-organization leaks.</li>
-                  </ul>
-                  <div className="lp-law-tag">Zero Cross-Tenant Data Access Guarantee</div>
                 </div>
 
-                <div className="lp-compliance-card">
-                  <div className="lp-compliance-card-header">
-                    <div className="lp-law-badge csa">CSA • Act 1038 & 772</div>
-                    <Database className="lp-law-icon text-purple" size={24} />
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ color: '#10b981', marginTop: 2 }}><CheckCircle2 size={18} /></div>
+                  <div>
+                    <strong style={{ fontSize: 14, color: '#1f2937' }}>Flexible Pricing Modes:</strong>
+                    <p style={{ fontSize: 13, color: '#6b7280', margin: '2px 0 0' }}>Sell tax-inclusive (common for retail shelves) or tax-exclusive (wholesale) with one toggle.</p>
                   </div>
-                  <h3>Cybersecurity Act (1038) & Electronic Transactions (772)</h3>
-                  <p className="lp-law-summary">
-                    Built to satisfy the Cyber Security Authority (CSA) and the Electronic Transactions Act, 2008:
-                  </p>
-                  <ul className="lp-law-list">
-                    <li><strong>PostgreSQL Row-Level Security (RLS):</strong> Cryptographic database-level wall between stores.</li>
-                    <li><strong>Electronic Transactions Act 772:</strong> Legally binding digital receipts & audit trails for court admissibility.</li>
-                    <li><strong>TLS 1.3 / AES-256 Encryption:</strong> In-transit and at-rest protection against unauthorized breaches.</li>
-                    <li><strong>Comprehensive Audit Logs:</strong> Tracks every stock adjustment, deletion attempt, and permission elevation.</li>
-                  </ul>
-                  <div className="lp-law-tag">Immutable Audit Logging & RBAC Access Protection</div>
                 </div>
-              </div>
 
-              {/* 8 DPC Principles Matrix */}
-              <div className="lp-dpc-matrix">
-                <div className="lp-dpc-matrix-header">
-                  <CheckCircle2 size={18} />
-                  <span>How StoreFlow Satisfies the 8 Principles of Ghana Act 843</span>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ color: '#10b981', marginTop: 2 }}><CheckCircle2 size={18} /></div>
+                  <div>
+                    <strong style={{ fontSize: 14, color: '#1f2937' }}>Small Business Friendly:</strong>
+                    <p style={{ fontSize: 13, color: '#6b7280', margin: '2px 0 0' }}>Operating under the GHS 750k threshold? Switch to 0% exempt rate anytime in Settings.</p>
+                  </div>
                 </div>
-                <div className="lp-dpc-grid">
-                  <div className="lp-dpc-item">
-                    <span className="num">1</span>
-                    <div>
-                      <strong>Accountability</strong>
-                      <p>Full administrator audit trails tracking user actions and timestamped ledger edits.</p>
-                    </div>
-                  </div>
-                  <div className="lp-dpc-item">
-                    <span className="num">2</span>
-                    <div>
-                      <strong>Lawfulness of Processing</strong>
-                      <p>Data processed solely for legitimate commercial invoicing and stock recordkeeping.</p>
-                    </div>
-                  </div>
-                  <div className="lp-dpc-item">
-                    <span className="num">3</span>
-                    <div>
-                      <strong>Specification of Purpose</strong>
-                      <p>Customer contact data is captured exclusively for digital receipt delivery and debt tracking.</p>
-                    </div>
-                  </div>
-                  <div className="lp-dpc-item">
-                    <span className="num">4</span>
-                    <div>
-                      <strong>Compatibility</strong>
-                      <p>Prevents unexpected secondary processing or external tracking across vendors.</p>
-                    </div>
-                  </div>
-                  <div className="lp-dpc-item">
-                    <span className="num">5</span>
-                    <div>
-                      <strong>Quality of Information</strong>
-                      <p>Instant phone number validation, receipt re-generation, and customer ledger sync.</p>
-                    </div>
-                  </div>
-                  <div className="lp-dpc-item">
-                    <span className="num">6</span>
-                    <div>
-                      <strong>Openness & Transparency</strong>
-                      <p>Clear line-item breakdowns on all customer-facing receipts and PDF statements.</p>
-                    </div>
-                  </div>
-                  <div className="lp-dpc-item">
-                    <span className="num">7</span>
-                    <div>
-                      <strong>Security Safeguards</strong>
-                      <p>Database Row-Level Security, SSL/TLS, and strict password hashing protocols.</p>
-                    </div>
-                  </div>
-                  <div className="lp-dpc-item">
-                    <span className="num">8</span>
-                    <div>
-                      <strong>Data Subject Participation</strong>
-                      <p>Ability to rectify customer contact details and export transaction statements on demand.</p>
-                    </div>
+
+                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <div style={{ color: '#10b981', marginTop: 2 }}><CheckCircle2 size={18} /></div>
+                  <div>
+                    <strong style={{ fontSize: 14, color: '#1f2937' }}>Official Receipts with TIN:</strong>
+                    <p style={{ fontSize: 13, color: '#6b7280', margin: '2px 0 0' }}>Your store TIN is neatly displayed on thermal PDF prints and WhatsApp receipts.</p>
                   </div>
                 </div>
               </div>
             </div>
-          )}
 
-          {/* Tab 3: Interactive Ghana Tax Calculator */}
-          {activeComplianceTab === "calculator" && (
-            <div className="lp-compliance-panel animate-fade-in">
-              <div className="lp-tax-calc-card">
-                <div className="lp-tax-calc-header">
-                  <div className="badge-pulse">
-                    <Sparkles size={14} /> 2026 GRA Tax Act 1151 Calculator
-                  </div>
-                  <h3>Interactive Ghanaian Tax & Indirect Levy Calculator</h3>
-                  <p>Test how a sale is broken down under the new 2026 Value Added Tax Act (Act 1151) versus non-VAT registered retail mode.</p>
+            {/* Right Box: Interactive Tax Calculator */}
+            <div className="lp-tax-calc-card" style={{ margin: 0 }}>
+              <div className="lp-tax-calc-header">
+                <div className="badge-pulse">
+                  <Sparkles size={14} /> Interactive Estimator
                 </div>
+                <h3>Ghana Tax & Pricing Calculator</h3>
+                <p>Test how a sale breaks down between net revenue and indirect taxes.</p>
+              </div>
 
-                <div className="lp-tax-calc-body">
-                  <div className="lp-tax-calc-inputs">
-                    <div className="lp-calc-field">
-                      <label>Sale Amount (GHS)</label>
-                      <div className="lp-input-currency">
-                        <span>GHS</span>
-                        <input 
-                          type="number" 
-                          min="1" 
-                          step="any"
-                          value={calcAmount} 
-                          onChange={(e) => setCalcAmount(e.target.value)}
-                          placeholder="e.g. 500"
-                        />
-                      </div>
+              <div className="lp-tax-calc-body">
+                <div className="lp-tax-calc-inputs">
+                  <div className="lp-calc-field">
+                    <label>Sale Amount (GHS)</label>
+                    <div className="lp-input-currency">
+                      <span>GHS</span>
+                      <input 
+                        type="number" 
+                        min="1" 
+                        step="any"
+                        value={calcAmount} 
+                        onChange={(e) => setCalcAmount(e.target.value)}
+                        placeholder="e.g. 500"
+                      />
                     </div>
+                  </div>
 
+                  <div className="lp-calc-toggle-group">
+                    <label>Store Status</label>
+                    <div className="lp-pill-selectors">
+                      <button 
+                        className={`pill-btn ${calcIsVatRegistered ? "active" : ""}`}
+                        onClick={() => setCalcIsVatRegistered(true)}
+                      >
+                        VAT Registered
+                      </button>
+                      <button 
+                        className={`pill-btn ${!calcIsVatRegistered ? "active" : ""}`}
+                        onClick={() => setCalcIsVatRegistered(false)}
+                      >
+                        Exempt / Small Biz
+                      </button>
+                    </div>
+                  </div>
+
+                  {calcIsVatRegistered && (
                     <div className="lp-calc-toggle-group">
-                      <label>VAT Registration Status</label>
+                      <label>Pricing Mode</label>
                       <div className="lp-pill-selectors">
                         <button 
-                          className={`pill-btn ${calcIsVatRegistered ? "active" : ""}`}
-                          onClick={() => setCalcIsVatRegistered(true)}
+                          className={`pill-btn ${calcIsInclusive ? "active" : ""}`}
+                          onClick={() => setCalcIsInclusive(true)}
                         >
-                          VAT Registered (≥ GHS 750k)
+                          Tax-Inclusive
                         </button>
                         <button 
-                          className={`pill-btn ${!calcIsVatRegistered ? "active" : ""}`}
-                          onClick={() => setCalcIsVatRegistered(false)}
+                          className={`pill-btn ${!calcIsInclusive ? "active" : ""}`}
+                          onClick={() => setCalcIsInclusive(false)}
                         >
-                          Non-VAT / Small Biz
+                          Tax-Exclusive
                         </button>
                       </div>
                     </div>
+                  )}
+                </div>
 
-                    {calcIsVatRegistered && (
-                      <div className="lp-calc-toggle-group">
-                        <label>Pricing Mode</label>
-                        <div className="lp-pill-selectors">
-                          <button 
-                            className={`pill-btn ${calcIsInclusive ? "active" : ""}`}
-                            onClick={() => setCalcIsInclusive(true)}
-                          >
-                            Tax-Inclusive (Price includes VAT)
-                          </button>
-                          <button 
-                            className={`pill-btn ${!calcIsInclusive ? "active" : ""}`}
-                            onClick={() => setCalcIsInclusive(false)}
-                          >
-                            Tax-Exclusive (Tax added on top)
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                <div className="lp-tax-calc-results">
+                  <div className="calc-result-header">
+                    <span>Breakdown</span>
+                    <span className="rate-badge">Rate: {calculatedTax.effectiveRate}</span>
                   </div>
 
-                  <div className="lp-tax-calc-results">
-                    <div className="calc-result-header">
-                      <span>Statutory Breakdown</span>
-                      <span className="rate-badge">Rate: {calculatedTax.effectiveRate}</span>
+                  <div className="calc-breakdown-list">
+                    <div className="calc-row">
+                      <span>Net Sales Value</span>
+                      <span className="mono bold">GHS {calculatedTax.net.toFixed(2)}</span>
                     </div>
-
-                    <div className="calc-breakdown-list">
-                      <div className="calc-row">
-                        <span>Net Taxable Base</span>
-                        <span className="mono bold">GHS {calculatedTax.net.toFixed(2)}</span>
-                      </div>
-                      <div className="calc-row sub">
-                        <span>• Standard VAT (15.0%)</span>
-                        <span className="mono">GHS {calculatedTax.vat.toFixed(2)}</span>
-                      </div>
-                      <div className="calc-row sub">
-                        <span>• NHIL (2.5%)</span>
-                        <span className="mono">GHS {calculatedTax.nhil.toFixed(2)}</span>
-                      </div>
-                      <div className="calc-row sub">
-                        <span>• GETFund Levy (2.5%)</span>
-                        <span className="mono">GHS {calculatedTax.getfund.toFixed(2)}</span>
-                      </div>
-                      <div className="calc-row total-tax">
-                        <span>Total GRA Indirect Tax (20%)</span>
-                        <span className="mono bold text-orange">GHS {calculatedTax.totalTax.toFixed(2)}</span>
-                      </div>
-                      <div className="calc-row gross-final">
-                        <span>Total Customer Invoice</span>
-                        <span className="mono grand-total">GHS {calculatedTax.gross.toFixed(2)}</span>
-                      </div>
-                    </div>
-
-                    <div className="calc-compliance-note">
-                      <CheckCircle2 size={16} />
-                      <span>Ready for GRA monthly returns (Form 1) with input tax claim support.</span>
+                    {calcIsVatRegistered && (
+                      <>
+                        <div className="calc-row sub">
+                          <span>• VAT (15.0%)</span>
+                          <span className="mono">GHS {calculatedTax.vat.toFixed(2)}</span>
+                        </div>
+                        <div className="calc-row sub">
+                          <span>• NHIL (2.5%)</span>
+                          <span className="mono">GHS {calculatedTax.nhil.toFixed(2)}</span>
+                        </div>
+                        <div className="calc-row sub">
+                          <span>• GETFund Levy (2.5%)</span>
+                          <span className="mono">GHS {calculatedTax.getfund.toFixed(2)}</span>
+                        </div>
+                        <div className="calc-row total-tax">
+                          <span>Total Indirect Tax (20%)</span>
+                          <span className="mono bold text-orange">GHS {calculatedTax.totalTax.toFixed(2)}</span>
+                        </div>
+                      </>
+                    )}
+                    <div className="calc-row gross-final">
+                      <span>Total Customer Pays</span>
+                      <span className="mono grand-total">GHS {calculatedTax.gross.toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
       </section>
 
@@ -898,9 +728,9 @@ export default function LandingPage() {
         <div className="lp-container">
           <div className="lp-section-header">
             <span className="lp-section-label">Live Interactive Simulator</span>
-            <h2 className="lp-section-title">Experience Ghana-compliant sales right now</h2>
+            <h2 className="lp-section-title">Experience StoreFlow in real-time</h2>
             <p className="lp-section-desc">
-              Sell an item below to see the automated 2026 VAT Act calculation, digital receipt hash creation, stock deduction, and balanced double-entry ledger update in real time.
+              Sell an item below to see stock deduction, instant receipt generation, and balanced double-entry bookkeeping in action.
             </p>
           </div>
 
@@ -911,7 +741,7 @@ export default function LandingPage() {
                 <span className="dot yellow" />
                 <span className="dot green" />
               </div>
-              <div className="lp-simulator-title">StoreFlow — Ghana Point of Sale & Tax Engine</div>
+              <div className="lp-simulator-title">StoreFlow — Point of Sale & Inventory Demo</div>
               <div className="lp-simulator-status">
                 <span className="live-pulse" /> SIMULATOR ACTIVE
               </div>
@@ -925,7 +755,7 @@ export default function LandingPage() {
                   onClick={() => setActivePlaygroundTab("pos")}
                 >
                   <div className="lp-sim-icon-bubble pos"><Receipt size={16} /></div>
-                  <span>1. Point of Sale & E-VAT</span>
+                  <span>1. Point of Sale</span>
                 </button>
                 <button 
                   className={`lp-sim-nav-item ${activePlaygroundTab === "stock" ? "active" : ""}`}
@@ -939,7 +769,7 @@ export default function LandingPage() {
                   onClick={() => setActivePlaygroundTab("ledger")}
                 >
                   <div className="lp-sim-icon-bubble ledger"><TrendingUp size={16} /></div>
-                  <span>3. Tax Ledgers (Act 1151)</span>
+                  <span>3. Accounting Ledger</span>
                 </button>
               </div>
 
@@ -949,7 +779,7 @@ export default function LandingPage() {
                   <div className="lp-sim-tab-view animate-fade-in">
                     <div className="lp-sim-pos-header">
                       <div>
-                        <h4>Sell Items with Instant Tax Breakdown</h4>
+                        <h4>Sell Items with Instant Receipts</h4>
                         <p className="sim-sub">Click an item below to simulate a live customer purchase at your checkout counter.</p>
                       </div>
                       <div className="lp-sim-tax-toggle">
@@ -959,7 +789,7 @@ export default function LandingPage() {
                             checked={simTaxEnabled} 
                             onChange={(e) => setSimTaxEnabled(e.target.checked)} 
                           />
-                          <span>20% GRA VAT/Levies Mode</span>
+                          <span>20% Tax Mode</span>
                         </label>
                       </div>
                     </div>
@@ -969,7 +799,7 @@ export default function LandingPage() {
                         <h5>Cement (50kg)</h5>
                         <p className="price">GHS 120.00</p>
                         <p className="stock">Stock: {stockLevels.cement} bags</p>
-                        <p className="tax-tag">{simTaxEnabled ? "Incl. GHS 20.00 VAT/Levies" : "No Tax"}</p>
+                        <p className="tax-tag">{simTaxEnabled ? "Incl. GHS 20.00 Tax" : "Exempt / No Tax"}</p>
                         <button 
                           className="lp-btn lp-btn-primary lp-btn-full"
                           onClick={() => handleSimulateSale("cement", "Cement (50kg)", 120)}
@@ -983,7 +813,7 @@ export default function LandingPage() {
                         <h5>Iron Rods (16mm)</h5>
                         <p className="price">GHS 85.00</p>
                         <p className="stock">Stock: {stockLevels.ironRods} rods</p>
-                        <p className="tax-tag">{simTaxEnabled ? "Incl. GHS 14.17 VAT/Levies" : "No Tax"}</p>
+                        <p className="tax-tag">{simTaxEnabled ? "Incl. GHS 14.17 Tax" : "Exempt / No Tax"}</p>
                         <button 
                           className="lp-btn lp-btn-primary lp-btn-full"
                           onClick={() => handleSimulateSale("ironRods", "Iron Rods (16mm)", 85)}
@@ -997,7 +827,7 @@ export default function LandingPage() {
                         <h5>PVC Pipes (10ft)</h5>
                         <p className="price">GHS 45.00</p>
                         <p className="stock">Stock: {stockLevels.pvcPipes} pipes</p>
-                        <p className="tax-tag">{simTaxEnabled ? "Incl. GHS 7.50 VAT/Levies" : "No Tax"}</p>
+                        <p className="tax-tag">{simTaxEnabled ? "Incl. GHS 7.50 Tax" : "Exempt / No Tax"}</p>
                         <button 
                           className="lp-btn lp-btn-primary lp-btn-full"
                           onClick={() => handleSimulateSale("pvcPipes", "PVC Pipes (10ft)", 45)}
@@ -1012,16 +842,16 @@ export default function LandingPage() {
                       <div className="lp-sim-success-alert animate-fade-in">
                         <div className="alert-head">
                           <CheckCircle2 size={16} /> 
-                          <strong>Sale Recorded! Instant GRA E-Receipt Generated:</strong>
+                          <strong>Sale Recorded! Instant Digital Receipt Generated:</strong>
                         </div>
                         <div className="alert-details">
                           <span>Invoice: <strong>#{lastSaleReceipt.invId}</strong></span>
                           <span>Item: <strong>{lastSaleReceipt.item}</strong></span>
                           <span>Total Paid: <strong>GHS {lastSaleReceipt.taxInfo.gross.toFixed(2)}</strong></span>
                           {simTaxEnabled && (
-                            <span>VAT/Levies (20%): <strong>GHS {lastSaleReceipt.taxInfo.totalTax.toFixed(2)}</strong></span>
+                            <span>Tax (20%): <strong>GHS {lastSaleReceipt.taxInfo.totalTax.toFixed(2)}</strong></span>
                           )}
-                          <span>Security Code: <strong>{lastSaleReceipt.sdcCode}</strong></span>
+                          <span>Receipt ID: <strong>{lastSaleReceipt.sdcCode}</strong></span>
                         </div>
                       </div>
                     )}
@@ -1085,7 +915,7 @@ export default function LandingPage() {
 
                     {showSimAlert && (
                       <div className="lp-sim-danger-alert animate-fade-in">
-                        ⚠️ Low stock notification dispatched via Edge Function to Store Manager!
+                        ⚠️ Low stock notification dispatched to Store Manager!
                       </div>
                     )}
                   </div>
@@ -1093,14 +923,14 @@ export default function LandingPage() {
 
                 {activePlaygroundTab === "ledger" && (
                   <div className="lp-sim-tab-view animate-fade-in">
-                    <h4>Automated Balanced Bookkeeping & Tax Ledgers</h4>
-                    <p className="sim-sub">Every transaction posts balancing debits and credits conforming to Ghanaian financial recordkeeping (Act 915).</p>
+                    <h4>Automated Balanced Bookkeeping</h4>
+                    <p className="sim-sub">Every transaction automatically posts balancing debits and credits, keeping your financial books clean and audit-ready.</p>
                     
                     <div className="lp-sim-ledger-view">
                       <table className="lp-demo-table">
                         <thead>
                           <tr>
-                            <th>Account Name</th>
+                            <th>Account</th>
                             <th>Entry Type</th>
                             <th>Amount</th>
                             <th>Description</th>
@@ -1109,7 +939,7 @@ export default function LandingPage() {
                         <tbody>
                           {ledgerEntries.map((entry, index) => (
                             <tr key={index}>
-                              <td className="mono font-semibold">{entry.account}</td>
+                              <td className="mono">{entry.account}</td>
                               <td>
                                 <span className={`entry-type-badge ${entry.type}`}>
                                   {entry.type.toUpperCase()}
@@ -1130,72 +960,36 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── FEATURES (ACCORDIONS) ─── */}
-      <section id="features" className="lp-features" ref={featuresRef}>
-        <div className="lp-section-header">
-          <span className="lp-section-label">Core Capabilities</span>
-          <h2 className="lp-section-title">Complete control over your retail operations</h2>
-          <p className="lp-section-desc">
-            StoreFlow brings speed, accuracy, and statutory rigor to your shop without the complexity of traditional accounting software.
-          </p>
-        </div>
-
-        <div className="lp-features-grid">
-          {features.map((f, i) => {
-            const isExpanded = !!expandedFeatures[i];
-            return (
-              <div 
-                key={i} 
-                className={`lp-feature-card lp-feature-accordion ${isExpanded ? "expanded" : ""}`}
-                onClick={() => toggleFeature(i)}
-                style={{ cursor: "pointer" }}
-              >
-                <div className="lp-feature-card-header">
-                  <div className={`lp-feature-icon ${f.color}`}>{f.icon}</div>
-                  <h3 className="lp-feature-title">{f.title}</h3>
-                  <span className="lp-feature-chevron">
-                    {isExpanded ? "−" : "+"}
-                  </span>
-                </div>
-                <div className={`lp-feature-desc-container ${isExpanded ? "open" : ""}`}>
-                  <p className="lp-feature-desc">{f.desc}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
       {/* ─── HOW IT WORKS ─── */}
       <section id="how-it-works" className="lp-how">
         <div className="lp-section-header">
           <span className="lp-section-label">How It Works</span>
           <h2 className="lp-section-title">Onboarding is fast, simple, and fully managed</h2>
           <p className="lp-section-desc">
-            We handle the database setup, inventory import, and tax config. You run the business.
+            We handle the setup and data import. You run the business.
           </p>
         </div>
 
         <div className="lp-how-grid">
           <div className="lp-how-step">
             <div className="lp-how-number">1</div>
-            <h3 className="lp-how-title">1. Consult on your plan</h3>
+            <h3 className="lp-how-title">1. Tell us about your store</h3>
             <p className="lp-how-desc">
-              We determine your branch locations, item catalog, tax registration status (VAT or non-VAT), and staff roles.
+              We determine your branch locations, item catalog, tax preferences (VAT or exempt), and staff roles.
             </p>
           </div>
           <div className="lp-how-step">
             <div className="lp-how-number">2</div>
             <h3 className="lp-how-title">2. We import your stock</h3>
             <p className="lp-how-desc">
-              Our engineering team imports your existing price lists, batches, threshold alerts, and customer balances securely.
+              Our team imports your existing price lists, batches, threshold alerts, and customer balances securely.
             </p>
           </div>
           <div className="lp-how-step">
             <div className="lp-how-number">3</div>
-            <h3 className="lp-how-title">3. Go Live & manage</h3>
+            <h3 className="lp-how-title">3. Go live & grow</h3>
             <p className="lp-how-desc">
-              Record sales, print E-VAT receipts, track debt, and generate GRA-ready monthly audit summaries from any phone or computer.
+              Record sales, dispatch WhatsApp receipts, track debt, and view daily profits from any phone or computer.
             </p>
           </div>
         </div>
@@ -1228,9 +1022,9 @@ export default function LandingPage() {
       {/* ─── CTA / CONTACT ─── */}
       <section id="contact" className="lp-cta">
         <div className="lp-cta-inner">
-          <h2>Ready to streamline your business & stay 100% compliant?</h2>
+          <h2>Ready to streamline your store operations?</h2>
           <p>
-            Schedule a quick consultation with our team. We can have your store live with custom stock tracking and GRA tax support in under 48 hours.
+            Schedule a quick consultation with our team. We can have your store live with custom stock tracking and receipt generation in under 48 hours.
           </p>
 
           <div className="lp-cta-actions">
@@ -1265,17 +1059,14 @@ export default function LandingPage() {
             <div className="lp-footer-name">StoreFlow <span style={{ fontWeight: 400, color: 'var(--lp-text-muted)' }}>by Flywheel</span></div>
             <div className="lp-footer-copy">
               © {new Date().getFullYear()} Flywheel Technologies. All rights reserved.
-              <div style={{ marginTop: "6px", fontSize: "13px" }}>
-                Built for Ghanaian enterprise • Compliant with <strong>GRA VAT Act 1151</strong> & <strong>Data Protection Act 843</strong>
-              </div>
               <div style={{ marginTop: "4px", fontSize: "13px" }}>
-                Crafted by <a href="https://bookflywheel.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--lp-accent)", fontWeight: 600 }}>Flywheel</a>
+                Built for Ghanaian retail & wholesale • Crafted by <a href="https://bookflywheel.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--lp-accent)", fontWeight: 600 }}>Flywheel</a>
               </div>
             </div>
           </div>
           <div className="lp-footer-links">
             <a href="#features">Features</a>
-            <a href="#compliance">Ghana Compliance</a>
+            <a href="#tax-tools">Tax Calculator</a>
             <a href="#playground">Live Demo</a>
             <a href="#how-it-works">How It Works</a>
             <a href="#reviews">Reviews</a>

@@ -22,6 +22,8 @@ out/
 # Database
 *.db
 *.db-journal
+*.secret.sql
+*.local.sql
 
 # IDE
 .idea/

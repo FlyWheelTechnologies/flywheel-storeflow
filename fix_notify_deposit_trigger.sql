@@ -5,13 +5,14 @@
 DROP TRIGGER IF EXISTS notify_deposit ON public.sales;
 
 -- Step 2: Recreate it pointing at the CORRECT notify-deposit edge function
+-- NOTE: Never commit raw service_role keys to git. Replace <YOUR_SERVICE_ROLE_KEY> before running in Supabase SQL editor.
 CREATE TRIGGER notify_deposit
 AFTER INSERT ON public.sales
 FOR EACH ROW
 EXECUTE FUNCTION supabase_functions.http_request(
   'https://xzdvgxwpaynpmphcmtqc.supabase.co/functions/v1/notify-deposit',
   'POST',
-  '{"Content-type":"application/json","Authorization":"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6ZHZneHdwYXlucG1waGNtdHFjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODQ1NTM5MiwiZXhwIjoyMDk0MDMxMzkyfQ.M9p8hS7NAFIAvDRRFlm9-NbdVcCEJ6EK7ueSZ4MqqXE"}',
+  '{"Content-type":"application/json","Authorization":"Bearer <YOUR_SERVICE_ROLE_KEY>"}',
   '{}',
   '3000'
 );

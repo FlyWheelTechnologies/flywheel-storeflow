@@ -8,7 +8,7 @@ import { formatCurrency } from "../services/formatters";
 const emptyForm = { name: '', phone: '+233', email: '', address: '', is_contractor: false };
 
 export default function Customers() {
-  const { user } = useAuth();
+  const { user, activeOrgId } = useAuth();
   const isAdmin = user?.role === 'admin';
   const [customers, setCustomers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,13 +42,20 @@ export default function Customers() {
     // Prevent JWT expired error by proactively refreshing session if dormant
     await supabase.auth.getSession();
 
-    // Only send updatable fields to prevent 400 error
+    // Clean phone number (normalize 024 -> +23324)
+    let cleanedPhone = (form.phone || '').trim();
+    if (cleanedPhone.startsWith('0')) {
+      cleanedPhone = '+233' + cleanedPhone.slice(1);
+    } else if (cleanedPhone.startsWith('233') && !cleanedPhone.startsWith('+233')) {
+      cleanedPhone = '+' + cleanedPhone;
+    }
+
     // Only send updatable fields to prevent 400 error (avoiding calculated fields from view)
     const payload = {
-      name: form.name || '',
-      phone: form.phone || '+233',
-      email: form.email || '',
-      address: form.address || '',
+      name: (form.name || '').trim(),
+      phone: cleanedPhone || '+233',
+      email: (form.email || '').trim(),
+      address: (form.address || '').trim(),
       is_contractor: !!form.is_contractor
     };
     
@@ -58,7 +65,12 @@ export default function Customers() {
         if (error) throw error;
         setToast({ message: "Customer updated successfully!", type: "success" });
       } else {
-        const { error } = await supabase.from('customers').insert([{ ...payload, created_at: new Date().toISOString() }]);
+        const insertPayload = { ...payload, created_at: new Date().toISOString() };
+        const orgId = activeOrgId || user?.organization_id;
+        if (orgId) {
+          insertPayload.organization_id = orgId;
+        }
+        const { error } = await supabase.from('customers').insert([insertPayload]);
         if (error) throw error;
         setToast({ message: "Customer created successfully!", type: "success" });
       }
