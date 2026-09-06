@@ -15,6 +15,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import SuperAdminNewOrg from "./pages/SuperAdminNewOrg";
+import SuperAdminEditOrg from "./pages/SuperAdminEditOrg";
 import SuperAdminBilling from "./pages/SuperAdminBilling";
 import SuperAdminAI from "./pages/SuperAdminAI";
 import SuperAdminDatabase from "./pages/SuperAdminDatabase";
@@ -42,6 +43,7 @@ function App() {
         <Route path="/admin" element={<SuperAdminRoute><Layout><SuperAdminDashboard /></Layout></SuperAdminRoute>} />
         <Route path="/admin/billing" element={<SuperAdminRoute><Layout><SuperAdminBilling /></Layout></SuperAdminRoute>} />
         <Route path="/admin/organizations/new" element={<SuperAdminRoute><Layout><SuperAdminNewOrg /></Layout></SuperAdminRoute>} />
+        <Route path="/admin/organizations/:id/edit" element={<SuperAdminRoute><Layout><SuperAdminEditOrg /></Layout></SuperAdminRoute>} />
         <Route path="/admin/ai" element={<SuperAdminRoute><Layout><SuperAdminAI /></Layout></SuperAdminRoute>} />
         <Route path="/admin/database" element={<SuperAdminRoute><Layout><SuperAdminDatabase /></Layout></SuperAdminRoute>} />
         <Route path="/admin/api-keys" element={<SuperAdminRoute><Layout><SuperAdminApiKeys /></Layout></SuperAdminRoute>} />

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Trash2 } from "lucide-react";
+import { Trash2, Edit3 } from "lucide-react";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import "./Dashboard.css";
@@ -225,6 +225,40 @@ export default function SuperAdminDashboard() {
                       </span>
                     </td>
                     <td style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <Link
+                        to={`/admin/organizations/${o.id}/edit`}
+                        title={`Edit ${o.name} and staff`}
+                        style={{
+                          background: "#f8fafc",
+                          color: "#334155",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: 6,
+                          padding: "5px 9px",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 5,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          textDecoration: "none"
+                        }}
+                      >
+                        <Edit3 size={13} />
+                        Edit
+                      </Link>
+                      <button
+                        onClick={() => handleImpersonate(o)}
+                        className="quick-action-btn"
+                        style={{
+                          background: "#e0f2fe",
+                          color: "#0369a1",
+                          fontSize: 12,
+                          padding: "4px 10px",
+                          minHeight: "auto"
+                        }}
+                      >
+                        Enter Shop →
+                      </button>
                       <button
                         onClick={() => {
                           setOrgToDelete(o);
@@ -244,19 +278,6 @@ export default function SuperAdminDashboard() {
                         }}
                       >
                         <Trash2 size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleImpersonate(o)}
-                        className="quick-action-btn"
-                        style={{
-                          background: "#e0f2fe",
-                          color: "#0369a1",
-                          fontSize: 12,
-                          padding: "4px 10px",
-                          minHeight: "auto"
-                        }}
-                      >
-                        Enter Shop →
                       </button>
                     </td>
                   </tr>
