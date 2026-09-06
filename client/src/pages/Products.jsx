@@ -112,21 +112,43 @@ export default function Products() {
     };
     
     try {
-      const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
+      let resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
+
+      // Fallback 1: Query RPC if orgId still missing
+      if (!resolvedOrgId) {
+        try {
+          const { data: rpcOrg } = await supabase.rpc('get_my_organization_id');
+          if (rpcOrg) resolvedOrgId = rpcOrg;
+        } catch (e) {
+          console.warn("Could not resolve organization via RPC:", e);
+        }
+      }
+
+      // Fallback 2: Check matching organization admin_email
+      if (!resolvedOrgId && user?.email) {
+        try {
+          const { data: matched } = await supabase
+            .from('organizations')
+            .select('id')
+            .ilike('admin_email', user.email.trim())
+            .maybeSingle();
+          if (matched?.id) resolvedOrgId = matched.id;
+        } catch (e) {
+          console.warn("Could not resolve organization via email match:", e);
+        }
+      }
+
+      if (!resolvedOrgId) {
+        throw new Error("No active organization found for your account. Please log out and log back in, or select an organization.");
+      }
+
+      payload.organization_id = resolvedOrgId;
 
       if (editingId) {
-        if (resolvedOrgId && !payload.organization_id) {
-          payload.organization_id = resolvedOrgId;
-        }
         const { error: err } = await supabase.from('products').update(payload).eq('id', editingId);
         if (err) throw err;
       } else {
         payload.created_at = new Date().toISOString();
-        if (resolvedOrgId) {
-          payload.organization_id = resolvedOrgId;
-        } else if (user?.role !== 'super_admin') {
-          throw new Error("No active organization found for your account. Please refresh or contact your administrator.");
-        }
         const { error: err } = await supabase.from('products').insert([payload]);
         if (err) throw err;
       }

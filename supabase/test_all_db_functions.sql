@@ -516,16 +516,53 @@ ON CONFLICT (id) DO UPDATE SET
   role = COALESCE(public.profiles.role, EXCLUDED.role),
   updated_at = now();
 
--- 12. Link existing profiles with NULL organization_id where email matches organization admin_email
+-- 12. Enable store owners to SELECT their organization even if unlinked in profiles
+DROP POLICY IF EXISTS "Org members can view their own organization" ON public.organizations;
+CREATE POLICY "Org members can view their own organization" ON public.organizations
+  FOR SELECT TO authenticated USING (
+    id = (SELECT public.get_my_organization_id())
+    OR lower(admin_email) = lower((SELECT auth.jwt()->>'email'))
+  );
+
+-- 13. Trigger on public.products: Auto-populate organization_id if missing before insert
+CREATE OR REPLACE FUNCTION public.auto_set_product_organization_id()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF NEW.organization_id IS NULL THEN
+    NEW.organization_id := public.get_my_organization_id();
+  END IF;
+
+  IF NEW.organization_id IS NULL AND (SELECT auth.jwt()->>'email') IS NOT NULL THEN
+    SELECT id INTO NEW.organization_id 
+    FROM public.organizations 
+    WHERE lower(admin_email) = lower((SELECT auth.jwt()->>'email')) 
+    LIMIT 1;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_auto_set_product_organization_id ON public.products;
+CREATE TRIGGER trg_auto_set_product_organization_id
+  BEFORE INSERT ON public.products
+  FOR EACH ROW
+  EXECUTE FUNCTION public.auto_set_product_organization_id();
+
+-- 14. Repair all profiles where email matches organization admin_email
 UPDATE public.profiles p
-SET organization_id = o.id,
-    role = CASE WHEN p.role = 'super_admin' THEN 'super_admin' ELSE 'admin' END,
+SET role = 'admin',
+    organization_id = o.id,
     updated_at = now()
 FROM public.organizations o
 WHERE lower(p.email) = lower(o.admin_email)
-  AND p.organization_id IS NULL;
+  AND p.role != 'super_admin';
 
--- 13. Permissions & Cache Reload
+-- 15. Permissions & Cache Reload
 GRANT EXECUTE ON FUNCTION public.get_my_organization_id() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_super_admin() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_org_admin() TO anon, authenticated, service_role;
@@ -533,6 +570,7 @@ GRANT EXECUTE ON FUNCTION public.sync_profile_to_app_metadata() TO anon, authent
 GRANT EXECUTE ON FUNCTION public.log_action(text, text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.admin_link_existing_user(text, text, text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.admin_remove_staff(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_set_product_organization_id() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.record_pure_deposit(text, text, numeric, text, text, uuid) TO authenticated, service_role;
 
 NOTIFY pgrst, 'reload schema';

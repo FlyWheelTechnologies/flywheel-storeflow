@@ -16,6 +16,7 @@ import {
   Palette
 } from "lucide-react";
 import { supabase } from "../services/supabaseClient";
+import { createClient } from "@supabase/supabase-js";
 import { useAuth } from "../context/AuthContext";
 import "./Dashboard.css";
 
@@ -280,8 +281,19 @@ export default function SuperAdminEditOrg() {
         console.warn("Edge function invite-user unconfigured or failed, using Auth fallback:", fnErr.message);
         inviteWarning = " (Direct Auth fallback)";
 
-        // 2. Direct Auth Fallback
-        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+        // 2. Direct Auth Fallback with isolated ephemeral client
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+        const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false
+          }
+        });
+
+        const { data: signUpData, error: signUpErr } = await tempClient.auth.signUp({
           email: emailTrimmed,
           password: newStaff.password,
           options: {

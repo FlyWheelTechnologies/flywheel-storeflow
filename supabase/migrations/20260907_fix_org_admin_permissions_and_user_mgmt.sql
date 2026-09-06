@@ -343,13 +343,130 @@ BEGIN
 END;
 $$;
 
--- 8. Permissions
+-- 8. Enable store owners to SELECT their organization even if unlinked in profiles
+DROP POLICY IF EXISTS "Org members can view their own organization" ON public.organizations;
+CREATE POLICY "Org members can view their own organization" ON public.organizations
+  FOR SELECT TO authenticated USING (
+    id = (SELECT public.get_my_organization_id())
+    OR lower(admin_email) = lower((SELECT auth.jwt()->>'email'))
+  );
+
+-- 9. Trigger on public.products: Auto-populate organization_id if missing before insert
+CREATE OR REPLACE FUNCTION public.auto_set_product_organization_id()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF NEW.organization_id IS NULL THEN
+    NEW.organization_id := public.get_my_organization_id();
+  END IF;
+
+  IF NEW.organization_id IS NULL AND (SELECT auth.jwt()->>'email') IS NOT NULL THEN
+    SELECT id INTO NEW.organization_id 
+    FROM public.organizations 
+    WHERE lower(admin_email) = lower((SELECT auth.jwt()->>'email')) 
+    LIMIT 1;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_auto_set_product_organization_id ON public.products;
+CREATE TRIGGER trg_auto_set_product_organization_id
+  BEFORE INSERT ON public.products
+  FOR EACH ROW
+  EXECUTE FUNCTION public.auto_set_product_organization_id();
+
+-- 10. Update handle_new_user trigger function to guarantee store owner gets 'admin' role
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_org_id UUID;
+  v_role TEXT;
+  v_name TEXT;
+  v_is_admin_email BOOLEAN := FALSE;
+BEGIN
+  IF NEW.raw_user_meta_data->>'organization_id' IS NOT NULL AND NEW.raw_user_meta_data->>'organization_id' != '' THEN
+    BEGIN
+      v_org_id := (NEW.raw_user_meta_data->>'organization_id')::uuid;
+    EXCEPTION WHEN OTHERS THEN
+      v_org_id := NULL;
+    END;
+  END IF;
+
+  -- Check if user's email matches an organization's admin_email
+  IF NEW.email IS NOT NULL THEN
+    SELECT id INTO v_org_id 
+    FROM public.organizations 
+    WHERE lower(admin_email) = lower(NEW.email) 
+    LIMIT 1;
+
+    IF v_org_id IS NOT NULL THEN
+      v_is_admin_email := TRUE;
+    END IF;
+  END IF;
+
+  IF v_is_admin_email THEN
+    v_role := 'admin';
+  ELSE
+    v_role := COALESCE(
+      NULLIF(NEW.raw_user_meta_data->>'role', ''),
+      NULLIF(NEW.raw_app_meta_data->>'role', ''),
+      CASE WHEN v_org_id IS NOT NULL THEN 'admin' ELSE 'storekeeper' END
+    );
+  END IF;
+
+  v_name := COALESCE(NULLIF(NEW.raw_user_meta_data->>'full_name', ''), split_part(COALESCE(NEW.email, ''), '@', 1));
+
+  INSERT INTO public.profiles (id, email, full_name, role, organization_id, created_at, updated_at)
+  VALUES (
+    NEW.id,
+    NEW.email,
+    v_name,
+    v_role,
+    v_org_id,
+    now(),
+    now()
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    full_name = COALESCE(NULLIF(EXCLUDED.full_name, ''), public.profiles.full_name),
+    role = CASE 
+      WHEN public.profiles.role = 'super_admin' THEN 'super_admin'
+      WHEN v_is_admin_email THEN 'admin'
+      ELSE COALESCE(NULLIF(EXCLUDED.role, ''), public.profiles.role)
+    END,
+    organization_id = COALESCE(EXCLUDED.organization_id, public.profiles.organization_id),
+    updated_at = now();
+
+  RETURN NEW;
+END;
+$$;
+
+-- 11. Repair all existing profiles where email matches organization admin_email
+UPDATE public.profiles p
+SET role = 'admin',
+    organization_id = o.id,
+    updated_at = now()
+FROM public.organizations o
+WHERE lower(p.email) = lower(o.admin_email)
+  AND p.role != 'super_admin';
+
+-- 12. Permissions
 GRANT EXECUTE ON FUNCTION public.is_org_admin() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_super_admin() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.sync_profile_to_app_metadata() TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.log_action(text, text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.admin_link_existing_user(text, text, text) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.admin_remove_staff(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.auto_set_product_organization_id() TO anon, authenticated, service_role;
 
--- 9. Reload PostgREST schema cache
+-- 13. Reload PostgREST schema cache
 NOTIFY pgrst, 'reload schema';

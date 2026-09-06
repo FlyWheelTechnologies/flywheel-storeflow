@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
+import { createClient } from "@supabase/supabase-js";
 import { useAuth } from "../context/AuthContext";
 import "./Dashboard.css";
 
@@ -124,26 +125,47 @@ export default function SuperAdminNewOrg() {
         console.warn("Edge function invite-user unconfigured or failed, using direct Auth fallback:", fnErr.message);
         inviteWarning = " (Direct Auth fallback)";
 
-        // Fallback: Create user directly via Supabase Auth
-        const { data: signUpData } = await supabase.auth.signUp({
-          email: form.admin_email,
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+        const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
+          auth: {
+            persistSession: false,
+            autoRefreshToken: false,
+            detectSessionInUrl: false
+          }
+        });
+
+        // Fallback: Create user directly via isolated Supabase Auth client
+        const { data: signUpData, error: signUpErr } = await tempClient.auth.signUp({
+          email: form.admin_email.trim(),
           password: form.admin_password,
           options: {
             data: {
-              full_name: form.admin_name,
+              full_name: form.admin_name.trim(),
               role: "admin",
               organization_id: org.id
             }
           }
         });
 
-        if (signUpData?.user) {
+        if (signUpErr && signUpErr.message.toLowerCase().includes("already registered")) {
+          // Link pre-existing account as admin to this new organization
+          await supabase.from("profiles").update({
+            role: "admin",
+            organization_id: org.id,
+            full_name: form.admin_name.trim() || undefined,
+            updated_at: new Date().toISOString()
+          }).ilike("email", form.admin_email.trim());
+          inviteWarning = " (Linked pre-existing account as Admin)";
+        } else if (signUpData?.user) {
           await supabase.from("profiles").upsert({
             id: signUpData.user.id,
-            email: form.admin_email,
-            full_name: form.admin_name,
+            email: form.admin_email.trim(),
+            full_name: form.admin_name.trim(),
             role: "admin",
-            organization_id: org.id
+            organization_id: org.id,
+            updated_at: new Date().toISOString()
           });
         }
       }

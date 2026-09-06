@@ -32,31 +32,40 @@ export function AuthProvider({ children }) {
       let fullName = data?.full_name || sessionUser.user_metadata?.full_name || sessionUser.email?.split('@')[0] || '';
       let orgData = data?.organizations || null;
 
-      // 2. If organization_id is still unknown, check if this user is the registered admin_email of any organization
-      if (!orgId && sessionUser.email) {
+      // 2. Proactively verify if user is the registered admin_email of any organization
+      if (sessionUser.email && role !== 'super_admin') {
         try {
           const { data: matchedOrg } = await supabase
             .from('organizations')
             .select('*')
-            .ilike('admin_email', sessionUser.email)
+            .ilike('admin_email', sessionUser.email.trim())
             .maybeSingle();
 
           if (matchedOrg) {
             orgId = matchedOrg.id;
             orgData = matchedOrg;
-            if (!role) role = 'admin';
+            role = 'admin'; // FORCE role to admin for the store owner/admin_email
           }
         } catch (orgMatchErr) {
           console.warn("Error checking admin_email organization match:", orgMatchErr);
         }
       }
 
+      // If user metadata explicitly specifies admin role, honor it
+      if (role !== 'super_admin' && (sessionUser.user_metadata?.role === 'admin' || sessionUser.app_metadata?.role === 'admin')) {
+        role = 'admin';
+      }
+
       if (!role) {
         role = 'storekeeper';
       }
 
-      // 3. Self-healing: If profile doesn't exist or organization_id was missing, upsert to ensure DB consistency
-      if (!data || (!data.organization_id && orgId)) {
+      // 3. Self-healing: If profile is missing, has mismatched orgId, or has wrong role, persist fix to DB
+      const needsHealing = !data || 
+        (orgId && data.organization_id !== orgId) || 
+        (role === 'admin' && data.role !== 'admin' && data.role !== 'super_admin');
+
+      if (needsHealing && sessionUser.id) {
         try {
           const { data: healedProfile } = await supabase
             .from('profiles')
