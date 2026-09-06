@@ -10,9 +10,7 @@ import {
   Shield, 
   ArrowRight, 
   Phone,
-  Calculator,
-  CheckCircle2,
-  Sparkles
+  CheckCircle2
 } from "lucide-react";
 const orangeReceiptMachine = "/orange_receipt_machine.jpg";
 import productDashboardScreenshot from "../assets/product_dashboard_screenshot.png";
@@ -96,11 +94,15 @@ export default function LandingPage() {
   const [showPhone, setShowPhone] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [expandedFeatures, setExpandedFeatures] = useState({});
-  
-  /* ─── Tax Calculator State ─── */
-  const [calcAmount, setCalcAmount] = useState("500");
-  const [calcIsInclusive, setCalcIsInclusive] = useState(true);
-  const [calcIsVatRegistered, setCalcIsVatRegistered] = useState(true);
+  const [showSimulator, setShowSimulator] = useState(false);
+
+  const handleOpenSimulator = () => {
+    setShowSimulator(true);
+    setTimeout(() => {
+      const el = document.getElementById("playground");
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+  };
 
   /* ─── Scroll Reappear Header & Chat State ─── */
   const [headerVisible, setHeaderVisible] = useState(true);
@@ -189,7 +191,6 @@ export default function LandingPage() {
   /* Scroll Fade-In Handler */
   const featuresRef = useRef(null);
   const showcaseRef = useRef(null);
-  const taxToolsRef = useRef(null);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -205,16 +206,13 @@ export default function LandingPage() {
 
     const fEl = featuresRef.current;
     const sEl = showcaseRef.current;
-    const tEl = taxToolsRef.current;
 
     if (fEl) observer.observe(fEl);
     if (sEl) observer.observe(sEl);
-    if (tEl) observer.observe(tEl);
 
     return () => {
       if (fEl) observer.unobserve(fEl);
       if (sEl) observer.unobserve(sEl);
-      if (tEl) observer.unobserve(tEl);
     };
   }, []);
 
@@ -344,7 +342,6 @@ export default function LandingPage() {
     }));
   };
 
-  const calculatedTax = calculateGhanaTax(calcAmount, calcIsInclusive, calcIsVatRegistered);
 
   return (
     <div className="lp">
@@ -376,8 +373,7 @@ export default function LandingPage() {
 
           <nav className="lp-nav">
             <a href="#features">Features</a>
-            <a href="#tax-tools">Tax Calculator</a>
-            <a href="#playground">Try Live Demo</a>
+            <a href="#playground" onClick={() => setShowSimulator(true)}>Try Live Demo</a>
             <a href="#how-it-works">How It Works</a>
             <a href="#reviews">Reviews</a>
           </nav>
@@ -420,8 +416,7 @@ export default function LandingPage() {
           </div>
           <nav className="lp-mobile-nav-links">
             <a href="#features" onClick={() => setMobileMenuOpen(false)}>Features</a>
-            <a href="#tax-tools" onClick={() => setMobileMenuOpen(false)}>Tax Calculator</a>
-            <a href="#playground" onClick={() => setMobileMenuOpen(false)}>Live Demo</a>
+            <a href="#playground" onClick={() => { setMobileMenuOpen(false); setShowSimulator(true); }}>Live Demo</a>
             <a href="#how-it-works" onClick={() => setMobileMenuOpen(false)}>How It Works</a>
             <a href="#reviews" onClick={() => setMobileMenuOpen(false)}>Reviews</a>
           </nav>
@@ -444,16 +439,16 @@ export default function LandingPage() {
         <div className="lp-hero-inner">
           <div className="lp-hero-badge">
             <span className="lp-hero-badge-dot" />
-            <span>Built for modern retail & wholesale in Ghana 🇬🇭</span>
+            <span>Built for retail & wholesale in Ghana 🇬🇭</span>
           </div>
 
           <h1>
             Run your store with<br />
-            <span className="lp-highlight">confidence, speed & complete control</span>
+            <span className="lp-highlight">speed and total control</span>
           </h1>
 
           <p className="lp-hero-desc">
-            High-performance stock tracking, fast POS checkout, instant WhatsApp receipts, and automated bookkeeping tailored for Ghanaian businesses. Track inventory across branches, stop shrinkage, and know your daily numbers.
+            Fast POS checkout, accurate inventory tracking, and instant WhatsApp receipts. Everything you need to eliminate stock losses, manage customer debt, and know your daily profits.
           </p>
 
           <div className="lp-hero-ctas">
@@ -463,9 +458,12 @@ export default function LandingPage() {
             >
               {user ? "Go to Dashboard" : "Enter Platform"} <ArrowRight className="btn-arrow" />
             </button>
-            <a href="#playground" className="lp-btn lp-btn-secondary lp-btn-lg">
+            <button 
+              className="lp-btn lp-btn-secondary lp-btn-lg"
+              onClick={handleOpenSimulator}
+            >
               Try Interactive Demo
-            </a>
+            </button>
           </div>
         </div>
       </section>
@@ -475,10 +473,7 @@ export default function LandingPage() {
         <div className="lp-container">
           <div 
             className="lp-hero-product"
-            onClick={() => {
-              const el = document.getElementById("playground");
-              if (el) el.scrollIntoView({ behavior: "smooth" });
-            }}
+            onClick={handleOpenSimulator}
             style={{
               transform: `translateY(${screenshotTransform.y}px) scale(${screenshotTransform.scale})`,
               opacity: screenshotTransform.opacity,
@@ -555,174 +550,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── LOCAL COMMERCE & TAX TOOLS ─── */}
-      <section id="tax-tools" className="lp-compliance-section" ref={taxToolsRef}>
-        <div className="lp-container">
-          <div className="lp-section-header">
-            <span className="lp-section-label">Local Commerce Ready</span>
-            <h2 className="lp-section-title">Smart Ghana VAT & tax calculations, handled automatically</h2>
-            <p className="lp-section-desc">
-              Whether your store is VAT-registered or operating under threshold exemptions, StoreFlow takes the friction out of Ghanaian taxes. Ring up sales tax-inclusive or exclusive, separate VAT and levies in your ledger automatically, and stay audit-ready with zero guesswork.
-            </p>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24, marginTop: 32 }}>
-            {/* Left Box: Business Highlights */}
-            <div style={{ background: '#fff', padding: 32, borderRadius: 20, border: '1px solid var(--lp-border, #e5e7eb)', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', background: '#fef3c7', color: '#92400e', borderRadius: 20, fontSize: 12, fontWeight: 700, width: 'fit-content', marginBottom: 16 }}>
-                🇬🇭 Built for Ghanaian Businesses
-              </div>
-              <h3 style={{ fontSize: 22, fontWeight: 800, color: '#111827', marginBottom: 14 }}>
-                No Manual Tax Math at Checkout
-              </h3>
-              <p style={{ color: '#6b7280', fontSize: 14, lineHeight: 1.6, marginBottom: 20 }}>
-                StoreFlow handles Ghana's 2026 unified tax structure cleanly in the background so your cashiers can ring up sales in seconds without calculation errors.
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <div style={{ color: '#10b981', marginTop: 2 }}><CheckCircle2 size={18} /></div>
-                  <div>
-                    <strong style={{ fontSize: 14, color: '#1f2937' }}>20% Unified Tax Breakdown:</strong>
-                    <p style={{ fontSize: 13, color: '#6b7280', margin: '2px 0 0' }}>Automatically itemizes 15% VAT, 2.5% NHIL, and 2.5% GETFund for VAT-registered businesses.</p>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <div style={{ color: '#10b981', marginTop: 2 }}><CheckCircle2 size={18} /></div>
-                  <div>
-                    <strong style={{ fontSize: 14, color: '#1f2937' }}>Flexible Pricing Modes:</strong>
-                    <p style={{ fontSize: 13, color: '#6b7280', margin: '2px 0 0' }}>Sell tax-inclusive (common for retail shelves) or tax-exclusive (wholesale) with one toggle.</p>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <div style={{ color: '#10b981', marginTop: 2 }}><CheckCircle2 size={18} /></div>
-                  <div>
-                    <strong style={{ fontSize: 14, color: '#1f2937' }}>Small Business Friendly:</strong>
-                    <p style={{ fontSize: 13, color: '#6b7280', margin: '2px 0 0' }}>Operating under the GHS 750k threshold? Switch to 0% exempt rate anytime in Settings.</p>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
-                  <div style={{ color: '#10b981', marginTop: 2 }}><CheckCircle2 size={18} /></div>
-                  <div>
-                    <strong style={{ fontSize: 14, color: '#1f2937' }}>Official Receipts with TIN:</strong>
-                    <p style={{ fontSize: 13, color: '#6b7280', margin: '2px 0 0' }}>Your store TIN is neatly displayed on thermal PDF prints and WhatsApp receipts.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Box: Interactive Tax Calculator */}
-            <div className="lp-tax-calc-card" style={{ margin: 0 }}>
-              <div className="lp-tax-calc-header">
-                <div className="badge-pulse">
-                  <Sparkles size={14} /> Interactive Estimator
-                </div>
-                <h3>Ghana Tax & Pricing Calculator</h3>
-                <p>Test how a sale breaks down between net revenue and indirect taxes.</p>
-              </div>
-
-              <div className="lp-tax-calc-body">
-                <div className="lp-tax-calc-inputs">
-                  <div className="lp-calc-field">
-                    <label>Sale Amount (GHS)</label>
-                    <div className="lp-input-currency">
-                      <span>GHS</span>
-                      <input 
-                        type="number" 
-                        min="1" 
-                        step="any"
-                        value={calcAmount} 
-                        onChange={(e) => setCalcAmount(e.target.value)}
-                        placeholder="e.g. 500"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="lp-calc-toggle-group">
-                    <label>Store Status</label>
-                    <div className="lp-pill-selectors">
-                      <button 
-                        className={`pill-btn ${calcIsVatRegistered ? "active" : ""}`}
-                        onClick={() => setCalcIsVatRegistered(true)}
-                      >
-                        VAT Registered
-                      </button>
-                      <button 
-                        className={`pill-btn ${!calcIsVatRegistered ? "active" : ""}`}
-                        onClick={() => setCalcIsVatRegistered(false)}
-                      >
-                        Exempt / Small Biz
-                      </button>
-                    </div>
-                  </div>
-
-                  {calcIsVatRegistered && (
-                    <div className="lp-calc-toggle-group">
-                      <label>Pricing Mode</label>
-                      <div className="lp-pill-selectors">
-                        <button 
-                          className={`pill-btn ${calcIsInclusive ? "active" : ""}`}
-                          onClick={() => setCalcIsInclusive(true)}
-                        >
-                          Tax-Inclusive
-                        </button>
-                        <button 
-                          className={`pill-btn ${!calcIsInclusive ? "active" : ""}`}
-                          onClick={() => setCalcIsInclusive(false)}
-                        >
-                          Tax-Exclusive
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="lp-tax-calc-results">
-                  <div className="calc-result-header">
-                    <span>Breakdown</span>
-                    <span className="rate-badge">Rate: {calculatedTax.effectiveRate}</span>
-                  </div>
-
-                  <div className="calc-breakdown-list">
-                    <div className="calc-row">
-                      <span>Net Sales Value</span>
-                      <span className="mono bold">GHS {calculatedTax.net.toFixed(2)}</span>
-                    </div>
-                    {calcIsVatRegistered && (
-                      <>
-                        <div className="calc-row sub">
-                          <span>• VAT (15.0%)</span>
-                          <span className="mono">GHS {calculatedTax.vat.toFixed(2)}</span>
-                        </div>
-                        <div className="calc-row sub">
-                          <span>• NHIL (2.5%)</span>
-                          <span className="mono">GHS {calculatedTax.nhil.toFixed(2)}</span>
-                        </div>
-                        <div className="calc-row sub">
-                          <span>• GETFund Levy (2.5%)</span>
-                          <span className="mono">GHS {calculatedTax.getfund.toFixed(2)}</span>
-                        </div>
-                        <div className="calc-row total-tax">
-                          <span>Total Indirect Tax (20%)</span>
-                          <span className="mono bold text-orange">GHS {calculatedTax.totalTax.toFixed(2)}</span>
-                        </div>
-                      </>
-                    )}
-                    <div className="calc-row gross-final">
-                      <span>Total Customer Pays</span>
-                      <span className="mono grand-total">GHS {calculatedTax.gross.toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ─── INTERACTIVE DASHBOARD SIMULATOR ─── */}
       <section id="playground" className="lp-playground-section" ref={showcaseRef}>
         <div className="lp-container">
@@ -732,10 +559,21 @@ export default function LandingPage() {
             <p className="lp-section-desc">
               Sell an item below to see stock deduction, instant receipt generation, and balanced double-entry bookkeeping in action.
             </p>
+            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'center' }}>
+              <button 
+                className="lp-btn lp-btn-primary lp-btn-lg"
+                onClick={() => setShowSimulator(prev => !prev)}
+                style={{ cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "8px" }}
+              >
+                {showSimulator ? "Hide Interactive Window" : "Open Interactive Window"}
+                <ArrowRight className="btn-arrow" />
+              </button>
+            </div>
           </div>
 
-          <div className="lp-simulator-widget">
-            <div className="lp-simulator-header">
+          {showSimulator && (
+            <div className="lp-simulator-widget animate-fade-in" style={{ marginTop: '40px' }}>
+              <div className="lp-simulator-header">
               <div className="lp-simulator-dots">
                 <span className="dot red" />
                 <span className="dot yellow" />
@@ -957,6 +795,7 @@ export default function LandingPage() {
               </div>
             </div>
           </div>
+          )}
         </div>
       </section>
 
@@ -1066,8 +905,7 @@ export default function LandingPage() {
           </div>
           <div className="lp-footer-links">
             <a href="#features">Features</a>
-            <a href="#tax-tools">Tax Calculator</a>
-            <a href="#playground">Live Demo</a>
+            <a href="#playground" onClick={() => setShowSimulator(true)}>Live Demo</a>
             <a href="#how-it-works">How It Works</a>
             <a href="#reviews">Reviews</a>
             <Link to="/login">Sign In</Link>
