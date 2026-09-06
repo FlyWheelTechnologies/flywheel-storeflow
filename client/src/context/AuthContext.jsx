@@ -165,7 +165,11 @@ export function AuthProvider({ children }) {
   // Set brand theme color dynamically in document head
   useEffect(() => {
     if (activeOrg?.primary_color) {
-      document.documentElement.style.setProperty('--brand-color', activeOrg.primary_color);
+      const color = activeOrg.primary_color;
+      document.documentElement.style.setProperty('--brand-primary', color);
+      document.documentElement.style.setProperty('--brand-color', color);
+      document.documentElement.style.setProperty('--brand-bg-light', `${color}18`);
+      document.documentElement.style.setProperty('--brand-primary-hover', color);
     }
   }, [activeOrg]);
 
