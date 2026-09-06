@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabaseClient";
 import "./Dashboard.css";
 
 export default function Logs() {
+  const { user: currentUser, activeOrg } = useAuth();
+  const orgId = activeOrg?.id || currentUser?.organization_id;
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -11,48 +14,69 @@ export default function Logs() {
   useEffect(() => {
     fetchLogs();
     
-    // Real-time subscription for logs
+    // Real-time subscription for logs scoped to active organization
     const channel = supabase
-      .channel('schema-db-changes')
+      .channel('logs-feed')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'logs' }, (payload) => {
-        setLogs(prev => [payload.new, ...prev]);
+        if (!orgId || currentUser?.role === 'super_admin' || payload.new?.organization_id === orgId) {
+          setLogs(prev => [payload.new, ...prev]);
+        }
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [orgId, currentUser]);
 
   const fetchLogs = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from('logs')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(100);
+      .limit(200);
+
+    if (orgId && currentUser?.role !== 'super_admin') {
+      query = query.eq('organization_id', orgId);
+    }
     
+    const { data, error } = await query;
     if (error) {
       console.error("Error fetching logs:", error.message);
     } else if (data) {
       setLogs(data);
     }
-    setTimeout(() => setLoading(false), 1000);
+    setLoading(false);
   };
 
   const getActionColor = (action) => {
-    if (action.includes('SALE')) return '#22c55e';
+    if (!action) return '#6b7280';
+    if (action.includes('SALE') || action.includes('DEPOSIT')) return '#10b981';
     if (action.includes('PRODUCT')) return '#2563eb';
     if (action.includes('STOCK')) return '#f59e0b';
-    if (action.includes('USER')) return '#7c3aed';
-    if (action.includes('DELETE')) return '#ef4444';
+    if (action.includes('USER')) return '#8b5cf6';
+    if (action.includes('DELETE') || action.includes('REMOVE')) return '#ef4444';
+    if (action.includes('STORE') || action.includes('ORG')) return '#06b6d4';
     return '#6b7280';
   };
 
   const filteredLogs = logs.filter(log => {
     const matchesSearch = log.user_email?.toLowerCase().includes(search.toLowerCase()) || 
                           log.details?.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter = filter === 'ALL' || log.action.startsWith(filter);
+    const matchesFilter = filter === 'ALL' || log.action?.startsWith(filter);
     return matchesSearch && matchesFilter;
   });
+
+  if (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'super_admin') {
+    return (
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <h2 className="section-title">Access Restricted</h2>
+        <p style={{ color: '#6b7280', marginTop: 8 }}>
+          Only Store Administrators have permission to view system audit logs.
+        </p>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="logs-container" style={{ padding: 24 }}>
@@ -86,10 +110,11 @@ export default function Logs() {
             onChange={(e) => setFilter(e.target.value)}
           >
             <option value="ALL">All Actions</option>
-            <option value="SALE">Sales</option>
+            <option value="SALE">Sales & Deposits</option>
             <option value="PRODUCT">Products</option>
             <option value="STOCK">Stock Adjustments</option>
             <option value="USER">User Management</option>
+            <option value="STORE">Store Profile & Tax</option>
           </select>
           <input 
             type="search" 

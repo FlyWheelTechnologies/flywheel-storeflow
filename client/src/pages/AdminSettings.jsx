@@ -1,11 +1,18 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabaseClient";
+import { createClient } from "@supabase/supabase-js";
 import "./Dashboard.css";
 
 export default function AdminSettings() {
   const { user: currentUser } = useAuth();
-  const [activeTab, setActiveTab] = useState('organization'); // 'organization' | 'staff'
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(() => {
+    if (tabParam === 'staff' || tabParam === 'users') return 'staff';
+    return 'organization';
+  });
   const [users, setUsers] = useState([]);
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState({ email: '', password: '', role: 'storekeeper', full_name: '' });
@@ -15,6 +22,20 @@ export default function AdminSettings() {
   const [editUserId, setEditUserId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Synchronize tabParam with activeTab state
+  useEffect(() => {
+    if (tabParam === 'staff' || tabParam === 'users') {
+      setActiveTab('staff');
+    } else if (tabParam === 'organization' || tabParam === 'store') {
+      setActiveTab('organization');
+    }
+  }, [tabParam]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   // Store & Tax Settings State
   const [orgForm, setOrgForm] = useState({
@@ -37,7 +58,12 @@ export default function AdminSettings() {
   }, [currentUser]);
 
   const fetchUsers = async () => {
-    const { data, error: fetchError } = await supabase.from('profiles').select('*');
+    const orgId = currentUser?.organization_id;
+    let query = supabase.from('profiles').select('*');
+    if (orgId && currentUser?.role !== 'super_admin') {
+      query = query.eq('organization_id', orgId);
+    }
+    const { data, error: fetchError } = await query.order('created_at', { ascending: true });
     if (fetchError) {
       console.error("Error fetching users:", fetchError);
       setError("Permission denied or connection issue: " + fetchError.message);
@@ -99,6 +125,12 @@ export default function AdminSettings() {
 
       if (updateErr) throw updateErr;
 
+      // Audit log store profile update
+      await supabase.rpc('log_action', {
+        p_action: 'STORE_UPDATE',
+        p_details: `Updated Store & Tax Profile for ${orgForm.name || 'Store'}`
+      }).catch(() => {});
+
       setToast({ message: "Store & Tax settings updated successfully!", type: "success" });
       setTimeout(() => setToast(null), 3500);
     } catch (err) {
@@ -111,14 +143,39 @@ export default function AdminSettings() {
   };
 
   const deleteUser = async (userId) => {
-    if (!window.confirm("Are you sure you want to delete this user? This cannot be undone.")) return;
-    const { error } = await supabase.from('profiles').delete().eq('id', userId);
-    if (!error) {
+    const targetUser = users.find(u => u.id === userId);
+    const targetName = targetUser?.full_name || targetUser?.email || 'this user';
+    if (!window.confirm(`Are you sure you want to remove ${targetName}? This cannot be undone.`)) return;
+
+    setSaving(true);
+    try {
+      // Try RPC first for safe deprovisioning and audit log
+      const { data: rpcSuccess, error: rpcErr } = await supabase.rpc('admin_remove_staff', {
+        p_user_id: userId
+      });
+
+      if (rpcErr) {
+        console.warn("admin_remove_staff RPC error, falling back to direct delete:", rpcErr.message);
+        const { error: delErr } = await supabase.from('profiles').delete().eq('id', userId);
+        if (delErr) throw delErr;
+
+        // Log action via fallback
+        await supabase.rpc('log_action', {
+          p_action: 'USER_DELETE',
+          p_details: `Removed staff member ${targetUser?.email || userId}`
+        }).catch(() => {});
+      }
+
       fetchUsers();
-      setToast({ message: "User removed successfully", type: "success" });
-      setTimeout(() => setToast(null), 3000);
-    } else {
-      setError(error.message);
+      setToast({ message: `Staff member removed successfully`, type: "success" });
+      setTimeout(() => setToast(null), 3500);
+    } catch (err) {
+      console.error("Error removing staff:", err);
+      setError(err.message || "Failed to remove staff member");
+      setToast({ message: `Failed to remove user: ${err.message}`, type: "error" });
+      setTimeout(() => setToast(null), 4000);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -128,69 +185,146 @@ export default function AdminSettings() {
     setSaving(true);
     setError('');
 
-    let submitError;
+    const orgId = currentUser?.organization_id;
+    if (!orgId) {
+      setError("Cannot perform user actions: Active organization not resolved.");
+      setSaving(false);
+      return;
+    }
 
     try {
       if (editUserId) {
+        // Updating existing staff member
         const { error: updateError } = await supabase.from('profiles').update({
-          full_name: newUser.full_name,
-          role: newUser.role
+          full_name: newUser.full_name.trim(),
+          role: newUser.role,
+          updated_at: new Date().toISOString()
         }).eq('id', editUserId);
-        submitError = updateError;
+
+        if (updateError) throw updateError;
+
+        // Audit log
+        await supabase.rpc('log_action', {
+          p_action: 'USER_UPDATE',
+          p_details: `Updated staff ${newUser.email} to role ${newUser.role} (${newUser.full_name})`
+        }).catch(err => console.warn("Audit log error:", err.message));
+
+        setToast({ message: "Staff account updated successfully!", type: "success" });
       } else {
+        // Creating new staff member
+        let userCreated = false;
+
+        // Attempt 1: Edge function invite-user
         try {
-          const { data, error: functionError } = await supabase.functions.invoke('invite-user', {
+          const { data: fnData, error: functionError } = await supabase.functions.invoke('invite-user', {
             body: {
-              email: newUser.email,
+              email: newUser.email.trim(),
               password: newUser.password,
               role: newUser.role,
-              full_name: newUser.full_name,
-              organization_id: currentUser?.organization_id
-            }
-          });
-          
-          if (functionError || data?.error) {
-            throw new Error(functionError?.message || data?.error || "Edge function unavailable");
-          }
-        } catch (fnErr) {
-          console.warn("Edge function invite-user unconfigured, using Auth fallback:", fnErr.message);
-          const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
-            email: newUser.email,
-            password: newUser.password,
-            options: {
-              data: {
-                full_name: newUser.full_name,
-                role: newUser.role,
-                organization_id: currentUser?.organization_id
-              }
+              full_name: newUser.full_name.trim(),
+              organization_id: orgId
             }
           });
 
-          if (signUpErr && !signUpErr.message.includes("already registered")) {
-            submitError = signUpErr;
-          } else if (signUpData?.user) {
-            await supabase.from('profiles').upsert({
-              id: signUpData.user.id,
-              email: newUser.email,
-              full_name: newUser.full_name,
-              role: newUser.role,
-              organization_id: currentUser?.organization_id
+          if (functionError || fnData?.error) {
+            throw new Error(functionError?.message || fnData?.error || "Edge function unavailable");
+          }
+          userCreated = true;
+        } catch (fnErr) {
+          console.warn("Edge function invite-user error, attempting fallback:", fnErr.message);
+
+          // If user already registered, link them via RPC
+          if (fnErr.message?.toLowerCase().includes("already registered") || fnErr.message?.toLowerCase().includes("already been registered")) {
+            const { data: linkSuccess, error: linkErr } = await supabase.rpc('admin_link_existing_user', {
+              p_email: newUser.email.trim(),
+              p_role: newUser.role,
+              p_full_name: newUser.full_name.trim()
             });
+
+            if (linkErr) throw linkErr;
+            if (linkSuccess) {
+              userCreated = true;
+            } else {
+              throw new Error(`User with email ${newUser.email} already exists but could not be linked.`);
+            }
+          } else {
+            // Attempt 2: Isolated ephemeral client (NEVER overwrites Admin's active session!)
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+            if (!supabaseUrl || !supabaseAnonKey) {
+              throw new Error("Missing Supabase client configuration.");
+            }
+
+            const tempClient = createClient(supabaseUrl, supabaseAnonKey, {
+              auth: {
+                persistSession: false,
+                autoRefreshToken: false,
+                detectSessionInUrl: false
+              }
+            });
+
+            const { data: signUpData, error: signUpErr } = await tempClient.auth.signUp({
+              email: newUser.email.trim(),
+              password: newUser.password,
+              options: {
+                data: {
+                  full_name: newUser.full_name.trim(),
+                  role: newUser.role,
+                  organization_id: orgId
+                }
+              }
+            });
+
+            if (signUpErr) {
+              if (signUpErr.message.toLowerCase().includes("already registered")) {
+                const { data: linkOk, error: linkErr2 } = await supabase.rpc('admin_link_existing_user', {
+                  p_email: newUser.email.trim(),
+                  p_role: newUser.role,
+                  p_full_name: newUser.full_name.trim()
+                });
+                if (linkErr2 || !linkOk) throw linkErr2 || new Error("User already exists in another tenant");
+                userCreated = true;
+              } else {
+                throw signUpErr;
+              }
+            } else if (signUpData?.user) {
+              await supabase.from('profiles').upsert({
+                id: signUpData.user.id,
+                email: newUser.email.trim(),
+                full_name: newUser.full_name.trim(),
+                role: newUser.role,
+                organization_id: orgId,
+                updated_at: new Date().toISOString()
+              });
+              userCreated = true;
+            }
           }
         }
-      }
 
-      if (submitError) throw submitError;
+        if (!userCreated) {
+          throw new Error("Could not create or link staff account.");
+        }
+
+        // Audit log
+        await supabase.rpc('log_action', {
+          p_action: 'USER_CREATE',
+          p_details: `Added new staff member ${newUser.email} with role ${newUser.role} (${newUser.full_name})`
+        }).catch(() => {});
+
+        setToast({ message: "Staff account created successfully!", type: "success" });
+      }
 
       setShowAddUser(false);
       setNewUser({ email: '', password: '', role: 'storekeeper', full_name: '' });
       setEditUserId(null);
       fetchUsers();
-      setToast({ message: editUserId ? "Staff account updated!" : "Staff account created!", type: "success" });
-      setTimeout(() => setToast(null), 3000);
+      setTimeout(() => setToast(null), 3500);
     } catch (err) {
       console.error("Error creating/editing user:", err);
       setError(err.message || "Failed to save user");
+      setToast({ message: `Error: ${err.message || "Failed to save user"}`, type: "error" });
+      setTimeout(() => setToast(null), 4000);
     } finally {
       setSaving(false);
     }
@@ -213,6 +347,17 @@ export default function AdminSettings() {
     auditor: { desc: 'Read-only access to sales, receipts, products, customers and journal entries.', color: '#3b82f6', bg: '#eff6ff' },
     admin: { desc: 'Full access to all modules, financial journals, staff management and store settings.', color: '#f59e0b', bg: '#fffbeb' },
   };
+
+  if (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'super_admin') {
+    return (
+      <div style={{ padding: 40, textAlign: 'center' }}>
+        <h2 className="section-title">Access Restricted</h2>
+        <p style={{ color: '#6b7280', marginTop: 8 }}>
+          Only Store Administrators have permission to view store configuration and manage user accounts.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 24 }}>
@@ -259,7 +404,7 @@ export default function AdminSettings() {
       {/* Navigation Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 24, borderBottom: '1px solid #e5e7eb', paddingBottom: 10 }}>
         <button
-          onClick={() => setActiveTab('organization')}
+          onClick={() => handleTabChange('organization')}
           style={{
             background: activeTab === 'organization' ? '#f15a24' : '#f3f4f6',
             color: activeTab === 'organization' ? '#fff' : '#4b5563',
@@ -275,7 +420,7 @@ export default function AdminSettings() {
           🏢 Store & Tax Profile
         </button>
         <button
-          onClick={() => setActiveTab('staff')}
+          onClick={() => handleTabChange('staff')}
           style={{
             background: activeTab === 'staff' ? '#f15a24' : '#f3f4f6',
             color: activeTab === 'staff' ? '#fff' : '#4b5563',

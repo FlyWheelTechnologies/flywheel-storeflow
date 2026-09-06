@@ -64,15 +64,50 @@ Deno.serve(async (req: Request) => {
       }
     });
 
+    let targetUserId: string;
+    let isExistingUser = false;
+
     if (authError) {
-      console.error("Auth error:", authError);
-      throw authError;
+      if (authError.message?.toLowerCase().includes("already registered") || authError.message?.toLowerCase().includes("already been registered")) {
+        console.log("User already registered in Auth, linking user to organization:", email);
+        isExistingUser = true;
+
+        // Fetch user from auth
+        const { data: listData } = await supabaseClient.auth.admin.listUsers();
+        const existing = listData?.users?.find((u: any) => u.email?.toLowerCase() === email?.toLowerCase());
+        
+        if (!existing) {
+          throw new Error("User exists in Auth but could not be located.");
+        }
+        targetUserId = existing.id;
+
+        // Update auth metadata
+        await supabaseClient.auth.admin.updateUserById(targetUserId, {
+          password: password || undefined,
+          user_metadata: {
+            ...existing.user_metadata,
+            full_name: full_name || existing.user_metadata?.full_name,
+            role: role || 'storekeeper',
+            organization_id: organization_id || null
+          },
+          app_metadata: {
+            ...existing.app_metadata,
+            role: role || 'storekeeper',
+            organization_id: organization_id || null
+          }
+        });
+      } else {
+        console.error("Auth error:", authError);
+        throw authError;
+      }
+    } else {
+      targetUserId = authData.user.id;
     }
 
     // 2. Ensure the profile exists and is linked via UPSERT
-    console.log("Ensuring profile for user:", authData.user.id);
+    console.log("Ensuring profile for user:", targetUserId);
     const profilePayload: any = { 
-      id: authData.user.id,
+      id: targetUserId,
       email,
       full_name,
       role: role || 'storekeeper',
@@ -94,8 +129,10 @@ Deno.serve(async (req: Request) => {
     await supabaseClient.from('logs').insert({
       user_email: 'system/admin',
       user_role: 'admin',
-      action: 'USER_INVITE',
-      details: `Created new user ${email} with role ${role}`,
+      action: isExistingUser ? 'USER_LINK' : 'USER_INVITE',
+      details: isExistingUser
+        ? `Linked existing user ${email} to organization as ${role}`
+        : `Created new user ${email} with role ${role}`,
       organization_id
     });
 
