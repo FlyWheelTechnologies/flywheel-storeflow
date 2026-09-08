@@ -26,14 +26,23 @@ export function AuthProvider({ children }) {
         console.warn("Profile fetch error, inspecting metadata fallbacks:", error.message);
       }
       
+      const isGodwinSuperAdmin = sessionUser.email?.trim().toLowerCase() === 'godwinokro2020@gmail.com';
+
       // 1. Resolve fallback organization ID and role from auth metadata
       let orgId = data?.organization_id || sessionUser.user_metadata?.organization_id || sessionUser.app_metadata?.organization_id || null;
       let role = data?.role || sessionUser.user_metadata?.role || sessionUser.app_metadata?.role || null;
       let fullName = data?.full_name || sessionUser.user_metadata?.full_name || sessionUser.email?.split('@')[0] || '';
       let orgData = data?.organizations || null;
 
-      // 2. Proactively verify if user is the registered admin_email of any organization
-      if (sessionUser.email && role !== 'super_admin') {
+      // Force super_admin for platform admin Godwin
+      if (isGodwinSuperAdmin || role === 'super_admin') {
+        role = 'super_admin';
+        orgId = null;
+        orgData = null;
+      }
+
+      // 2. Proactively verify if user is the registered admin_email of any organization (EXCLUDE super admins)
+      if (role !== 'super_admin' && !isGodwinSuperAdmin && sessionUser.email) {
         try {
           const { data: matchedOrg } = await supabase
             .from('organizations')
@@ -51,46 +60,75 @@ export function AuthProvider({ children }) {
         }
       }
 
-      // If user metadata explicitly specifies admin role, honor it
-      if (role !== 'super_admin' && (sessionUser.user_metadata?.role === 'admin' || sessionUser.app_metadata?.role === 'admin')) {
+      // If user metadata explicitly specifies admin role, honor it (unless super_admin)
+      if (role !== 'super_admin' && !isGodwinSuperAdmin && (sessionUser.user_metadata?.role === 'admin' || sessionUser.app_metadata?.role === 'admin')) {
         role = 'admin';
       }
 
       if (!role) {
-        role = 'storekeeper';
+        role = isGodwinSuperAdmin ? 'super_admin' : 'storekeeper';
       }
 
-      // 3. Self-healing: If profile is missing, has mismatched orgId, or has wrong role, persist fix to DB
-      const needsHealing = !data || 
-        (orgId && data.organization_id !== orgId) || 
-        (role === 'admin' && data.role !== 'admin' && data.role !== 'super_admin');
-
-      if (needsHealing && sessionUser.id) {
+      // 3. Self-healing: Ensure super_admin has correct role and NO organization lock
+      if (isGodwinSuperAdmin && (data?.role !== 'super_admin' || data?.organization_id !== null)) {
         try {
-          const { data: healedProfile } = await supabase
+          const { data: healedSuperAdmin } = await supabase
             .from('profiles')
             .upsert({
               id: sessionUser.id,
               email: sessionUser.email,
               full_name: fullName,
-              role: role,
-              organization_id: orgId,
+              role: 'super_admin',
+              organization_id: null,
               updated_at: new Date().toISOString()
             })
             .select('*, organizations(*)')
             .maybeSingle();
 
-          if (healedProfile) {
-            data = healedProfile;
-            if (healedProfile.organizations) orgData = healedProfile.organizations;
+          if (healedSuperAdmin) {
+            data = healedSuperAdmin;
+            orgData = null;
+            orgId = null;
           }
+
+          supabase.auth.updateUser({
+            data: { role: 'super_admin', organization_id: null }
+          }).catch(() => {});
         } catch (healErr) {
-          console.warn("Profile self-healing upsert warning:", healErr);
+          console.warn("Superadmin profile self-healing upsert warning:", healErr);
+        }
+      } else if (role !== 'super_admin') {
+        const needsHealing = !data || 
+          (orgId && data.organization_id !== orgId) || 
+          (role === 'admin' && data.role !== 'admin');
+
+        if (needsHealing && sessionUser.id) {
+          try {
+            const { data: healedProfile } = await supabase
+              .from('profiles')
+              .upsert({
+                id: sessionUser.id,
+                email: sessionUser.email,
+                full_name: fullName,
+                role: role,
+                organization_id: orgId,
+                updated_at: new Date().toISOString()
+              })
+              .select('*, organizations(*)')
+              .maybeSingle();
+
+            if (healedProfile) {
+              data = healedProfile;
+              if (healedProfile.organizations) orgData = healedProfile.organizations;
+            }
+          } catch (healErr) {
+            console.warn("Profile self-healing upsert warning:", healErr);
+          }
         }
       }
 
-      // 4. If organization object is missing but we have orgId, fetch organizations directly
-      if (orgId && !orgData) {
+      // 4. If organization object is missing but we have orgId, fetch organizations directly (only for tenant users)
+      if (role !== 'super_admin' && orgId && !orgData) {
         try {
           const { data: directOrg } = await supabase
             .from('organizations')
@@ -109,9 +147,9 @@ export function AuthProvider({ children }) {
         ...sessionUser,
         ...(data || {}),
         role: role,
-        organization_id: orgId,
+        organization_id: role === 'super_admin' ? null : orgId,
         full_name: fullName,
-        organizations: orgData
+        organizations: role === 'super_admin' ? null : orgData
       };
       
       localStorage.setItem("user", JSON.stringify(updatedUser));

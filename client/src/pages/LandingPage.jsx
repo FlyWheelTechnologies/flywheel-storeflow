@@ -380,8 +380,8 @@ export default function LandingPage() {
 
           <div className="lp-header-actions">
             {user ? (
-              <button className="lp-btn lp-btn-primary" onClick={() => navigate("/dashboard")}>
-                Dashboard <ArrowRight className="btn-arrow" />
+              <button className="lp-btn lp-btn-primary" onClick={() => navigate(user?.role === 'super_admin' ? "/admin" : "/dashboard")}>
+                {user?.role === 'super_admin' ? 'Admin Console' : 'Dashboard'} <ArrowRight className="btn-arrow" />
               </button>
             ) : (
               <button className="lp-btn lp-btn-primary" onClick={() => navigate("/login")}>
@@ -422,8 +422,8 @@ export default function LandingPage() {
           </nav>
           <div className="lp-mobile-drawer-footer">
             {user ? (
-              <button className="lp-btn lp-btn-primary lp-btn-full" onClick={() => { setMobileMenuOpen(false); navigate("/dashboard"); }}>
-                Dashboard
+              <button className="lp-btn lp-btn-primary lp-btn-full" onClick={() => { setMobileMenuOpen(false); navigate(user?.role === 'super_admin' ? "/admin" : "/dashboard"); }}>
+                {user?.role === 'super_admin' ? 'Admin Console' : 'Dashboard'}
               </button>
             ) : (
               <button className="lp-btn lp-btn-primary lp-btn-full" onClick={() => { setMobileMenuOpen(false); navigate("/login"); }}>

@@ -31,9 +31,16 @@ function StatCard({ icon, label, value, trend, accent, children }) {
 
 /* ─── MAIN DASHBOARD ───────────────────────────── */
 export default function Dashboard() {
-  const { user, activeOrg, activeOrgId } = useAuth();
+  const { user, activeOrg, activeOrgId, impersonatedOrg } = useAuth();
   const businessName = activeOrg?.name || user?.organizations?.name || (user?.role === 'super_admin' ? 'StoreFlow Admin' : 'StoreFlow');
   const navigate = useNavigate();
+
+  // If a Super Admin enters /dashboard directly without actively impersonating a store, route them to /admin
+  useEffect(() => {
+    if (user?.role === 'super_admin' && !impersonatedOrg) {
+      navigate("/admin", { replace: true });
+    }
+  }, [user, impersonatedOrg, navigate]);
   const [products, setProducts] = useState([]);
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -16,7 +16,13 @@ export default function Login() {
 
   // Redirect if already logged in
   useEffect(() => {
-    if (user) navigate("/dashboard");
+    if (user) {
+      if (user.role === 'super_admin' || user.email?.trim().toLowerCase() === 'godwinokro2020@gmail.com') {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
+    }
   }, [user, navigate]);
 
   const handleStart = () => {
@@ -48,8 +54,16 @@ export default function Login() {
       if (error) {
         setErrorMsg(error.message);
       } else {
-        console.log("Login successful, navigating...");
-        navigate("/dashboard");
+        console.log("Login successful, navigating based on role...");
+        const isSuperAdmin = email.trim().toLowerCase() === 'godwinokro2020@gmail.com' || 
+          data?.user?.user_metadata?.role === 'super_admin' || 
+          data?.user?.app_metadata?.role === 'super_admin';
+
+        if (isSuperAdmin) {
+          navigate("/admin", { replace: true });
+        } else {
+          navigate("/dashboard", { replace: true });
+        }
       }
     } catch (err) {
       console.error("Login crash:", err);
