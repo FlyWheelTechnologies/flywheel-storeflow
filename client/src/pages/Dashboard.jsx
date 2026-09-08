@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { BarChart, Bar, AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer, Legend } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { BrainCircuit, ArrowRight, TrendingUp } from "lucide-react";
 import "./Dashboard.css";
 import { formatCurrency, formatPhone } from "../services/formatters";
 
@@ -30,7 +31,7 @@ function StatCard({ icon, label, value, trend, accent, children }) {
 
 /* ─── MAIN DASHBOARD ───────────────────────────── */
 export default function Dashboard() {
-  const { user, activeOrg } = useAuth();
+  const { user, activeOrg, activeOrgId } = useAuth();
   const businessName = activeOrg?.name || user?.organizations?.name || (user?.role === 'super_admin' ? 'StoreFlow Admin' : 'StoreFlow');
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
@@ -49,24 +50,39 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     if (!navigator.onLine) return; 
+    setLoading(true);
     
+    const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
+
+    let productsQ = supabase.from('products').select('*');
+    let salesQ = supabase.from('sales').select('*');
+    let expensesQ = supabase.from('expenses').select('*');
+    let logsQ = supabase.from('logs').select('*').order('created_at', { ascending: false }).limit(50);
+
+    if (resolvedOrgId) {
+      productsQ = productsQ.eq('organization_id', resolvedOrgId);
+      salesQ = salesQ.eq('organization_id', resolvedOrgId);
+      expensesQ = expensesQ.eq('organization_id', resolvedOrgId);
+      logsQ = logsQ.eq('organization_id', resolvedOrgId);
+    }
+
     const [productsRes, salesRes, expensesRes, logsRes] = await Promise.all([
-      supabase.from('products').select('*'),
-      supabase.from('sales').select('*'),
-      supabase.from('expenses').select('*'),
-      supabase.from('logs').select('*').order('created_at', { ascending: false }).limit(50)
+      productsQ,
+      salesQ,
+      expensesQ,
+      logsQ
     ]);
 
-    if (productsRes.data) setProducts(productsRes.data);
-    if (salesRes.data) setSales(salesRes.data);
-    if (expensesRes.data) setExpenses(expensesRes.data);
-    if (logsRes.data) setLogs(logsRes.data);
+    setProducts(productsRes.data || []);
+    setSales(salesRes.data || []);
+    setExpenses(expensesRes.data || []);
+    setLogs(logsRes.data || []);
     setLoading(false);
   };
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [activeOrgId]);
 
   const handlePureDeposit = async (e) => {
     e.preventDefault();
@@ -466,12 +482,24 @@ export default function Dashboard() {
                   🔍 System Audit View
                 </button>
               )}
+              {user?.role === 'storekeeper' && (
+                <button 
+                  className="quick-action-btn" 
+                  style={{ background: '#0f172a', width: '100%' }} 
+                  onClick={() => navigate('/ai')}
+                >
+                  <BrainCircuit size={15} /> StoreFlow AI Assistant
+                </button>
+              )}
             </div>
             
             {user?.role !== 'storekeeper' && (
               <>
-                <h3 className="table-card__title" style={{ marginTop: 30, marginBottom: 15, display: 'flex', alignItems: 'center', gap: 6 }}>✨ Quick Insights</h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <h3 className="table-card__title" style={{ marginTop: 28, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <TrendingUp size={16} style={{ color: 'var(--brand-primary, #f15a24)' }} />
+                  Quick Insights
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div className="summary-card">
                     <div className="summary-card__label">Best Sellers</div>
                     <div className="summary-card__value" style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
@@ -487,6 +515,58 @@ export default function Dashboard() {
                     <div className="summary-card__label" style={{ color: '#065f46' }}>Gross Margin <InfoTip text="How much of your current sales is actual profit. It shows what percentage of every GHS 1 earned is yours to keep after paying for the products." /></div>
                     <div className="summary-card__value" style={{ color: '#065f46' }}>{actualGrossMargin}%</div>
                     <div className="summary-card__sub" style={{ color: '#047857' }}>Based on current stock pricing</div>
+                  </div>
+
+                  {/* StoreFlow AI Executive Button & Capabilities */}
+                  <div className="storeflow-ai-widget">
+                    <button
+                      type="button"
+                      className="storeflow-ai-btn"
+                      onClick={() => navigate(user?.role === 'super_admin' ? "/admin/ai" : "/ai")}
+                      title="Open StoreFlow AI Copilot"
+                    >
+                      <div className="storeflow-ai-btn__main">
+                        <div className="storeflow-ai-btn__icon-wrapper">
+                          <BrainCircuit size={17} />
+                        </div>
+                        <div className="storeflow-ai-btn__text">
+                          <div className="storeflow-ai-btn__header-row">
+                            <span className="storeflow-ai-btn__title">StoreFlow AI</span>
+                            <span className="storeflow-ai-btn__pill">Copilot</span>
+                          </div>
+                          <span className="storeflow-ai-btn__subtitle">
+                            Stockout forecasts & retail copilot
+                          </span>
+                        </div>
+                      </div>
+                      <div className="storeflow-ai-btn__arrow-box">
+                        <ArrowRight size={14} />
+                      </div>
+                    </button>
+                    
+                    <div className="storeflow-ai-quick-links">
+                      <button 
+                        type="button" 
+                        className="storeflow-ai-chip"
+                        onClick={() => navigate(user?.role === 'super_admin' ? "/admin/ai" : "/ai", { state: { tab: 'reorder' } })}
+                      >
+                        Restock Forecast
+                      </button>
+                      <button 
+                        type="button" 
+                        className="storeflow-ai-chip"
+                        onClick={() => navigate(user?.role === 'super_admin' ? "/admin/ai" : "/ai", { state: { tab: 'deadstock' } })}
+                      >
+                        Dead Stock
+                      </button>
+                      <button 
+                        type="button" 
+                        className="storeflow-ai-chip"
+                        onClick={() => navigate(user?.role === 'super_admin' ? "/admin/ai" : "/ai", { state: { tab: 'copilot' } })}
+                      >
+                        Ask Copilot
+                      </button>
+                    </div>
                   </div>
                 </div>
               </>

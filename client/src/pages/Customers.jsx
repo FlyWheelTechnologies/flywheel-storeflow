@@ -14,14 +14,20 @@ export default function Customers() {
   const [loading, setLoading] = useState(true);
 
   const fetchCustomers = async () => {
-    const { data } = await supabase.from('customer_stats').select('*').order('name', { ascending: true });
+    setLoading(true);
+    const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
+    let query = supabase.from('customer_stats').select('*').order('name', { ascending: true });
+    if (resolvedOrgId) {
+      query = query.eq('organization_id', resolvedOrgId);
+    }
+    const { data } = await query;
     if (data) setCustomers(data);
-    setTimeout(() => setLoading(false), 1000);
+    setTimeout(() => setLoading(false), 500);
   };
 
   useEffect(() => {
     fetchCustomers();
-  }, []);
+  }, [activeOrgId]);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
   const [editingId, setEditingId] = useState(null);

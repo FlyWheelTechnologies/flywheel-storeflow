@@ -4,8 +4,8 @@ import { supabase } from "../services/supabaseClient";
 import "./Dashboard.css";
 
 export default function Logs() {
-  const { user: currentUser, activeOrg } = useAuth();
-  const orgId = activeOrg?.id || currentUser?.organization_id;
+  const { user: currentUser, activeOrg, activeOrgId } = useAuth();
+  const orgId = activeOrgId || activeOrg?.id || currentUser?.organization_id;
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -18,7 +18,7 @@ export default function Logs() {
     const channel = supabase
       .channel('logs-feed')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'logs' }, (payload) => {
-        if (!orgId || currentUser?.role === 'super_admin' || payload.new?.organization_id === orgId) {
+        if (!orgId || payload.new?.organization_id === orgId) {
           setLogs(prev => [payload.new, ...prev]);
         }
       })
@@ -35,7 +35,7 @@ export default function Logs() {
       .order('created_at', { ascending: false })
       .limit(200);
 
-    if (orgId && currentUser?.role !== 'super_admin') {
+    if (orgId) {
       query = query.eq('organization_id', orgId);
     }
     

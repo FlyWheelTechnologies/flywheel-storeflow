@@ -17,14 +17,20 @@ export default function Expenses() {
   const [toast, setToast] = useState(null);
 
   const fetchExpenses = async () => {
-    const { data } = await supabase.from('expenses').select('*').order('created_at', { ascending: false });
+    setLoading(true);
+    const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
+    let query = supabase.from('expenses').select('*').order('created_at', { ascending: false });
+    if (resolvedOrgId) {
+      query = query.eq('organization_id', resolvedOrgId);
+    }
+    const { data } = await query;
     if (data) setExpenses(data);
-    setTimeout(() => setLoading(false), 1000);
+    setTimeout(() => setLoading(false), 500);
   };
 
   useEffect(() => {
     fetchExpenses();
-  }, []);
+  }, [activeOrgId]);
 
   useEffect(() => {
     if (location.state?.showForm) {

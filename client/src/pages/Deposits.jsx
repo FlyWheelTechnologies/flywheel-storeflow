@@ -45,16 +45,24 @@ export default function Deposits() {
       setShowDepositModal(true);
       window.history.replaceState({}, document.title);
     }
-  }, [location.state]);
+  }, [location.state, activeOrgId]);
 
   const fetchDeposits = async () => {
-    const [depRes, prodRes] = await Promise.all([
-      supabase.from("deposits").select("*"),
-      supabase.from("products").select("*")
-    ]);
-    if (depRes.data) setDeposits(depRes.data);
-    if (prodRes.data) setProducts(prodRes.data);
-    setTimeout(() => setLoading(false), 1000);
+    setLoading(true);
+    const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
+
+    let depQ = supabase.from("deposits").select("*");
+    let prodQ = supabase.from("products").select("*");
+
+    if (resolvedOrgId) {
+      depQ = depQ.eq("organization_id", resolvedOrgId);
+      prodQ = prodQ.eq("organization_id", resolvedOrgId);
+    }
+
+    const [depRes, prodRes] = await Promise.all([depQ, prodQ]);
+    setDeposits(depRes.data || []);
+    setProducts(prodRes.data || []);
+    setTimeout(() => setLoading(false), 500);
   };
 
   const toggleOrders = async (cid) => {
@@ -64,13 +72,19 @@ export default function Deposits() {
       return;
     }
     setExpandedCustomerId(cid);
-    const { data } = await supabase
+    const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id;
+    let ordersQ = supabase
       .from('sales')
       .select('*')
       .eq('customer_id', cid)
       .or('payment_status.eq.DEPOSIT,notes.ilike.%Pure Deposit%,total_amount.eq.0,balance_due.lt.0')
-      .not('notes', 'ilike', '%(Fulfilled)%') 
-      .order('created_at', { ascending: false });
+      .not('notes', 'ilike', '%(Fulfilled)%');
+
+    if (resolvedOrgId) {
+      ordersQ = ordersQ.eq('organization_id', resolvedOrgId);
+    }
+
+    const { data } = await ordersQ.order('created_at', { ascending: false });
     setCustomerOrders(data || []);
   };
 

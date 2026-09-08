@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -13,9 +14,16 @@ import autoTable from "jspdf-autotable";
 import "./Dashboard.css";
 
 export default function StoreflowAI() {
+  const location = useLocation();
   const { activeOrg, user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("reorder"); // 'reorder', 'deadstock', 'cashflow', 'copilot'
+  const [activeTab, setActiveTab] = useState(location.state?.tab || "reorder"); // 'reorder', 'deadstock', 'cashflow', 'copilot'
+
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
+    }
+  }, [location.state?.tab]);
   const [products, setProducts] = useState([]);
   const [sales, setSales] = useState([]);
   const [saleItems, setSaleItems] = useState([]);

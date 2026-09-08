@@ -26,14 +26,20 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
 
   const fetchProducts = async () => {
-    const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    setLoading(true);
+    const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
+    let query = supabase.from('products').select('*').order('created_at', { ascending: false });
+    if (resolvedOrgId) {
+      query = query.eq('organization_id', resolvedOrgId);
+    }
+    const { data } = await query;
     if (data) setProducts(data);
-    setTimeout(() => setLoading(false), 1000);
+    setTimeout(() => setLoading(false), 500);
   };
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [activeOrgId]);
 
   useEffect(() => {
     if (location.state?.showForm) {
@@ -207,6 +213,7 @@ export default function Products() {
       const lines = ev.target.result.split("\n").slice(1);
       const productsToInsert = [];
       for (const line of lines) {
+        const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
         const [,name,category,buying_uom,selling_uom,conversion_factor,cost_price,selling_price,stock_quantity] = line.split(",");
         if (!name) continue;
         productsToInsert.push({
@@ -215,6 +222,7 @@ export default function Products() {
           cost_price: parseFloat(cost_price),
           selling_price: parseFloat(selling_price),
           stock_quantity: parseFloat(stock_quantity),
+          organization_id: resolvedOrgId || null,
           created_at: new Date().toISOString()
         });
       }

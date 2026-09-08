@@ -558,3 +558,167 @@
   appearance: none;
 }
 
+/* ──────────────────────────────────────────────
+   STOREFLOW AI EXECUTIVE WIDGET (LESS AI SLOP)
+   ────────────────────────────────────────────── */
+.storeflow-ai-widget {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.storeflow-ai-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #0f172a;
+  color: #ffffff;
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+  position: relative;
+  overflow: hidden;
+  font-family: inherit;
+}
+
+.storeflow-ai-btn:hover {
+  background: #1e293b;
+  border-color: #334155;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+}
+
+.storeflow-ai-btn:active {
+  transform: translateY(0);
+}
+
+.storeflow-ai-btn__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.storeflow-ai-btn__icon-wrapper {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(241, 90, 36, 0.15);
+  border: 1px solid rgba(241, 90, 36, 0.3);
+  color: #f15a24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.storeflow-ai-btn:hover .storeflow-ai-btn__icon-wrapper {
+  transform: scale(1.05);
+  background: rgba(241, 90, 36, 0.22);
+}
+
+.storeflow-ai-btn__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.storeflow-ai-btn__header-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.storeflow-ai-btn__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.storeflow-ai-btn__pill {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(241, 90, 36, 0.2);
+  color: #fb923c;
+  border: 1px solid rgba(241, 90, 36, 0.35);
+}
+
+.storeflow-ai-btn__subtitle {
+  font-size: 11px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+
+.storeflow-ai-btn__arrow-box {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #94a3b8;
+  transition: all 0.2s ease;
+}
+
+.storeflow-ai-btn:hover .storeflow-ai-btn__arrow-box {
+  background: rgba(241, 90, 36, 0.2);
+  color: #f15a24;
+  transform: translateX(2px);
+}
+
+/* Quick action capability chips */
+.storeflow-ai-quick-links {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.storeflow-ai-chip {
+  flex: 1;
+  min-width: fit-content;
+  padding: 5px 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  text-align: center;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.storeflow-ai-chip:hover {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transform: translateY(-1px);
+}
+
+.storeflow-ai-chip:active {
+  transform: translateY(0);
+}
+
+
