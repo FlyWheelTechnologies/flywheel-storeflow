@@ -136,31 +136,39 @@ Deno.serve(async (req: Request) => {
       organization_id
     });
 
-    // 4. Send Welcome Email
-    console.log("Sending email via Resend...");
-    const appUrl = Deno.env.get('APP_URL') || 'https://ims.bookflywheel.com';
-    await sendEmail({
-      to: email,
-      fromName: orgName,
-      subject: `Welcome to ${orgName}`,
-      html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px;">
-          <h1 style="color: ${primaryColor};">${orgName}</h1>
-          <p>Hi ${full_name || 'there'},</p>
-          <p>An account has been created for you on the <strong>${orgName}</strong> Stock Management System.</p>
-          <div style="background: #f9fafb; padding: 16px; border-radius: 8px; margin: 20px 0;">
-            <p style="margin: 0;"><strong>Role:</strong> ${role}</p>
-            <p style="margin: 8px 0 0;"><strong>Login Email:</strong> ${email}</p>
+    // 4. Send Welcome Email (non-blocking fallback)
+    try {
+      console.log("Sending email via Resend...");
+      const appUrl = Deno.env.get('APP_URL') || 'https://ims.bookflywheel.com';
+      await sendEmail({
+        to: email,
+        fromName: orgName,
+        subject: `Welcome to ${orgName}`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 12px; padding: 24px;">
+            <h1 style="color: ${primaryColor};">${orgName}</h1>
+            <p>Hi ${full_name || 'there'},</p>
+            <p>An account has been created for you on the <strong>${orgName}</strong> Stock Management System.</p>
+            <div style="background: #f9fafb; padding: 16px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0;"><strong>Role:</strong> ${role}</p>
+              <p style="margin: 8px 0 0;"><strong>Login Email:</strong> ${email}</p>
+            </div>
+            <p>You can now log in using your email and the password provided by your administrator.</p>
+            <a href="${appUrl}" style="display: inline-block; background: #374151; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Log In Now</a>
+            <p style="margin-top: 30px; font-size: 11px; color: #9ca3af; text-align: center;">Powered by StoreFlow by Flywheel</p>
           </div>
-          <p>You can now log in using your email and the password provided by your administrator.</p>
-          <a href="${appUrl}" style="display: inline-block; background: #374151; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600;">Log In Now</a>
-          <p style="margin-top: 30px; font-size: 11px; color: #9ca3af; text-align: center;">Powered by StoreFlow by Flywheel</p>
-        </div>
-      `
-    });
+        `
+      });
+    } catch (emailErr: any) {
+      console.warn("Could not send welcome email via Resend:", emailErr.message);
+    }
 
     return new Response(
-      JSON.stringify({ message: 'User created successfully', user: authData.user }),
+      JSON.stringify({ 
+        message: 'User created successfully', 
+        user: authData?.user || { id: targetUserId, email },
+        isExistingUser
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (error: any) {

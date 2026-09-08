@@ -126,10 +126,12 @@ export default function AdminSettings() {
       if (updateErr) throw updateErr;
 
       // Audit log store profile update
-      await supabase.rpc('log_action', {
-        p_action: 'STORE_UPDATE',
-        p_details: `Updated Store & Tax Profile for ${orgForm.name || 'Store'}`
-      }).catch(() => {});
+      try {
+        await supabase.rpc('log_action', {
+          p_action: 'STORE_UPDATE',
+          p_details: `Updated Store & Tax Profile for ${orgForm.name || 'Store'}`
+        });
+      } catch (_) {}
 
       setToast({ message: "Store & Tax settings updated successfully!", type: "success" });
       setTimeout(() => setToast(null), 3500);
@@ -160,10 +162,12 @@ export default function AdminSettings() {
         if (delErr) throw delErr;
 
         // Log action via fallback
-        await supabase.rpc('log_action', {
-          p_action: 'USER_DELETE',
-          p_details: `Removed staff member ${targetUser?.email || userId}`
-        }).catch(() => {});
+        try {
+          await supabase.rpc('log_action', {
+            p_action: 'USER_DELETE',
+            p_details: `Removed staff member ${targetUser?.email || userId}`
+          });
+        } catch (_) {}
       }
 
       fetchUsers();
@@ -204,10 +208,14 @@ export default function AdminSettings() {
         if (updateError) throw updateError;
 
         // Audit log
-        await supabase.rpc('log_action', {
-          p_action: 'USER_UPDATE',
-          p_details: `Updated staff ${newUser.email} to role ${newUser.role} (${newUser.full_name})`
-        }).catch(err => console.warn("Audit log error:", err.message));
+        try {
+          await supabase.rpc('log_action', {
+            p_action: 'USER_UPDATE',
+            p_details: `Updated staff ${newUser.email} to role ${newUser.role} (${newUser.full_name})`
+          });
+        } catch (err) {
+          console.warn("Audit log error:", err.message);
+        }
 
         setToast({ message: "Staff account updated successfully!", type: "success" });
       } else {
@@ -324,10 +332,12 @@ export default function AdminSettings() {
         }
 
         // Audit log
-        await supabase.rpc('log_action', {
-          p_action: 'USER_CREATE',
-          p_details: `Added new staff member ${newUser.email} with role ${newUser.role} (${newUser.full_name})`
-        }).catch(() => {});
+        try {
+          await supabase.rpc('log_action', {
+            p_action: 'USER_CREATE',
+            p_details: `Added new staff member ${newUser.email} with role ${newUser.role} (${newUser.full_name})`
+          });
+        } catch (_) {}
 
         setToast({ message: "Staff account created successfully!", type: "success" });
       }
