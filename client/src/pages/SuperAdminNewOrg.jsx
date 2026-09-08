@@ -151,15 +151,32 @@ export default function SuperAdminNewOrg() {
 
         if (signUpErr && signUpErr.message.toLowerCase().includes("already registered")) {
           // Link pre-existing account as admin to this new organization
-          await supabase.from("profiles").update({
+          const { error: linkErr } = await supabase.from("profiles").update({
             role: "admin",
             organization_id: org.id,
             full_name: form.admin_name.trim() || undefined,
             updated_at: new Date().toISOString()
           }).ilike("email", form.admin_email.trim());
+          if (linkErr) throw linkErr;
           inviteWarning = " (Linked pre-existing account as Admin)";
-        } else if (signUpData?.user) {
-          await supabase.from("profiles").upsert({
+        }
+
+        // Detect "fake user": Supabase returns a user with empty identities
+        // array when email is already registered (enumeration protection)
+        const isFakeUser = signUpData?.user && 
+          (!signUpData.user.identities || signUpData.user.identities.length === 0);
+
+        if (!signUpErr && isFakeUser) {
+          const { error: linkErr } = await supabase.from("profiles").update({
+            role: "admin",
+            organization_id: org.id,
+            full_name: form.admin_name.trim() || undefined,
+            updated_at: new Date().toISOString()
+          }).ilike("email", form.admin_email.trim());
+          if (linkErr) throw linkErr;
+          inviteWarning = " (Linked pre-existing account as Admin)";
+        } else if (!signUpErr && signUpData?.user) {
+          const { error: upsertErr } = await supabase.from("profiles").upsert({
             id: signUpData.user.id,
             email: form.admin_email.trim(),
             full_name: form.admin_name.trim(),
@@ -167,6 +184,7 @@ export default function SuperAdminNewOrg() {
             organization_id: org.id,
             updated_at: new Date().toISOString()
           });
+          if (upsertErr) throw upsertErr;
         }
       }
 

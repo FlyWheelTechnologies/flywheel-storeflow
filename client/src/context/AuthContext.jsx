@@ -118,6 +118,14 @@ export function AuthProvider({ children }) {
       return updatedUser;
     } catch (err) {
       console.warn("Profile fetch failed, staying logged in with cache:", err.message);
+      // Prefer cached user from localStorage (preserves correct role/org from last successful fetch)
+      const cached = localStorage.getItem("user");
+      if (cached) {
+        try {
+          return JSON.parse(cached);
+        } catch (_) {}
+      }
+      // Absolute last resort — no cache at all
       return user || { ...sessionUser, role: 'storekeeper' };
     }
   };

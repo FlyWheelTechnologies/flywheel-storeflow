@@ -288,8 +288,24 @@ export default function AdminSettings() {
               } else {
                 throw signUpErr;
               }
-            } else if (signUpData?.user) {
-              await supabase.from('profiles').upsert({
+            }
+            
+            // Detect "fake user" response: Supabase returns a user with empty
+            // identities array when the email is already registered (email
+            // enumeration protection). Treat as "already registered".
+            const isFakeUser = signUpData?.user && 
+              (!signUpData.user.identities || signUpData.user.identities.length === 0);
+
+            if (!signUpErr && isFakeUser) {
+              const { data: linkOk, error: linkErr2 } = await supabase.rpc('admin_link_existing_user', {
+                p_email: newUser.email.trim(),
+                p_role: newUser.role,
+                p_full_name: newUser.full_name.trim()
+              });
+              if (linkErr2 || !linkOk) throw linkErr2 || new Error("User already exists in another tenant");
+              userCreated = true;
+            } else if (!signUpErr && signUpData?.user) {
+              const { error: upsertErr } = await supabase.from('profiles').upsert({
                 id: signUpData.user.id,
                 email: newUser.email.trim(),
                 full_name: newUser.full_name.trim(),
@@ -297,6 +313,7 @@ export default function AdminSettings() {
                 organization_id: orgId,
                 updated_at: new Date().toISOString()
               });
+              if (upsertErr) throw upsertErr;
               userCreated = true;
             }
           }

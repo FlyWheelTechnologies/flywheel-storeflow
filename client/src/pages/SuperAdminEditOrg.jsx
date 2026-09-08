@@ -305,9 +305,16 @@ export default function SuperAdminEditOrg() {
           }
         });
 
-        if (signUpErr) {
-          // If already registered, link existing account to this organization
-          if (signUpErr.message && signUpErr.message.toLowerCase().includes("already registered")) {
+        // Detect "fake user" response: Supabase returns a user with empty
+        // identities array when the email is already registered (to prevent
+        // email enumeration). Treat this identically to "already registered".
+        const isFakeUser = signUpData?.user && 
+          (!signUpData.user.identities || signUpData.user.identities.length === 0);
+        const isAlreadyRegistered = signUpErr?.message?.toLowerCase().includes("already registered");
+
+        if (signUpErr || isFakeUser) {
+          if (isAlreadyRegistered || isFakeUser) {
+            // Link existing account to this organization
             const { error: linkErr } = await supabase
               .from("profiles")
               .update({
@@ -324,8 +331,8 @@ export default function SuperAdminEditOrg() {
             throw signUpErr;
           }
         } else if (signUpData?.user) {
-          // Ensure profile is correctly associated
-          await supabase.from("profiles").upsert({
+          // New user created — ensure profile is correctly associated
+          const { error: upsertErr } = await supabase.from("profiles").upsert({
             id: signUpData.user.id,
             email: emailTrimmed,
             full_name: nameTrimmed,
@@ -333,6 +340,7 @@ export default function SuperAdminEditOrg() {
             organization_id: id,
             updated_at: new Date().toISOString()
           });
+          if (upsertErr) throw upsertErr;
         }
       }
 
