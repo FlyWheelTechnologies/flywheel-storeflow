@@ -32,30 +32,31 @@ export default function Sales() {
   const [itemsToShow, setItemsToShow] = useState(25);
 
   const fetchData = async () => {
-    let salesQ = supabase.from('sales').select('*').order('created_at', { ascending: false });
-    let productsQ = supabase.from('products').select('*');
-    let customersQ = supabase.from('customers').select('*');
-
-    if (activeOrgId) {
-      salesQ = salesQ.eq('organization_id', activeOrgId);
-      productsQ = productsQ.eq('organization_id', activeOrgId);
-      customersQ = customersQ.eq('organization_id', activeOrgId);
+    const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
+    if (!resolvedOrgId) {
+      setSales([]);
+      setProducts([]);
+      setCustomers([]);
+      setLoading(false);
+      return;
     }
 
+    setLoading(true);
     const [salesRes, productsRes, customersRes] = await Promise.all([
-      salesQ,
-      productsQ,
-      customersQ
+      supabase.from('sales').select('*').eq('organization_id', resolvedOrgId).order('created_at', { ascending: false }),
+      supabase.from('products').select('*').eq('organization_id', resolvedOrgId),
+      supabase.from('customers').select('*').eq('organization_id', resolvedOrgId)
     ]);
     if (salesRes.data) setSales(salesRes.data);
     if (productsRes.data) setProducts(productsRes.data);
     if (customersRes.data) setCustomers(customersRes.data);
-    setTimeout(() => setLoading(false), 1000);
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchData();
-  }, [activeOrgId]);
+  }, [activeOrgId, user?.organization_id]);
+
 
   useEffect(() => {
     if (location.state?.isDeposit) {

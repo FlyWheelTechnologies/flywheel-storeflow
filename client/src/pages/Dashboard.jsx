@@ -57,27 +57,25 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     if (!navigator.onLine) return; 
-    setLoading(true);
     
     const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
 
-    let productsQ = supabase.from('products').select('*');
-    let salesQ = supabase.from('sales').select('*');
-    let expensesQ = supabase.from('expenses').select('*');
-    let logsQ = supabase.from('logs').select('*').order('created_at', { ascending: false }).limit(50);
-
-    if (resolvedOrgId) {
-      productsQ = productsQ.eq('organization_id', resolvedOrgId);
-      salesQ = salesQ.eq('organization_id', resolvedOrgId);
-      expensesQ = expensesQ.eq('organization_id', resolvedOrgId);
-      logsQ = logsQ.eq('organization_id', resolvedOrgId);
+    if (!resolvedOrgId) {
+      setProducts([]);
+      setSales([]);
+      setExpenses([]);
+      setLogs([]);
+      setLoading(false);
+      return;
     }
 
+    setLoading(true);
+
     const [productsRes, salesRes, expensesRes, logsRes] = await Promise.all([
-      productsQ,
-      salesQ,
-      expensesQ,
-      logsQ
+      supabase.from('products').select('*').eq('organization_id', resolvedOrgId),
+      supabase.from('sales').select('*').eq('organization_id', resolvedOrgId),
+      supabase.from('expenses').select('*').eq('organization_id', resolvedOrgId),
+      supabase.from('logs').select('*').eq('organization_id', resolvedOrgId).order('created_at', { ascending: false }).limit(50)
     ]);
 
     setProducts(productsRes.data || []);
@@ -89,7 +87,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchData();
-  }, [activeOrgId]);
+  }, [activeOrgId, user?.organization_id]);
+
 
   const handlePureDeposit = async (e) => {
     e.preventDefault();

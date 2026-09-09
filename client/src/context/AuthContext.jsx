@@ -9,8 +9,14 @@ export function AuthProvider({ children }) {
     const cached = localStorage.getItem("user");
     return cached ? JSON.parse(cached) : null;
   });
-  const [loading, setLoading] = useState(true);
-  const [impersonatedOrg, setImpersonatedOrg] = useState(null);
+  const [impersonatedOrg, setImpersonatedOrg] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem("storeflow_impersonated_org");
+      return saved ? JSON.parse(saved) : null;
+    } catch (_) {
+      return null;
+    }
+  });
 
   const fetchProfile = async (sessionUser) => {
     if (!sessionUser) return null;
@@ -259,6 +265,9 @@ export function AuthProvider({ children }) {
     // Clear state and storage immediately
     setUser(null);
     setImpersonatedOrg(null);
+    try {
+      sessionStorage.removeItem("storeflow_impersonated_org");
+    } catch (_) {}
     localStorage.removeItem("user");
     localStorage.removeItem("auth_token");
     window.location.href = "/login"; // Force reload to login
@@ -273,14 +282,21 @@ export function AuthProvider({ children }) {
   const impersonateOrg = (org) => {
     if (user?.role === "super_admin") {
       setImpersonatedOrg(org);
+      try {
+        sessionStorage.setItem("storeflow_impersonated_org", JSON.stringify(org));
+      } catch (_) {}
       console.log("Super Admin impersonating organization:", org.name);
     }
   };
 
   const stopImpersonating = () => {
     setImpersonatedOrg(null);
+    try {
+      sessionStorage.removeItem("storeflow_impersonated_org");
+    } catch (_) {}
     console.log("Super Admin stopped impersonating");
   };
+
 
   // Determine active organization details
   const activeOrg = impersonatedOrg 

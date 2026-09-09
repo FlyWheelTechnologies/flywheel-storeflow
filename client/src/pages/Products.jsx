@@ -26,20 +26,26 @@ export default function Products() {
   const [loading, setLoading] = useState(true);
 
   const fetchProducts = async () => {
-    setLoading(true);
     const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
-    let query = supabase.from('products').select('*').order('created_at', { ascending: false });
-    if (resolvedOrgId) {
-      query = query.eq('organization_id', resolvedOrgId);
+    if (!resolvedOrgId) {
+      setProducts([]);
+      setLoading(false);
+      return;
     }
-    const { data } = await query;
+    setLoading(true);
+    const { data } = await supabase
+      .from('products')
+      .select('*')
+      .eq('organization_id', resolvedOrgId)
+      .order('created_at', { ascending: false });
     if (data) setProducts(data);
-    setTimeout(() => setLoading(false), 500);
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchProducts();
-  }, [activeOrgId]);
+  }, [activeOrgId, user?.organization_id]);
+
 
   useEffect(() => {
     if (location.state?.showForm) {

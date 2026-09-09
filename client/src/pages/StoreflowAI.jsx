@@ -15,7 +15,7 @@ import "./Dashboard.css";
 
 export default function StoreflowAI() {
   const location = useLocation();
-  const { activeOrg, user } = useAuth();
+  const { activeOrg, user, activeOrgId } = useAuth();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(location.state?.tab || "reorder"); // 'reorder', 'deadstock', 'cashflow', 'copilot'
 
@@ -40,22 +40,38 @@ export default function StoreflowAI() {
   ]);
   const [copiedToast, setCopiedToast] = useState(false);
 
-  // Load Store Data
+  // Load Store Data Strictly Isolated to Current Organization
   useEffect(() => {
     async function loadStoreData() {
+      const resolvedOrgId = activeOrgId || activeOrg?.id || user?.organization_id || user?.organizations?.id;
+      if (!resolvedOrgId) {
+        setProducts([]);
+        setSales([]);
+        setSaleItems([]);
+        setExpenses([]);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
       try {
-        const [prodsRes, salesRes, itemsRes, expRes] = await Promise.all([
-          supabase.from("products").select("*").order("name"),
-          supabase.from("sales").select("*").order("created_at", { ascending: false }).limit(200),
-          supabase.from("sale_items").select("*").limit(500),
-          supabase.from("expenses").select("*").limit(100)
+        const [prodsRes, salesRes, expRes] = await Promise.all([
+          supabase.from("products").select("*").eq("organization_id", resolvedOrgId).order("name"),
+          supabase.from("sales").select("*").eq("organization_id", resolvedOrgId).order("created_at", { ascending: false }).limit(200),
+          supabase.from("expenses").select("*").eq("organization_id", resolvedOrgId).limit(100)
         ]);
 
-        if (prodsRes.data) setProducts(prodsRes.data);
-        if (salesRes.data) setSales(salesRes.data);
-        if (itemsRes.data) setSaleItems(itemsRes.data);
-        if (expRes.data) setExpenses(expRes.data);
+        const saleIds = (salesRes.data || []).map(s => s.id);
+        let itemsData = [];
+        if (saleIds.length > 0) {
+          const itemsRes = await supabase.from("sale_items").select("*").in("sale_id", saleIds).limit(500);
+          itemsData = itemsRes.data || [];
+        }
+
+        setProducts(prodsRes.data || []);
+        setSales(salesRes.data || []);
+        setSaleItems(itemsData);
+        setExpenses(expRes.data || []);
       } catch (err) {
         console.error("Error loading StoreFlow AI data:", err);
       } finally {
@@ -64,7 +80,8 @@ export default function StoreflowAI() {
     }
 
     loadStoreData();
-  }, [activeOrg?.id]);
+  }, [activeOrgId, activeOrg?.id, user?.organization_id]);
+
 
   // Run AI Analytics Algorithms
   const forecast = useMemo(() => calculateStockoutForecast(products, sales, saleItems), [products, sales, saleItems]);

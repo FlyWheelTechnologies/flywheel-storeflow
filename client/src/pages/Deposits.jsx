@@ -45,24 +45,25 @@ export default function Deposits() {
       setShowDepositModal(true);
       window.history.replaceState({}, document.title);
     }
-  }, [location.state, activeOrgId]);
+  }, [location.state, activeOrgId, user?.organization_id]);
 
   const fetchDeposits = async () => {
-    setLoading(true);
     const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
-
-    let depQ = supabase.from("deposits").select("*");
-    let prodQ = supabase.from("products").select("*");
-
-    if (resolvedOrgId) {
-      depQ = depQ.eq("organization_id", resolvedOrgId);
-      prodQ = prodQ.eq("organization_id", resolvedOrgId);
+    if (!resolvedOrgId) {
+      setDeposits([]);
+      setProducts([]);
+      setLoading(false);
+      return;
     }
 
-    const [depRes, prodRes] = await Promise.all([depQ, prodQ]);
+    setLoading(true);
+    const [depRes, prodRes] = await Promise.all([
+      supabase.from("deposits").select("*").eq("organization_id", resolvedOrgId),
+      supabase.from("products").select("*").eq("organization_id", resolvedOrgId)
+    ]);
     setDeposits(depRes.data || []);
     setProducts(prodRes.data || []);
-    setTimeout(() => setLoading(false), 500);
+    setLoading(false);
   };
 
   const toggleOrders = async (cid) => {
@@ -73,20 +74,23 @@ export default function Deposits() {
     }
     setExpandedCustomerId(cid);
     const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id;
+    if (!resolvedOrgId) {
+      setCustomerOrders([]);
+      return;
+    }
+
     let ordersQ = supabase
       .from('sales')
       .select('*')
+      .eq('organization_id', resolvedOrgId)
       .eq('customer_id', cid)
       .or('payment_status.eq.DEPOSIT,notes.ilike.%Pure Deposit%,total_amount.eq.0,balance_due.lt.0')
       .not('notes', 'ilike', '%(Fulfilled)%');
 
-    if (resolvedOrgId) {
-      ordersQ = ordersQ.eq('organization_id', resolvedOrgId);
-    }
-
     const { data } = await ordersQ.order('created_at', { ascending: false });
     setCustomerOrders(data || []);
   };
+
 
   const handlePureDeposit = async () => {
     if (!depCustName || !depAmount) {

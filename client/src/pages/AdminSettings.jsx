@@ -6,7 +6,8 @@ import { createClient } from "@supabase/supabase-js";
 import "./Dashboard.css";
 
 export default function AdminSettings() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, activeOrgId } = useAuth();
+  const targetOrgId = activeOrgId || currentUser?.organization_id;
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(() => {
@@ -55,14 +56,15 @@ export default function AdminSettings() {
       fetchUsers();
       fetchOrg();
     }
-  }, [currentUser]);
+  }, [currentUser, activeOrgId]);
 
   const fetchUsers = async () => {
-    const orgId = currentUser?.organization_id;
-    let query = supabase.from('profiles').select('*');
-    if (orgId && currentUser?.role !== 'super_admin') {
-      query = query.eq('organization_id', orgId);
+    const orgId = targetOrgId;
+    if (!orgId) {
+      setUsers([]);
+      return;
     }
+    let query = supabase.from('profiles').select('*').eq('organization_id', orgId);
     const { data, error: fetchError } = await query.order('created_at', { ascending: true });
     if (fetchError) {
       console.error("Error fetching users:", fetchError);
@@ -73,7 +75,7 @@ export default function AdminSettings() {
   };
 
   const fetchOrg = async () => {
-    const orgId = currentUser?.organization_id;
+    const orgId = targetOrgId;
     if (!orgId) return;
     try {
       const { data, error: fetchErr } = await supabase
@@ -106,8 +108,9 @@ export default function AdminSettings() {
 
     try {
       await supabase.auth.getSession();
-      const orgId = currentUser?.organization_id;
+      const orgId = targetOrgId;
       if (!orgId) throw new Error("No organization associated with this account.");
+
 
       const { error: updateErr } = await supabase
         .from('organizations')
@@ -189,12 +192,13 @@ export default function AdminSettings() {
     setSaving(true);
     setError('');
 
-    const orgId = currentUser?.organization_id;
+    const orgId = targetOrgId;
     if (!orgId) {
       setError("Cannot perform user actions: Active organization not resolved.");
       setSaving(false);
       return;
     }
+
 
     try {
       if (editUserId) {

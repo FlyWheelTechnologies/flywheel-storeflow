@@ -38,33 +38,31 @@ export default function JournalEntries() {
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
-    setLoading(true);
     const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
-
-    let journalQ = supabase.from('journal_entries').select('*').order('created_at', { ascending: false });
-    let salesQ = supabase.from('sales').select('*');
-    let expensesQ = supabase.from('expenses').select('*');
-
-    if (resolvedOrgId) {
-      journalQ = journalQ.eq('organization_id', resolvedOrgId);
-      salesQ = salesQ.eq('organization_id', resolvedOrgId);
-      expensesQ = expensesQ.eq('organization_id', resolvedOrgId);
+    if (!resolvedOrgId) {
+      setJournal([]);
+      setSales([]);
+      setExpenses([]);
+      setLoading(false);
+      return;
     }
 
+    setLoading(true);
     const [journalRes, salesRes, expensesRes] = await Promise.all([
-      journalQ,
-      salesQ,
-      expensesQ
+      supabase.from('journal_entries').select('*').eq('organization_id', resolvedOrgId).order('created_at', { ascending: false }),
+      supabase.from('sales').select('*').eq('organization_id', resolvedOrgId),
+      supabase.from('expenses').select('*').eq('organization_id', resolvedOrgId)
     ]);
     if (journalRes.data) setJournal(journalRes.data);
     if (salesRes.data) setSales(salesRes.data);
     if (expensesRes.data) setExpenses(expensesRes.data);
-    setTimeout(() => setLoading(false), 500);
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchData();
-  }, [activeOrgId]);
+  }, [activeOrgId, user?.organization_id]);
+
   
   // Filter data based on selected date/mode
   const filteredSales = useMemo(() => {

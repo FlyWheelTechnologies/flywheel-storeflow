@@ -28,18 +28,19 @@ export default function Logs() {
   }, [orgId, currentUser]);
 
   const fetchLogs = async () => {
+    if (!orgId) {
+      setLogs([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
-    let query = supabase
+    const { data, error } = await supabase
       .from('logs')
       .select('*')
+      .eq('organization_id', orgId)
       .order('created_at', { ascending: false })
       .limit(200);
 
-    if (orgId) {
-      query = query.eq('organization_id', orgId);
-    }
-    
-    const { data, error } = await query;
     if (error) {
       console.error("Error fetching logs:", error.message);
     } else if (data) {
@@ -47,6 +48,7 @@ export default function Logs() {
     }
     setLoading(false);
   };
+
 
   const getActionColor = (action) => {
     if (!action) return '#6b7280';
