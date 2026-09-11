@@ -9,6 +9,7 @@ export function AuthProvider({ children }) {
     const cached = localStorage.getItem("user");
     return cached ? JSON.parse(cached) : null;
   });
+  const [loading, setLoading] = useState(true);
   const [impersonatedOrg, setImpersonatedOrg] = useState(() => {
     try {
       const saved = sessionStorage.getItem("storeflow_impersonated_org");
