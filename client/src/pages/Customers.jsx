@@ -273,9 +273,9 @@ export default function Customers() {
                     <td>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button className="quick-action-btn" style={{ padding: '4px 8px', fontSize: 11, width: 'auto' }} onClick={() => viewHistory(c)}>History</button>
-                        <button onClick={() => startEdit(c)} style={{ background:'none', border:'none', cursor:'pointer' }} title="Edit">✏️</button>
+                        <button aria-label="Edit customer" onClick={() => startEdit(c)} style={{ background:'none', border:'none', cursor:'pointer' }} title="Edit">✏️</button>
                         {isAdmin && (
-                          <button onClick={() => confirmDelete(c)} style={{ background:'none', border:'none', cursor:'pointer', color:'#ef4444' }} title="Delete">🗑️</button>
+                          <button aria-label="Delete customer" onClick={() => confirmDelete(c)} style={{ background:'none', border:'none', cursor:'pointer', color:'#ef4444' }} title="Delete">🗑️</button>
                         )}
                       </div>
                     </td>
@@ -301,7 +301,7 @@ export default function Customers() {
               <div style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>
                 Lifetime Spent: GHS {history.reduce((a, s) => a + parseFloat(s.total_amount || 0), 0).toFixed(1)}
               </div>
-              <button className="close-btn" onClick={() => setSelectedCustomer(null)}>✕</button>
+              <button aria-label="Close sales history" className="close-btn" onClick={() => setSelectedCustomer(null)}>✕</button>
             </div>
             <div className="table-wrapper">
               <table className="stock-table" style={{ fontSize: 12 }}>

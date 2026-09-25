@@ -93,6 +93,7 @@ const SalesTable = ({
                   <td>
                     <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                       <button
+                        aria-label="Download PDF Receipt for sale"
                         onClick={() => onGenerateReceipt(s)}
                         style={{background:'none', border:'none', cursor:'pointer', fontSize:16, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))'}}
                         title="Download PDF Receipt"
@@ -100,6 +101,7 @@ const SalesTable = ({
                         📄
                       </button>
                       <button
+                        aria-label="Send receipt for sale via WhatsApp"
                         onClick={() => onShareViaWhatsApp(s)}
                         style={{background:'none', border:'none', cursor:'pointer', fontSize:16}}
                         title="Send receipt on WhatsApp"
