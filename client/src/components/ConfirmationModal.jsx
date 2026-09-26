@@ -3,13 +3,20 @@ export default function ConfirmationModal({ show, title, message, onConfirm, onC
 
   return (
     <div className="modal-overlay">
-      <div className="modal-card" style={{ maxWidth: '380px' }}>
+      <div
+        className="modal-card"
+        style={{ maxWidth: '380px' }}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        aria-describedby="modal-desc"
+      >
         <div className="modal-header">
-          <h3 style={{ color: type === 'danger' ? '#ef4444' : '#111827' }}>{title}</h3>
-          <button className="close-btn" onClick={onCancel} disabled={isLoading}>✕</button>
+          <h3 id="modal-title" style={{ color: type === 'danger' ? '#ef4444' : '#111827' }}>{title}</h3>
+          <button className="close-btn" aria-label="Close dialog" onClick={onCancel} disabled={isLoading}>✕</button>
         </div>
         <div className="modal-body">
-          <p style={{ fontSize: '14px', color: '#374151', lineHeight: '1.5' }}>{message}</p>
+          <p id="modal-desc" style={{ fontSize: '14px', color: '#374151', lineHeight: '1.5' }}>{message}</p>
         </div>
         <div className="modal-actions" style={{ padding: '0 20px 20px' }}>
           <button className="btn-secondary" onClick={onCancel} disabled={isLoading}>{cancelText}</button>
