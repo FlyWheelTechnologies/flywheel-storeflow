@@ -215,20 +215,44 @@ export default function Dashboard() {
   const chartData = useMemo(() => {
     if (timeframe === '7d' || timeframe === '30d') {
       const days = timeframe === '7d' ? 7 : 30;
-      return Array.from({ length: days }, (_, i) => {
+      const now = new Date();
+
+      // Bolt Optimization: Pre-aggregate sales and expenses into Map by date string in O(N + M)
+      // instead of performing repeated O(N * days) filter & reduce iterations.
+      const dayObjects = [];
+      const dateKeys = [];
+      const salesMap = new Map();
+      const expMap = new Map();
+
+      for (let i = 0; i < days; i++) {
         const d = new Date();
-        d.setDate(d.getDate() - (days - 1 - i));
-        const dateStr = d.toDateString();
-        const daySales = sales.filter(s => new Date(s.created_at).toDateString() === dateStr)
-                             .reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
-        const dayExpenses = expenses.filter(e => new Date(e.created_at).toDateString() === dateStr)
-                                   .reduce((acc, e) => acc + parseFloat(e.amount || 0), 0);
-        return {
-          name: days === 7 ? d.toLocaleDateString([], { weekday: 'short' }) : d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-          Revenue: daySales,
-          Expenses: dayExpenses
-        };
-      });
+        d.setDate(now.getDate() - (days - 1 - i));
+        const dateKey = d.toDateString();
+        dayObjects.push(d);
+        dateKeys.push(dateKey);
+        salesMap.set(dateKey, 0);
+        expMap.set(dateKey, 0);
+      }
+
+      for (let i = 0; i < sales.length; i++) {
+        const key = new Date(sales[i].created_at).toDateString();
+        if (salesMap.has(key)) {
+          salesMap.set(key, salesMap.get(key) + (parseFloat(sales[i].amount_paid) || 0));
+        }
+      }
+
+      for (let i = 0; i < expenses.length; i++) {
+        const key = new Date(expenses[i].created_at).toDateString();
+        if (expMap.has(key)) {
+          expMap.set(key, expMap.get(key) + (parseFloat(expenses[i].amount) || 0));
+        }
+      }
+
+      return dayObjects.map((d, i) => ({
+        name: days === 7 ? d.toLocaleDateString([], { weekday: 'short' }) : d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
+        Revenue: salesMap.get(dateKeys[i]),
+        Expenses: expMap.get(dateKeys[i])
+      }));
     }
 
     if (timeframe === 'YoY') {
