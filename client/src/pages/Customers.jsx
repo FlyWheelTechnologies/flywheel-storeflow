@@ -301,7 +301,7 @@ export default function Customers() {
               <div style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>
                 Lifetime Spent: GHS {history.reduce((a, s) => a + parseFloat(s.total_amount || 0), 0).toFixed(1)}
               </div>
-              <button className="close-btn" onClick={() => setSelectedCustomer(null)}>✕</button>
+              <button className="close-btn" onClick={() => setSelectedCustomer(null)} aria-label="Close" title="Close">✕</button>
             </div>
             <div className="table-wrapper">
               <table className="stock-table" style={{ fontSize: 12 }}>

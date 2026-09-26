@@ -340,7 +340,7 @@ export default function SuperAdminBilling() {
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1e293b" }}>
                 Record Payment & Update Terms — {selectedOrg.name}
               </h3>
-              <button type="button" onClick={() => setSelectedOrg(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>✕</button>
+              <button type="button" onClick={() => setSelectedOrg(null)} aria-label="Close" title="Close" style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>✕</button>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>

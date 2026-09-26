@@ -404,7 +404,7 @@ export default function Deposits() {
           <div style={{ background: '#fff', padding: 24, borderRadius: 20, width: 700, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
               <h2 style={{ fontSize: 20, fontWeight: 800 }}>📦 Fulfill Prepayment Items</h2>
-              <button onClick={() => setShowFulfillModal(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>✕</button>
+              <button onClick={() => setShowFulfillModal(false)} aria-label="Close" title="Close" style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>✕</button>
             </div>
             
             <div style={{ background: '#f0fdf4', padding: 12, borderRadius: 8, border: '1px solid #bbf7d0', marginBottom: 20, display: 'flex', justifyContent: 'space-between' }}>
@@ -501,7 +501,7 @@ export default function Deposits() {
                       setItems(newItems);
                     }} /></td>
                     <td style={{ fontWeight: 600 }}>GHS {formatCurrency(item.quantity * item.unit_price)}</td>
-                    <td><button onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer' }}>✕</button></td>
+                    <td><button onClick={() => setItems(items.filter((_, i) => i !== idx))} aria-label="Remove item" title="Remove item" style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer' }}>✕</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -537,7 +537,7 @@ export default function Deposits() {
           <div style={{ background: '#fff', padding: 24, borderRadius: 20, width: 450, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
               <h2 style={{ fontSize: 20, fontWeight: 800 }}>💰 Record New Deposit</h2>
-              <button onClick={() => setShowDepositModal(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>✕</button>
+              <button onClick={() => setShowDepositModal(false)} aria-label="Close" title="Close" style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>✕</button>
             </div>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

@@ -264,7 +264,7 @@ const SalesForm = ({
                   setItems(newItems);
                 }} /></td>
                 <td style={{fontWeight:600}}>GHS {formatCurrency(item.quantity * item.unit_price)}</td>
-                <td><button type="button" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{background:'#f3f4f6', color:'#ef4444', border:'none', borderRadius:6, padding:'4px 10px', cursor:'pointer'}}>✕</button></td>
+                <td><button type="button" onClick={() => setItems(items.filter((_, i) => i !== idx))} aria-label="Remove item" title="Remove item" style={{background:'#f3f4f6', color:'#ef4444', border:'none', borderRadius:6, padding:'4px 10px', cursor:'pointer'}}>✕</button></td>
               </tr>
             ))}
           </tbody>
