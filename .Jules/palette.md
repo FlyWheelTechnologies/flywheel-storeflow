@@ -1,0 +1,1 @@
+## 2024-05-24 - Missing ARIA Labels on Icon Buttons\n**Learning:** Icon-only close buttons frequently lack ARIA labels, making them inaccessible to screen readers.\n**Action:** Add `aria-label="Close"` to all icon-only close buttons in modals and toasts.
