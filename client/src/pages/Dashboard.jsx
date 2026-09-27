@@ -16,7 +16,7 @@ const InfoTip = ({ text }) => (
 );
 
 /* ─── Stat Card ────────────────────────────────── */
-function StatCard({ icon, label, value, trend, accent, children }) {
+function StatCard({ icon, label, value, accent, children }) {
   return (
     <div className={`stat-card ${accent ? `stat-card--${accent}` : ""}`}>
       <div className="stat-card__header">
@@ -96,7 +96,7 @@ export default function Dashboard() {
     setDepSaving(true);
     try {
       const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
-      const { data, error } = await supabase.rpc('record_pure_deposit', {
+      const { error } = await supabase.rpc('record_pure_deposit', {
         p_customer_name: depCustName,
         p_customer_phone: depCustPhone,
         p_amount: parseFloat(depAmount),
@@ -164,14 +164,14 @@ export default function Dashboard() {
     return "Evening";
   };
 
-  const { todaySales, todayCashIn, todayRevenue } = useMemo(() => {
+  const { todayCashIn, todayRevenue } = useMemo(() => {
     const todayDate = new Date().toDateString();
     const tSales = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
     const tCashIn = tSales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0);
     const tRevenue = tSales
       .filter(s => s.payment_status !== 'DEPOSIT')
       .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
-    return { todaySales: tSales, todayCashIn: tCashIn, todayRevenue: tRevenue };
+    return { todayCashIn: tCashIn, todayRevenue: tRevenue };
   }, [sales]);
 
   const {
@@ -210,23 +210,40 @@ export default function Dashboard() {
     };
   }, [products]);
 
-  const userName = user?.full_name || user?.email?.split('@')[0];
-
+  // Bolt Optimization ⚡:
+  // Pre-aggregate sales and expenses into Map lookup tables in O(N) single-pass loops
+  // instead of filtering all sales and expenses for every timeframe day/month (O(N * D)).
+  // This reduces loop iterations and Date object creations by ~30x for large datasets.
   const chartData = useMemo(() => {
     if (timeframe === '7d' || timeframe === '30d') {
       const days = timeframe === '7d' ? 7 : 30;
+
+      // Single pass to aggregate revenue by date string in O(sales.length)
+      const salesByDate = new Map();
+      for (let i = 0; i < sales.length; i++) {
+        const s = sales[i];
+        if (!s.created_at) continue;
+        const dStr = new Date(s.created_at).toDateString();
+        salesByDate.set(dStr, (salesByDate.get(dStr) || 0) + parseFloat(s.amount_paid || 0));
+      }
+
+      // Single pass to aggregate expenses by date string in O(expenses.length)
+      const expensesByDate = new Map();
+      for (let i = 0; i < expenses.length; i++) {
+        const e = expenses[i];
+        if (!e.created_at) continue;
+        const dStr = new Date(e.created_at).toDateString();
+        expensesByDate.set(dStr, (expensesByDate.get(dStr) || 0) + parseFloat(e.amount || 0));
+      }
+
       return Array.from({ length: days }, (_, i) => {
         const d = new Date();
         d.setDate(d.getDate() - (days - 1 - i));
         const dateStr = d.toDateString();
-        const daySales = sales.filter(s => new Date(s.created_at).toDateString() === dateStr)
-                             .reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
-        const dayExpenses = expenses.filter(e => new Date(e.created_at).toDateString() === dateStr)
-                                   .reduce((acc, e) => acc + parseFloat(e.amount || 0), 0);
         return {
           name: days === 7 ? d.toLocaleDateString([], { weekday: 'short' }) : d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-          Revenue: daySales,
-          Expenses: dayExpenses
+          Revenue: salesByDate.get(dateStr) || 0,
+          Expenses: expensesByDate.get(dateStr) || 0
         };
       });
     }
@@ -235,24 +252,25 @@ export default function Dashboard() {
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const thisYear = new Date().getFullYear();
       const lastYear = thisYear - 1;
-      
-      return months.map((m, i) => {
-        const thisYearSales = sales.filter(s => {
-          const d = new Date(s.created_at);
-          return d.getFullYear() === thisYear && d.getMonth() === i;
-        }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
-        
-        const lastYearSales = sales.filter(s => {
-          const d = new Date(s.created_at);
-          return d.getFullYear() === lastYear && d.getMonth() === i;
-        }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
-        
-        return {
-          name: m,
-          'This Year': thisYearSales,
-          'Last Year': lastYearSales
-        };
-      });
+
+      // Single pass to aggregate revenue by `${year}-${month}` in O(sales.length)
+      const salesByYearMonth = new Map();
+      for (let i = 0; i < sales.length; i++) {
+        const s = sales[i];
+        if (!s.created_at) continue;
+        const d = new Date(s.created_at);
+        const yr = d.getFullYear();
+        if (yr === thisYear || yr === lastYear) {
+          const key = `${yr}-${d.getMonth()}`;
+          salesByYearMonth.set(key, (salesByYearMonth.get(key) || 0) + parseFloat(s.amount_paid || 0));
+        }
+      }
+
+      return months.map((m, i) => ({
+        name: m,
+        'This Year': salesByYearMonth.get(`${thisYear}-${i}`) || 0,
+        'Last Year': salesByYearMonth.get(`${lastYear}-${i}`) || 0
+      }));
     }
     return [];
   }, [timeframe, sales, expenses]);
