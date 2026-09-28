@@ -149,13 +149,23 @@ export default function Dashboard() {
     return "Evening";
   };
 
+  // Single-pass calculation for today's sales metrics
   const { todaySales, todayCashIn, todayRevenue } = useMemo(() => {
     const todayDate = new Date().toDateString();
-    const tSales = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
-    const tCashIn = tSales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0);
-    const tRevenue = tSales
-      .filter(s => s.payment_status !== 'DEPOSIT')
-      .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
+    let tCashIn = 0;
+    let tRevenue = 0;
+    const tSales = [];
+
+    for (let i = 0; i < sales.length; i++) {
+      const s = sales[i];
+      if (s.created_at && new Date(s.created_at).toDateString() === todayDate) {
+        tSales.push(s);
+        tCashIn += parseFloat(s.amount_paid || 0);
+        if (s.payment_status !== 'DEPOSIT') {
+          tRevenue += parseFloat(s.total_amount || 0);
+        }
+      }
+    }
     return { todaySales: tSales, todayCashIn: tCashIn, todayRevenue: tRevenue };
   }, [sales]);
 
@@ -197,21 +207,38 @@ export default function Dashboard() {
 
   const userName = user?.full_name || user?.email?.split('@')[0];
 
+  // Pre-aggregate chart data using single-pass maps O(N) to avoid nested array scans and repeated Date allocations
   const chartData = useMemo(() => {
     if (timeframe === '7d' || timeframe === '30d') {
       const days = timeframe === '7d' ? 7 : 30;
+
+      // Hash maps for O(1) daily lookup
+      const salesByDate = {};
+      for (let i = 0; i < sales.length; i++) {
+        const s = sales[i];
+        if (s.created_at) {
+          const dateStr = new Date(s.created_at).toDateString();
+          salesByDate[dateStr] = (salesByDate[dateStr] || 0) + parseFloat(s.amount_paid || 0);
+        }
+      }
+
+      const expensesByDate = {};
+      for (let i = 0; i < expenses.length; i++) {
+        const e = expenses[i];
+        if (e.created_at) {
+          const dateStr = new Date(e.created_at).toDateString();
+          expensesByDate[dateStr] = (expensesByDate[dateStr] || 0) + parseFloat(e.amount || 0);
+        }
+      }
+
       return Array.from({ length: days }, (_, i) => {
         const d = new Date();
         d.setDate(d.getDate() - (days - 1 - i));
         const dateStr = d.toDateString();
-        const daySales = sales.filter(s => new Date(s.created_at).toDateString() === dateStr)
-                             .reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
-        const dayExpenses = expenses.filter(e => new Date(e.created_at).toDateString() === dateStr)
-                                     .reduce((acc, e) => acc + parseFloat(e.amount || 0), 0);
         return {
           name: days === 7 ? d.toLocaleDateString([], { weekday: 'short' }) : d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-          Revenue: daySales,
-          Expenses: dayExpenses
+          Revenue: salesByDate[dateStr] || 0,
+          Expenses: expensesByDate[dateStr] || 0
         };
       });
     }
@@ -221,23 +248,29 @@ export default function Dashboard() {
       const thisYear = new Date().getFullYear();
       const lastYear = thisYear - 1;
 
-      return months.map((m, i) => {
-        const thisYearSales = sales.filter(s => {
-          const d = new Date(s.created_at);
-          return d.getFullYear() === thisYear && d.getMonth() === i;
-        }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
+      // Single-pass indexing by month index
+      const thisYearSalesByMonth = new Array(12).fill(0);
+      const lastYearSalesByMonth = new Array(12).fill(0);
 
-        const lastYearSales = sales.filter(s => {
+      for (let i = 0; i < sales.length; i++) {
+        const s = sales[i];
+        if (s.created_at) {
           const d = new Date(s.created_at);
-          return d.getFullYear() === lastYear && d.getMonth() === i;
-        }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
+          const y = d.getFullYear();
+          const m = d.getMonth();
+          if (y === thisYear) {
+            thisYearSalesByMonth[m] += parseFloat(s.amount_paid || 0);
+          } else if (y === lastYear) {
+            lastYearSalesByMonth[m] += parseFloat(s.amount_paid || 0);
+          }
+        }
+      }
 
-        return {
-          name: m,
-          'This Year': thisYearSales,
-          'Last Year': lastYearSales
-        };
-      });
+      return months.map((m, i) => ({
+        name: m,
+        'This Year': thisYearSalesByMonth[i],
+        'Last Year': lastYearSalesByMonth[i]
+      }));
     }
     return [];
   }, [timeframe, sales, expenses]);
