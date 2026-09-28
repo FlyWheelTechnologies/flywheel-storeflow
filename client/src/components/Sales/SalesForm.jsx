@@ -101,12 +101,14 @@ const SalesForm = ({
     setShowCustomerSuggestions(true);
   };
 
-  const total = items.reduce((a, i) => a + (i.quantity * i.unit_price), 0);
-  const taxAmount = taxInclusive
-    ? total - (total / (1 + (taxPercentage / 100)))
-    : total * (taxPercentage / 100);
-  const grandTotal = taxInclusive ? total : total + taxAmount;
-  const balance = grandTotal - (parseFloat(amountPaid) || 0) - (parseFloat(useCredit) || 0);
+  const total = Math.round(items.reduce((a, i) => a + (Number(i.quantity || 0) * Number(i.unit_price || 0)), 0) * 100) / 100;
+  const taxAmount = taxPercentage > 0
+    ? (taxInclusive
+        ? Math.round((total - (total / (1 + (taxPercentage / 100)))) * 100) / 100
+        : Math.round((total * (taxPercentage / 100)) * 100) / 100)
+    : 0;
+  const grandTotal = taxInclusive ? total : Math.round((total + taxAmount) * 100) / 100;
+  const balance = Math.round((grandTotal - (parseFloat(amountPaid) || 0) - (parseFloat(useCredit) || 0)) * 100) / 100;
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
@@ -115,7 +117,7 @@ const SalesForm = ({
     let finalNotes = notes;
 
     if (!isDeposit && finalAmountPaid > grandTotal) {
-      const change = finalAmountPaid - grandTotal;
+      const change = Math.round((finalAmountPaid - grandTotal) * 100) / 100;
       finalAmountPaid = grandTotal;
       finalNotes = `${finalNotes ? finalNotes + ' | ' : ''}Change given: GHS ${change.toFixed(2)}`;
     }

@@ -55,6 +55,7 @@ export default function AdminSettings() {
     phone: '',
     address: '',
     tin: '',
+    print_tin_on_receipts: false,
     is_vat_registered: false,
     default_tax_rate: 20.0,
     default_tax_inclusive: true
@@ -101,6 +102,7 @@ export default function AdminSettings() {
           phone: data.phone || '',
           address: data.address || '',
           tin: data.tin || '',
+          print_tin_on_receipts: data.print_tin_on_receipts !== undefined ? !!data.print_tin_on_receipts : false,
           is_vat_registered: !!data.is_vat_registered,
           default_tax_rate: data.default_tax_rate !== undefined ? data.default_tax_rate : 20.0,
           default_tax_inclusive: data.default_tax_inclusive !== undefined ? data.default_tax_inclusive : true
@@ -130,6 +132,7 @@ export default function AdminSettings() {
           phone: orgForm.phone,
           address: orgForm.address,
           tin: orgForm.tin,
+          print_tin_on_receipts: !!orgForm.print_tin_on_receipts,
           is_vat_registered: orgForm.is_vat_registered,
           default_tax_rate: parseFloat(orgForm.default_tax_rate) || 0,
           default_tax_inclusive: !!orgForm.default_tax_inclusive,
@@ -508,9 +511,41 @@ export default function AdminSettings() {
                 <input style={inp} type="text" value={orgForm.address} onChange={e => setOrgForm({...orgForm, address: e.target.value})} placeholder="e.g. Accra Central, High Street" />
               </div>
               <div>
-                <label style={lbl}>Ghana TIN / Ghana Card PIN</label>
-                <input style={inp} type="text" value={orgForm.tin} onChange={e => setOrgForm({...orgForm, tin: e.target.value})} placeholder="e.g. C0012345678 or GHA-123456789-0" />
-                <span style={{ fontSize: 11, color: '#6b7280', marginTop: 3, display: 'block' }}>Printed on official PDF and WhatsApp receipts</span>
+                <label style={lbl}>Business Tax Identification Number (TIN)</label>
+                <input 
+                  style={{
+                    ...inp,
+                    border: (orgForm.tin && orgForm.tin.trim().toUpperCase().startsWith('GHA')) 
+                      ? '1.5px solid #f59e0b' 
+                      : inp.border
+                  }} 
+                  type="text" 
+                  value={orgForm.tin} 
+                  onChange={e => setOrgForm({...orgForm, tin: e.target.value})} 
+                  placeholder="e.g. C0012345678 (Corporate TIN)" 
+                />
+                {orgForm.tin && orgForm.tin.trim().toUpperCase().startsWith('GHA') ? (
+                  <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 10px', marginTop: 6, fontSize: 11, color: '#92400e', lineHeight: 1.4 }}>
+                    <strong>🛡️ Security & Privacy Guard:</strong> You entered a Ghana Card PIN. Because this is a personal national ID, StoreFlow will <strong>never</strong> print it on public receipts.
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 11, color: '#6b7280', marginTop: 3, display: 'block' }}>
+                    Corporate/Entity TIN issued by GRA. Never enter personal IDs.
+                  </span>
+                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                  <input
+                    type="checkbox"
+                    id="print_tin"
+                    checked={orgForm.print_tin_on_receipts}
+                    onChange={e => setOrgForm({...orgForm, print_tin_on_receipts: e.target.checked})}
+                    disabled={!orgForm.tin || orgForm.tin.trim().toUpperCase().startsWith('GHA')}
+                    style={{ width: 16, height: 16, cursor: 'pointer' }}
+                  />
+                  <label htmlFor="print_tin" style={{ fontSize: 12, fontWeight: 600, color: '#374151', cursor: 'pointer' }}>
+                    Print registered business TIN on receipts
+                  </label>
+                </div>
               </div>
             </div>
 

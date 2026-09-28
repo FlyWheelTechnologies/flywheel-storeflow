@@ -8,7 +8,7 @@ Reason: Could not choose the best candidate function between:
 ```
 
 **Error Code:** PGRST203  
-**Severity:** Database call failure - prevents all sales transactions from being recorded  
+**Severity:** Database call failure - prevents alkl sales transactions from being recorded  
 **Status:** RESOLVED ✅
 
 ---

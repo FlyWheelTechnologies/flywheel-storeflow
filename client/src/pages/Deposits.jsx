@@ -17,6 +17,7 @@ import {
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import { useProducts } from "../hooks/useProducts";
+import { useCustomers } from "../hooks/useCustomers";
 import { useSales } from "../hooks/useSales";
 import { useToast } from "../context/ToastContext";
 import { useConfirmation } from "../hooks/useConfirmation";
@@ -31,6 +32,7 @@ export default function Deposits() {
   const { success, error: showError } = useToast();
   const { modalState, confirm, handleConfirm, handleCancel, ConfirmationModal } = useConfirmation();
   const { products, loading: productsLoading, refetch: refetchProducts } = useProducts();
+  const { customers, loading: customersLoading, refetch: refetchCustomers } = useCustomers();
   const { sales, loading: salesLoading, refetch: refetchSales } = useSales();
 
   const [deposits, setDeposits] = useState([]);
@@ -39,8 +41,11 @@ export default function Deposits() {
 
   // Record Deposit Modal State
   const [showDepositModal, setShowDepositModal] = useState(false);
+  const [depCustomerId, setDepCustomerId] = useState('');
   const [depCustName, setDepCustName] = useState('');
   const [depCustPhone, setDepCustPhone] = useState('+233');
+  const [depCustSearch, setDepCustSearch] = useState('');
+  const [showCustSuggestions, setShowCustSuggestions] = useState(false);
   const [depAmount, setDepAmount] = useState('');
   const [depMethod, setDepMethod] = useState('Cash');
   const [depSaving, setDepSaving] = useState(false);
@@ -92,22 +97,52 @@ export default function Deposits() {
       return;
     }
     setExpandedCustomerId(cid);
-    if (!activeOrgId) {
+
+    try {
+      let ordersQ = supabase
+        .from('sales')
+        .select('*')
+        .eq('customer_id', cid)
+        .order('created_at', { ascending: false });
+
+      if (activeOrgId) {
+        ordersQ = ordersQ.or(`organization_id.eq.${activeOrgId},organization_id.is.null`);
+      }
+
+      const { data, error } = await ordersQ;
+      if (error) {
+        console.error("Error loading customer orders:", error);
+        setCustomerOrders([]);
+        return;
+      }
+
+      const pendingOrders = (data || []).filter(order => {
+        const notes = (order.notes || '').toLowerCase();
+        if (notes.includes('(fulfilled)')) return false;
+
+        const isDepositOrPartial = ['DEPOSIT', 'PARTIAL', 'UNPAID'].includes(order.payment_status);
+        const isPureDeposit = notes.includes('pure deposit') || Number(order.total_amount) === 0;
+        const hasBalance = parseFloat(order.balance_due || 0) !== 0;
+
+        return isDepositOrPartial || isPureDeposit || hasBalance;
+      });
+
+      setCustomerOrders(pendingOrders);
+    } catch (err) {
+      console.error("Failed to fetch customer orders:", err);
       setCustomerOrders([]);
-      return;
     }
-
-    let ordersQ = supabase
-      .from('sales')
-      .select('*')
-      .eq('organization_id', activeOrgId)
-      .eq('customer_id', cid)
-      .or('payment_status.eq.DEPOSIT,payment_status.eq.PARTIAL,payment_status.eq.UNPAID,notes.ilike.%Pure Deposit%,total_amount.eq.0,balance_due.lt.0,balance_due.gt.0')
-      .not('notes', 'ilike', '%(Fulfilled)%');
-
-    const { data } = await ordersQ.order('created_at', { ascending: false });
-    setCustomerOrders(data || []);
   }, [expandedCustomerId, activeOrgId]);
+
+  const filteredDepositCustomers = useMemo(() => {
+    if (!customers || customers.length === 0) return [];
+    const term = (depCustSearch || depCustName || '').toLowerCase().trim();
+    if (!term) return customers.slice(0, 8);
+    return customers.filter(c =>
+      c.name?.toLowerCase().includes(term) ||
+      (c.phone && c.phone.includes(term))
+    ).slice(0, 10);
+  }, [customers, depCustSearch, depCustName]);
 
   const handlePureDeposit = async (e) => {
     e.preventDefault();
@@ -115,20 +150,41 @@ export default function Deposits() {
     setDepSaving(true);
     try {
       await supabase.auth.getSession();
+
+      // Check if customer already exists by phone or name to avoid duplicates
+      let resolvedCustId = depCustomerId || null;
+      if (!resolvedCustId && customers && customers.length > 0) {
+        const cleanPhone = (depCustPhone || '').replace(/\s+/g, '');
+        if (cleanPhone && cleanPhone !== '+233') {
+          const match = customers.find(c => c.phone && c.phone.replace(/\s+/g, '') === cleanPhone);
+          if (match) resolvedCustId = match.id;
+        }
+        if (!resolvedCustId && depCustName) {
+          const match = customers.find(c => c.name?.trim().toLowerCase() === depCustName.trim().toLowerCase());
+          if (match) resolvedCustId = match.id;
+        }
+      }
+
       const { error } = await supabase.rpc('record_pure_deposit', {
-        p_customer_name: depCustName,
-        p_customer_phone: depCustPhone,
+        p_customer_name: depCustName.trim(),
+        p_customer_phone: depCustPhone || null,
         p_amount: parseFloat(depAmount),
         p_payment_method: depMethod,
         p_recorded_by: user?.email || 'System',
-        p_organization_id: activeOrgId || null
+        p_organization_id: activeOrgId || null,
+        p_customer_id: resolvedCustId ? parseInt(resolvedCustId) : null
       });
       if (error) throw error;
 
       success("Deposit recorded successfully!");
       setShowDepositModal(false);
-      setDepCustName(''); setDepAmount(''); setDepCustPhone('+233');
+      setDepCustName('');
+      setDepAmount('');
+      setDepCustPhone('+233');
+      setDepCustomerId('');
+      setDepCustSearch('');
       fetchDeposits();
+      refetchCustomers?.();
     } catch (err) {
       showError(err.message);
     } finally {
@@ -380,45 +436,76 @@ export default function Deposits() {
                             <p style={{ fontSize: 12, color: '#6b7280' }}>No items awaiting fulfillment for this customer.</p>
                           ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                              {customerOrders.map(order => (
-                                <div key={order.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: '#f8fafc', borderRadius: 8, border: '1px solid #f1f5f9' }}>
-                                  <div style={{ flex: 1 }}>
-                                    <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                      {order.total_amount === 0 ? <><HandCoins size={14} weight="duotone" color="#059669" /> Pure Prepayment</> : (order.invoice_no ? order.invoice_no : `Order #INV-${String(order.id).slice(-6)}`)}
-                                      {order.payment_status && order.total_amount > 0 && (
-                                        <span style={{
-                                          fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
-                                          background: order.payment_status === 'PAID' ? '#d1fae5' : order.payment_status === 'DEPOSIT' ? '#dbeafe' : '#fef3c7',
-                                          color: order.payment_status === 'PAID' ? '#065f46' : order.payment_status === 'DEPOSIT' ? '#1e40af' : '#92400e',
-                                          textTransform: 'uppercase', letterSpacing: '0.5px'
-                                        }}>
-                                          {order.payment_status}
-                                        </span>
-                                      )}
+                              {customerOrders.map(order => {
+                                const isPureDep = order.total_amount === 0 || (order.notes && order.notes.toLowerCase().includes('pure deposit'));
+                                const balanceDueNum = parseFloat(order.balance_due || 0);
+                                const amountPaidNum = parseFloat(order.amount_paid || 0);
+                                const totalAmountNum = parseFloat(order.total_amount || 0);
+
+                                return (
+                                  <div key={order.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: '#f8fafc', borderRadius: 8, border: '1px solid #f1f5f9' }}>
+                                    <div style={{ flex: 1 }}>
+                                      <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        {isPureDep ? (
+                                          <><HandCoins size={14} weight="duotone" color="#059669" /> Advance Deposit</>
+                                        ) : (
+                                          order.invoice_no ? order.invoice_no : `Order #INV-${String(order.id).slice(-6)}`
+                                        )}
+                                        {order.payment_status && !isPureDep && (
+                                          <span style={{
+                                            fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
+                                            background: order.payment_status === 'PAID' ? '#d1fae5' : order.payment_status === 'DEPOSIT' ? '#dbeafe' : '#fef3c7',
+                                            color: order.payment_status === 'PAID' ? '#065f46' : order.payment_status === 'DEPOSIT' ? '#1e40af' : '#92400e',
+                                            textTransform: 'uppercase', letterSpacing: '0.5px'
+                                          }}>
+                                            {order.payment_status}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div style={{ fontSize: 11, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                                        <span>{new Date(order.created_at).toLocaleString()}</span>
+                                        <span>•</span>
+                                        {isPureDep ? (
+                                          <>
+                                            <span>Deposited: {formatCurrency(amountPaidNum, currency)}</span>
+                                            {balanceDueNum < 0 && (
+                                              <span style={{ color: '#059669', fontWeight: 700 }}>
+                                                ({formatCurrency(Math.abs(balanceDueNum), currency)} Credit Remaining)
+                                              </span>
+                                            )}
+                                            {balanceDueNum === 0 && (
+                                              <span style={{ color: '#6b7280', fontWeight: 600 }}>(Fully Consumed)</span>
+                                            )}
+                                          </>
+                                        ) : (
+                                          <>
+                                            <span>{formatCurrency(totalAmountNum, currency)}</span>
+                                            {balanceDueNum > 0 && (
+                                              <span style={{ color: '#dc2626', fontWeight: 700 }}>
+                                                (Owes {formatCurrency(balanceDueNum, currency)})
+                                              </span>
+                                            )}
+                                            {balanceDueNum < 0 && (
+                                              <span style={{ color: '#059669', fontWeight: 700 }}>
+                                                (Overpaid {formatCurrency(Math.abs(balanceDueNum), currency)})
+                                              </span>
+                                            )}
+                                          </>
+                                        )}
+                                      </div>
                                     </div>
-                                    <div style={{ fontSize: 11, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
-                                      <span>{new Date(order.created_at).toLocaleString()}</span>
-                                      <span>•</span>
-                                      <span>{formatCurrency(parseFloat(order.total_amount === 0 ? order.amount_paid : order.total_amount) || 0, currency)}</span>
-                                      {order.total_amount === 0 && <span style={{ color: '#059669', fontWeight: 700 }}>(Credit Added)</span>}
-                                      {parseFloat(order.balance_due || 0) > 0 && (
-                                        <span style={{ color: '#dc2626', fontWeight: 700 }}>
-                                          (Owes {formatCurrency(parseFloat(order.balance_due), currency)})
-                                        </span>
-                                      )}
-                                    </div>
+                                    <ActionButton
+                                      variant="success"
+                                      size="sm"
+                                      onClick={(e) => { e.stopPropagation(); handleFulfillClick(order); }}
+                                      disabled={fulfilling}
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}
+                                    >
+                                      <Check size={14} weight="bold" /> {parseFloat(order.balance_due || 0) > 0 ? 'Settle & Fulfill' : 'Mark Fulfilled'}
+                                    </ActionButton>
                                   </div>
-                                  <ActionButton
-                                    variant="success"
-                                    size="sm"
-                                    onClick={(e) => { e.stopPropagation(); handleFulfillClick(order); }}
-                                    disabled={fulfilling}
-                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}
-                                  >
-                                    <Check size={14} weight="bold" /> {parseFloat(order.balance_due || 0) > 0 ? 'Settle & Fulfill' : 'Mark Fulfilled'}
-                                  </ActionButton>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -728,7 +815,7 @@ export default function Deposits() {
       {/* Record Deposit Modal */}
       {showDepositModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3000, backdropFilter: 'blur(4px)' }}>
-          <div style={{ background: '#fff', padding: 24, borderRadius: 20, width: 450, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+          <div style={{ background: '#fff', padding: 24, borderRadius: 20, width: 450, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
               <h2 style={{ fontSize: 20, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Coins size={22} weight="duotone" color="#059669" /> Record New Deposit
@@ -740,9 +827,59 @@ export default function Deposits() {
 
             <form onSubmit={handlePureDeposit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <FieldGroup columns={1}>
-                <div>
+                <div style={{ position: 'relative' }}>
                   <Label required>Customer Name</Label>
-                  <Input value={depCustName} onChange={e => setDepCustName(e.target.value)} placeholder="Enter name..." required />
+                  <Input
+                    value={depCustName}
+                    onChange={e => {
+                      setDepCustName(e.target.value);
+                      setDepCustSearch(e.target.value);
+                      setDepCustomerId('');
+                      setShowCustSuggestions(true);
+                    }}
+                    onFocus={() => setShowCustSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowCustSuggestions(false), 250)}
+                    placeholder="Search existing customer or enter new name..."
+                    required
+                    style={{ border: depCustomerId ? '1.5px solid #059669' : undefined }}
+                  />
+                  {showCustSuggestions && (
+                    <div style={{
+                      position: 'absolute', top: '100%', left: 0, right: 0,
+                      background: '#fff', border: '1px solid #ddd', borderRadius: 8,
+                      zIndex: 100, maxHeight: 180, overflowY: 'auto',
+                      boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', marginTop: 4
+                    }}>
+                      {filteredDepositCustomers.length > 0 ? (
+                        filteredDepositCustomers.map(c => (
+                          <div
+                            key={c.id}
+                            onMouseDown={() => {
+                              setDepCustomerId(c.id);
+                              setDepCustName(c.name);
+                              setDepCustSearch(c.name);
+                              setDepCustPhone(c.phone || '+233');
+                              setShowCustSuggestions(false);
+                            }}
+                            style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 13, borderBottom: '1px solid #f3f4f6' }}
+                            onMouseEnter={e => e.target.style.background = '#f3f4f6'}
+                            onMouseLeave={e => e.target.style.background = '#fff'}
+                          >
+                            <span style={{ fontWeight: 600 }}>{c.name}</span> {c.phone ? `— ${c.phone}` : ''}
+                          </div>
+                        ))
+                      ) : (
+                        <div style={{ padding: '10px 12px', fontSize: 12, color: '#9ca3af', textAlign: 'center' }}>
+                          No matching customer. A new customer profile will be created.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {depCustomerId && (
+                    <div style={{ fontSize: 11, color: '#059669', fontWeight: 600, marginTop: 4 }}>
+                      ✓ Linked to existing customer profile
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label>Customer Phone (Optional)</Label>

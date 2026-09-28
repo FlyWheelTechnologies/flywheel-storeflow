@@ -169,17 +169,31 @@ export default function Sales() {
       const isNewCustomer = data.customerName && data.customerName !== 'Walk-in Customer' && !data.customerId;
 
       if (isNewCustomer) {
-        const { data: newCust, error: custErr } = await supabase.from('customers').insert([{
-          name: data.customerName,
-          phone: data.customerPhone,
-          email: data.customerEmail || '',
-          is_contractor: false,
-          organization_id: activeOrgId || user?.organization_id,
-          created_at: new Date().toISOString()
-        }]).select().single();
+        // Prevent duplicate customer: check if customer with same phone or name already exists in org
+        let existingCust = null;
+        const cleanPhone = (data.customerPhone || '').replace(/\s+/g, '');
+        if (cleanPhone && cleanPhone !== '+233' && customers && customers.length > 0) {
+          existingCust = customers.find(c => c.phone && c.phone.replace(/\s+/g, '') === cleanPhone);
+        }
+        if (!existingCust && data.customerName && customers && customers.length > 0) {
+          existingCust = customers.find(c => c.name?.trim().toLowerCase() === data.customerName.trim().toLowerCase());
+        }
 
-        if (custErr) throw custErr;
-        resolvedCustomerId = newCust.id;
+        if (existingCust) {
+          resolvedCustomerId = existingCust.id;
+        } else {
+          const { data: newCust, error: custErr } = await supabase.from('customers').insert([{
+            name: data.customerName,
+            phone: data.customerPhone,
+            email: data.customerEmail || '',
+            is_contractor: false,
+            organization_id: activeOrgId || user?.organization_id,
+            created_at: new Date().toISOString()
+          }]).select().single();
+
+          if (custErr) throw custErr;
+          resolvedCustomerId = newCust.id;
+        }
       } else if (resolvedCustomerId && data.customerEmail) {
         const { error: custErr } = await supabase.from('customers').update({
           email: data.customerEmail
@@ -202,7 +216,7 @@ export default function Sales() {
           product_name: item.product_name,
           quantity: parseFloat(item.quantity),
           unit_price: parseFloat(item.unit_price),
-          subtotal: parseFloat(item.quantity) * parseFloat(item.unit_price)
+          subtotal: Math.round(parseFloat(item.quantity) * parseFloat(item.unit_price) * 100) / 100
         });
       }
 

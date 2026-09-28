@@ -71,10 +71,20 @@ export function useCustomers() {
   }, []);
 
   const deleteCustomer = useCallback(async (id) => {
-    const { error } = await supabase.from('customers').delete().eq('id', id);
-    if (error) throw error;
+    // Attempt cascade delete via RPC first (deletes customer and all associated sales, items, and journal entries)
+    const { error: rpcError } = await supabase.rpc('delete_customer_cascade', {
+      p_customer_id: id,
+      p_organization_id: orgId || null
+    });
+
+    if (rpcError) {
+      console.warn("delete_customer_cascade RPC failed, attempting direct table delete:", rpcError.message);
+      const { error } = await supabase.from('customers').delete().eq('id', id);
+      if (error) throw error;
+    }
+
     setCustomers(prev => prev.filter(c => c.id !== id));
-  }, []);
+  }, [orgId]);
 
   return {
     customers,

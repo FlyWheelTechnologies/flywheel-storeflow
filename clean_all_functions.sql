@@ -48,13 +48,13 @@ BEGIN
   END IF;
 
   IF p_tax_inclusive THEN
-    v_net_amount := ROUND(p_total_amount / (1 + (p_tax_percentage / 100)), 1);
-    v_tax_amount := ROUND(p_total_amount - v_net_amount, 1);
-    v_total_with_tax := ROUND(p_total_amount, 1);
+    v_net_amount := ROUND(p_total_amount / (1 + (p_tax_percentage / 100)), 2);
+    v_tax_amount := ROUND(p_total_amount - v_net_amount, 2);
+    v_total_with_tax := ROUND(p_total_amount, 2);
   ELSE
-    v_tax_amount := ROUND(p_total_amount * (p_tax_percentage / 100), 1);
-    v_net_amount := ROUND(p_total_amount, 1);
-    v_total_with_tax := ROUND(p_total_amount + v_tax_amount, 1);
+    v_tax_amount := ROUND(p_total_amount * (p_tax_percentage / 100), 2);
+    v_net_amount := ROUND(p_total_amount, 2);
+    v_total_with_tax := ROUND(p_total_amount + v_tax_amount, 2);
   END IF;
 
   INSERT INTO public.sales (
@@ -65,8 +65,8 @@ BEGIN
   VALUES (
     p_customer_id, p_customer_name, 
     v_total_with_tax, 
-    ROUND(p_amount_paid + p_credit_used, 1),
-    ROUND(v_total_with_tax - (p_amount_paid + p_credit_used), 1),
+    ROUND(p_amount_paid + p_credit_used, 2),
+    ROUND(v_total_with_tax - (p_amount_paid + p_credit_used), 2),
     p_payment_status, p_payment_method, p_recorded_by,
     p_tax_percentage, p_tax_inclusive, v_tax_amount,
     COALESCE(p_created_at, pg_catalog.now()),
@@ -76,7 +76,7 @@ BEGIN
   FOR v_item IN SELECT * FROM pg_catalog.jsonb_to_recordset(p_items) AS x(product_id UUID, product_name TEXT, quantity NUMERIC, unit_price NUMERIC, subtotal NUMERIC)
   LOOP
     INSERT INTO public.sale_items (sale_id, product_id, product_name, quantity, unit_price, subtotal)
-    VALUES (v_sale_id, v_item.product_id, v_item.product_name, v_item.quantity, v_item.unit_price, ROUND(v_item.subtotal, 1));
+    VALUES (v_sale_id, v_item.product_id, v_item.product_name, v_item.quantity, v_item.unit_price, ROUND(v_item.subtotal, 2));
     
     UPDATE public.products SET stock_quantity = stock_quantity - v_item.quantity WHERE id = v_item.product_id;
   END LOOP;

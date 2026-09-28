@@ -11,7 +11,30 @@ import {
 } from "../components/ui/FormFields";
 import { PageSkeleton } from "../components/LoadingStates";
 
-const CATEGORIES = ['Building Materials', 'Plumbing', 'Electrical', 'Roofing', 'Paint', 'General'];
+const DEFAULT_CATEGORIES = [
+  'General',
+  'Groceries & Provisions',
+  'Food & Beverages',
+  'Snacks & Confectionery',
+  'Health & Pharmaceuticals',
+  'Beauty, Cosmetics & Personal Care',
+  'Household & Cleaning',
+  'Mobile Phones & Accessories',
+  'Electronics & Home Appliances',
+  'Clothing & Fashion Apparel',
+  'Footwear & Bags',
+  'Stationery & Office Supplies',
+  'Baby & Kids Products',
+  'Plastics & Kitchenware',
+  'Hardware & Tools',
+  'Building Materials',
+  'Electrical & Lighting',
+  'Plumbing',
+  'Roofing',
+  'Paint & Finishes',
+  'Automotive & Spare Parts',
+  'Agro-Chemicals & Animal Feed'
+];
 
 const emptyForm = {
   name: '',
@@ -41,6 +64,13 @@ export default function Products() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [sortBy, setSortBy] = useState('name');
+
+  // Merge default categories with any existing product categories dynamically
+  const availableCategories = useMemo(() => {
+    const existing = (products || []).map(p => p.category).filter(Boolean);
+    const combined = Array.from(new Set([...DEFAULT_CATEGORIES, ...existing]));
+    return combined;
+  }, [products]);
 
   // Load draft on mount
   useEffect(() => {
@@ -261,10 +291,28 @@ export default function Products() {
                 <div>
                   <Label>Category</Label>
                   <Select
-                    value={form.category}
-                    onChange={e => handleCategoryChange(e.target.value)}
-                    options={CATEGORIES.map(c => ({ value: c, label: c }))}
+                    value={availableCategories.includes(form.category) ? form.category : '__custom__'}
+                    onChange={e => {
+                      if (e.target.value === '__custom__') {
+                        handleCategoryChange('');
+                      } else {
+                        handleCategoryChange(e.target.value);
+                      }
+                    }}
+                    options={[
+                      ...availableCategories.map(c => ({ value: c, label: c })),
+                      { value: '__custom__', label: '➕ Custom Category...' }
+                    ]}
                   />
+                  {(!availableCategories.includes(form.category) || form.category === '') && (
+                    <Input
+                      style={{ marginTop: 8 }}
+                      placeholder="Type custom category name..."
+                      value={form.category}
+                      onChange={e => handleCategoryChange(e.target.value)}
+                      required
+                    />
+                  )}
                 </div>
               </FieldGroup>
             </CardSection>
@@ -347,8 +395,8 @@ export default function Products() {
               <Select
                 value={categoryFilter}
                 onChange={e => setCategoryFilter(e.target.value)}
-                options={[{ value: "All", label: "All Categories" }, ...CATEGORIES.map(c => ({ value: c, label: c }))]}
-                style={{ paddingLeft: 30, width: 180 }}
+                options={[{ value: "All", label: "All Categories" }, ...availableCategories.map(c => ({ value: c, label: c }))]}
+                style={{ paddingLeft: 30, width: 220 }}
               />
             </div>
 

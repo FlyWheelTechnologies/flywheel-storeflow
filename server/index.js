@@ -212,13 +212,39 @@ function requireRole(...roles) {
 // Item code generator
 async function generateItemCode(category) {
   const prefixes = {
-    'Building Materials': 'BLD', 'Plumbing': 'PLB', 'Electrical': 'ELC',
-    'Roofing': 'RFS', 'Paint': 'PNT', 'General': 'GEN'
+    'Building Materials': 'BLD',
+    'Plumbing': 'PLB',
+    'Electrical': 'ELC',
+    'Electrical & Lighting': 'ELC',
+    'Roofing': 'RFS',
+    'Paint': 'PNT',
+    'Paint & Finishes': 'PNT',
+    'General': 'GEN',
+    'Groceries & Provisions': 'GRO',
+    'Food & Beverages': 'FNB',
+    'Snacks & Confectionery': 'SNK',
+    'Health & Pharmaceuticals': 'MED',
+    'Beauty, Cosmetics & Personal Care': 'COS',
+    'Household & Cleaning': 'HSD',
+    'Mobile Phones & Accessories': 'PHN',
+    'Electronics & Home Appliances': 'ELX',
+    'Clothing & Fashion Apparel': 'APP',
+    'Footwear & Bags': 'FTW',
+    'Stationery & Office Supplies': 'STA',
+    'Baby & Kids Products': 'KID',
+    'Plastics & Kitchenware': 'KIT',
+    'Hardware & Tools': 'HDW',
+    'Automotive & Spare Parts': 'AUT',
+    'Agro-Chemicals & Animal Feed': 'AGR'
   };
-  const prefix = prefixes[category] || 'GEN';
+  let prefix = prefixes[category];
+  if (!prefix) {
+    const letters = (category || 'GEN').replace(/[^a-zA-Z]/g, '').toUpperCase();
+    prefix = letters.length >= 3 ? letters.slice(0, 3) : (letters + 'XXX').slice(0, 3);
+  }
   const rows = await dbAll("SELECT item_code FROM products WHERE item_code LIKE ? ORDER BY item_code DESC LIMIT 1", [`${prefix}%`]);
   const lastNum = rows.length > 0 ? parseInt(rows[0].item_code.slice(3)) : 0;
-  return `${prefix}${String(lastNum + 1).padStart(3, '0')}`;
+  return `${prefix}${String((isNaN(lastNum) ? 0 : lastNum) + 1).padStart(3, '0')}`;
 }
 
 // ── Auth Routes ─────────────────────────────────────

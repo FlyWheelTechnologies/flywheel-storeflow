@@ -15,7 +15,7 @@ const emptyForm = { name: '', phone: '+233', email: '', address: '', is_contract
 
 export default function Customers() {
   const { user, activeOrgId } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const { success, error: showError } = useToast();
   const { modalState, confirm, handleConfirm, handleCancel, ConfirmationModal } = useConfirmation();
   const { customers, loading, refetch, createCustomer, updateCustomer, deleteCustomer } = useCustomers();
@@ -60,6 +60,16 @@ export default function Customers() {
       is_contractor: !!form.is_contractor
     };
 
+    // Prevent duplicate phone on creation
+    if (!editingId && payload.phone && payload.phone !== '+233') {
+      const existing = customers.find(c => c.phone && c.phone.replace(/\s+/g, '') === payload.phone.replace(/\s+/g, ''));
+      if (existing) {
+        showError(`A customer with phone ${payload.phone} already exists (${existing.name}). Please edit the existing customer instead.`);
+        setSaving(false);
+        return;
+      }
+    }
+
     try {
       if (editingId) {
         await updateCustomer(editingId, payload);
@@ -91,24 +101,21 @@ export default function Customers() {
     if (modalState.confirmData?.id) {
       try {
         await deleteCustomer(modalState.confirmData.id);
-        success("Customer deleted!");
+        success("Customer and all associated sales & records deleted successfully!");
         if (selectedCustomer?.id === modalState.confirmData.id) setSelectedCustomer(null);
+        await refetch();
       } catch (err) {
         console.error("Delete error:", err);
-        if (err.code === '23503') {
-          showError("Cannot delete customer with existing sales records. Try editing instead.");
-        } else {
-          showError(err.message || "Failed to delete customer");
-        }
+        showError(err.message || "Failed to delete customer");
       }
     }
   };
 
   const confirmDelete = (c) => {
     confirm({
-      title: "Delete Customer",
-      message: `Are you sure you want to delete "${c.name}"? All purchase history records will remain in the sales table but will no longer be linked.`,
-      confirmText: "Delete",
+      title: "Delete Customer & All History",
+      message: `Are you sure you want to permanently delete "${c.name}"? This will delete this customer along with ALL of their sales history, deposits, and accounting records from the system. This action CANNOT be undone.`,
+      confirmText: "Delete Everything",
       type: "danger",
       onConfirm: handleDelete,
       confirmData: c

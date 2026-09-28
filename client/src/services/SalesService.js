@@ -16,11 +16,12 @@ export const SalesService = {
     let orgTin = '';
     let orgAddress = '';
     let orgPhone = '';
+    let printTin = false;
     let currency = 'GHS';
     if (sale.organization_id) {
       const { data: orgData } = await supabase
         .from('organizations')
-        .select('name, currency, tin, address, phone')
+        .select('name, currency, tin, address, phone, print_tin_on_receipts')
         .eq('id', sale.organization_id)
         .single();
       if (orgData) {
@@ -29,6 +30,7 @@ export const SalesService = {
         orgTin = orgData.tin || '';
         orgAddress = orgData.address || '';
         orgPhone = orgData.phone || '';
+        printTin = !!orgData.print_tin_on_receipts;
       }
     }
 
@@ -48,8 +50,11 @@ export const SalesService = {
       doc.text([orgAddress, orgPhone].filter(Boolean).join(' • '), 40, headerY, { align: 'center' });
       headerY += 4;
     }
-    if (orgTin) {
-      doc.text(`TIN: ${orgTin}`, 40, headerY, { align: 'center' });
+
+    // SECURITY: Strictly suppress personal Ghana Card PINs from public receipts to protect privacy
+    const isPersonalGhanaCard = orgTin && (orgTin.trim().toUpperCase().startsWith('GHA') || /^GHA-\d+/i.test(orgTin.trim()));
+    if (orgTin && printTin && !isPersonalGhanaCard) {
+      doc.text(`TIN: ${orgTin.trim()}`, 40, headerY, { align: 'center' });
       headerY += 4;
     }
 
@@ -83,12 +88,12 @@ export const SalesService = {
     });
 
     let finalY = doc.lastAutoTable.finalY + 5;
-    const taxAmt = parseFloat(sale.tax_amount || 0);
+    const taxAmt = Math.round(parseFloat(sale.tax_amount || 0) * 100) / 100;
     const taxPct = parseFloat(sale.tax_percentage || 0);
-    const totalAmt = parseFloat(sale.total_amount || 0);
-    const netTaxable = Math.max(0, totalAmt - taxAmt);
+    const totalAmt = Math.round(parseFloat(sale.total_amount || 0) * 100) / 100;
+    const netTaxable = Math.max(0, Math.round((totalAmt - taxAmt) * 100) / 100);
 
-    // If tax applied, print statutory breakdown
+    // If tax applied, print statutory breakdown balanced with exact precision
     if (taxAmt > 0) {
       doc.setFontSize(7);
       doc.setTextColor(107, 114, 128);
@@ -97,16 +102,20 @@ export const SalesService = {
       finalY += 3.5;
 
       if (taxPct === 20) {
+        const nhilAmt = Math.round(netTaxable * 0.025 * 100) / 100;
+        const getfundAmt = Math.round(netTaxable * 0.025 * 100) / 100;
+        const vatAmt = Math.round((taxAmt - nhilAmt - getfundAmt) * 100) / 100;
+
         doc.text(`VAT (15.0%):`, 5, finalY);
-        doc.text(`${currency} ${(netTaxable * 0.15).toFixed(2)}`, 75, finalY, { align: 'right' });
+        doc.text(`${currency} ${vatAmt.toFixed(2)}`, 75, finalY, { align: 'right' });
         finalY += 3.5;
 
         doc.text(`NHIL (2.5%):`, 5, finalY);
-        doc.text(`${currency} ${(netTaxable * 0.025).toFixed(2)}`, 75, finalY, { align: 'right' });
+        doc.text(`${currency} ${nhilAmt.toFixed(2)}`, 75, finalY, { align: 'right' });
         finalY += 3.5;
 
         doc.text(`GETFund (2.5%):`, 5, finalY);
-        doc.text(`${currency} ${(netTaxable * 0.025).toFixed(2)}`, 75, finalY, { align: 'right' });
+        doc.text(`${currency} ${getfundAmt.toFixed(2)}`, 75, finalY, { align: 'right' });
         finalY += 3.5;
       } else {
         doc.text(`VAT (${taxPct}%):`, 5, finalY);
@@ -211,16 +220,22 @@ export const SalesService = {
     const divider = "================================";
     const thinDivider = "--------------------------------";
 
-    // Fetch org details for branding and currency
+    // Fetch org details for branding, tax status, and currency
     let orgName = 'StoreFlow';
     let orgTin = '';
+    let printTin = false;
     let currency = 'GHS';
     if (sale.organization_id) {
-      const { data: orgData } = await supabase.from('organizations').select('name, currency, tin').eq('id', sale.organization_id).single();
+      const { data: orgData } = await supabase
+        .from('organizations')
+        .select('name, currency, tin, print_tin_on_receipts')
+        .eq('id', sale.organization_id)
+        .single();
       if (orgData) {
         orgName = orgData.name;
         currency = orgData.currency || 'GHS';
         orgTin = orgData.tin || '';
+        printTin = !!orgData.print_tin_on_receipts;
       }
     }
 
@@ -248,20 +263,24 @@ export const SalesService = {
       }
     }
 
-    const taxAmt = parseFloat(sale.tax_amount || 0);
+    const taxAmt = Math.round(parseFloat(sale.tax_amount || 0) * 100) / 100;
     const taxPct = parseFloat(sale.tax_percentage || 0);
-    const totalAmt = parseFloat(sale.total_amount || 0);
-    const netTaxable = Math.max(0, totalAmt - taxAmt);
+    const totalAmt = Math.round(parseFloat(sale.total_amount || 0) * 100) / 100;
+    const netTaxable = Math.max(0, Math.round((totalAmt - taxAmt) * 100) / 100);
 
     let taxSection = '';
     if (taxAmt > 0) {
       if (taxPct === 20) {
+        const nhilAmt = Math.round(netTaxable * 0.025 * 100) / 100;
+        const getfundAmt = Math.round(netTaxable * 0.025 * 100) / 100;
+        const vatAmt = Math.round((taxAmt - nhilAmt - getfundAmt) * 100) / 100;
+
         taxSection = 
           `*Tax Breakdown (20% Unified):*\n` +
           `• Net Taxable: ${currency} ${formatCurrency(netTaxable)}\n` +
-          `• 15.0% VAT: ${currency} ${formatCurrency(netTaxable * 0.15)}\n` +
-          `• 2.5% NHIL: ${currency} ${formatCurrency(netTaxable * 0.025)}\n` +
-          `• 2.5% GETFund: ${currency} ${formatCurrency(netTaxable * 0.025)}\n` +
+          `• 15.0% VAT: ${currency} ${formatCurrency(vatAmt)}\n` +
+          `• 2.5% NHIL: ${currency} ${formatCurrency(nhilAmt)}\n` +
+          `• 2.5% GETFund: ${currency} ${formatCurrency(getfundAmt)}\n` +
           `• Total Tax: ${currency} ${formatCurrency(taxAmt)}\n` +
           `${thinDivider}\n`;
       } else {
@@ -273,9 +292,13 @@ export const SalesService = {
       }
     }
 
+    // SECURITY: Strictly suppress personal Ghana Card PINs from public receipts to protect privacy
+    const isPersonalGhanaCard = orgTin && (orgTin.trim().toUpperCase().startsWith('GHA') || /^GHA-\d+/i.test(orgTin.trim()));
+    const shouldPrintTin = orgTin && printTin && !isPersonalGhanaCard;
+
     const message =
       `*${orgName.toUpperCase()}*\n` +
-      (orgTin ? `*TIN:* ${orgTin}\n` : '') +
+      (shouldPrintTin ? `*TIN:* ${orgTin.trim()}\n` : '') +
       `${divider}\n` +
       `*OFFICIAL RECEIPT*\n` +
       `${divider}\n\n` +
