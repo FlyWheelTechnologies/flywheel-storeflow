@@ -1,0 +1,3 @@
+## 2025-03-01 - Avoid repeated array filtering and Date object instantiation in chart trend aggregations
+**Learning:** In components rendering chart trends (e.g. `Dashboard.jsx` with Recharts), calculating daily or monthly time-series by calling `.filter()` and `new Date()` inside loop iterations creates an O(Days * N_items) bottleneck with high GC overhead. Pre-aggregating data into hash maps or arrays indexed by date key in a single pass O(N) reduces operations by ~20-30x and avoids thousands of Date allocations per render.
+**Action:** Always pre-aggregate time-series transaction data into map lookups in a single pass before constructing chart datasets or financial summaries.

@@ -3,24 +3,33 @@
  */
 export const ReportService = {
   /**
-   * Calculates daily totals from journal entries
+   * Calculates daily totals from journal entries in a single pass O(N) loop
+   * avoiding 4x array iterations and redundant Date object instantiations.
    */
   calculateDailySummary(journalEntries, selectedDate) {
-    const dailyEntries = journalEntries.filter(j => 
-      new Date(j.created_at).toISOString().split('T')[0] === selectedDate
-    );
+    let sales = 0;
+    let cashIn = 0;
+    let expenses = 0;
 
-    const sales = dailyEntries
-      .filter(j => j.account_type === 'SALES')
-      .reduce((a, b) => a + (b.debit || 0), 0);
+    for (let i = 0; i < journalEntries.length; i++) {
+      const j = journalEntries[i];
+      if (!j || !j.created_at) continue;
 
-    const cashIn = dailyEntries
-      .filter(j => j.account_type === 'CASH_IN')
-      .reduce((a, b) => a + (b.debit || 0), 0);
+      // Fast-path ISO date string comparison (YYYY-MM-DD) without Date allocation
+      const entryDate = typeof j.created_at === 'string' && j.created_at.length >= 10 && (j.created_at[10] === 'T' || j.created_at[10] === ' ')
+        ? j.created_at.slice(0, 10)
+        : new Date(j.created_at).toISOString().slice(0, 10);
 
-    const expenses = dailyEntries
-      .filter(j => j.account_type === 'EXPENSE')
-      .reduce((a, b) => a + (b.credit || 0), 0);
+      if (entryDate === selectedDate) {
+        if (j.account_type === 'SALES') {
+          sales += (j.debit || 0);
+        } else if (j.account_type === 'CASH_IN') {
+          cashIn += (j.debit || 0);
+        } else if (j.account_type === 'EXPENSE') {
+          expenses += (j.credit || 0);
+        }
+      }
+    }
 
     return {
       sales,
