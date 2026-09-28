@@ -1,20 +1,29 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import {
+  SquaresFour,
+  Receipt,
+  Package,
+  BookOpen,
+  Gear,
+  CreditCard,
+  Plus,
+  Database,
+  Key,
+  ArrowsClockwise
+} from "@phosphor-icons/react";
 import { useAuth } from "../context/AuthContext";
 import "./Sidebar.css";
 
 const NAV_ITEMS = [
   {
     id: "dashboard", label: "Dashboard", path: "/dashboard",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>,
+    icon: <SquaresFour size={18} weight="duotone" />,
   },
-  {
-    id: "ai", label: "StoreFlow AI", path: "/ai",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>,
-  },
+
   {
     id: "sales", label: "Sales",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></svg>,
+    icon: <Receipt size={18} weight="duotone" />,
     children: [
       { id: "sales-list", label: "Sales Records", path: "/sales" },
       { id: "customers-list", label: "Customers", path: "/customers" },
@@ -22,14 +31,14 @@ const NAV_ITEMS = [
   },
   {
     id: "stock", label: "Stock",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.27 6.96 12 12.01 20.73 6.96" /><line x1="12" y1="22.08" x2="12" y2="12" /></svg>,
+    icon: <Package size={18} weight="duotone" />,
     children: [
       { id: "products", label: "Products", path: "/products" },
     ],
   },
   {
     id: "accounting", label: "Accounting",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>,
+    icon: <BookOpen size={18} weight="duotone" />,
     children: [
       { id: "daily-report", label: "Entries", path: "/reports/daily", roles: ['admin', 'auditor'] },
       { id: "expenses", label: "Expenses", path: "/expenses", roles: ['admin', 'auditor'] },
@@ -38,7 +47,7 @@ const NAV_ITEMS = [
   },
   {
     id: "admin", label: "Admin", roles: ['admin', 'super_admin'],
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>,
+    icon: <Gear size={18} weight="duotone" />,
     children: [
       { id: "staff-settings", label: "Users & Roles", path: "/settings?tab=staff" },
       { id: "org-settings", label: "Store & Tax Profile", path: "/settings?tab=organization" },
@@ -50,27 +59,24 @@ const NAV_ITEMS = [
 const SUPER_ADMIN_NAV_ITEMS = [
   {
     id: "super-dashboard", label: "Admin Console", path: "/admin",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>,
+    icon: <SquaresFour size={18} weight="duotone" />,
   },
   {
     id: "super-billing", label: "Billing & MRR", path: "/admin/billing",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2" /><line x1="1" y1="10" x2="23" y2="10" /></svg>,
+    icon: <CreditCard size={18} weight="duotone" />,
   },
   {
     id: "super-new-org", label: "+ New Business", path: "/admin/organizations/new",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>,
+    icon: <Plus size={18} weight="bold" />,
   },
-  {
-    id: "super-ai", label: "StoreFlow AI", path: "/admin/ai",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>,
-  },
+
   {
     id: "super-database", label: "Database Health", path: "/admin/database",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M21 19c0 1.66-4 3-9 3s-9-1.34-9-3" /></svg>,
+    icon: <Database size={18} weight="duotone" />,
   },
   {
     id: "super-apikeys", label: "API Keys & Telemetry", path: "/admin/api-keys",
-    icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" /></svg>,
+    icon: <Key size={18} weight="duotone" />,
   }
 ];
 
@@ -192,9 +198,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                 onMouseLeave={e => e.currentTarget.style.color = '#6b7280'}
                 title="Refresh Data"
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                </svg>
+                <ArrowsClockwise size={13} weight="bold" />
               </button>
             </div>
           </div>

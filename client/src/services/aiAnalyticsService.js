@@ -211,6 +211,18 @@ export function detectAccountingAnomalies(sales = [], logs = [], products = []) 
  * Intelligent Conversational Retail Copilot
  * Context-aware NLP responder that extracts semantic answers from live shop data
  */
+export function cleanAIMessageText(text = "") {
+  if (!text) return "";
+  return text
+    // Strip bold asterisks **text** -> text
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    // Strip italic asterisks *text* -> text
+    .replace(/\*(.*?)\*/g, "$1")
+    // Normalize bullet dashes
+    .replace(/^[•*]\s*/gm, "• ")
+    .trim();
+}
+
 export function generateStoreCopilotResponse(query, context = {}) {
   const q = query.toLowerCase();
   const { products = [], sales = [], expenses = [], forecast = [], deadStock = [], cashflow = {} } = context;
@@ -226,13 +238,13 @@ export function generateStoreCopilotResponse(query, context = {}) {
     }
 
     const itemsList = critical.slice(0, 5).map(c => 
-      `• **${c.name}** (Current: ${c.current_stock} left | Velocity: ${c.daily_velocity} units/day | Reorder: **+${c.suggested_reorder} units** ~ GHS ${c.estimated_reorder_cost})`
+      `• ${c.name} (Current: ${c.current_stock} left | Velocity: ${c.daily_velocity} units/day | Reorder: +${c.suggested_reorder} units ~ GHS ${c.estimated_reorder_cost})`
     ).join('\n');
 
     const totalEstCost = critical.reduce((sum, c) => sum + c.estimated_reorder_cost, 0);
 
     return {
-      text: `Based on your sales velocity over the past 30 days, here are the **top ${critical.length} items** you need to reorder:\n\n${itemsList}\n\n📦 **Estimated Reorder Budget:** GHS ${totalEstCost.toLocaleString('en-US', { minimumFractionDigits: 2 })} to maintain 14-day safe stock buffer.`,
+      text: `Based on your sales velocity over the past 30 days, here are the top ${critical.length} items to reorder:\n\n${itemsList}\n\nEstimated Reorder Budget: GHS ${totalEstCost.toLocaleString('en-US', { minimumFractionDigits: 2 })} to maintain a 14-day safe stock buffer.`,
       actionType: 'reorder_list',
       data: critical
     };
@@ -249,11 +261,11 @@ export function generateStoreCopilotResponse(query, context = {}) {
 
     const totalLocked = deadStock.reduce((sum, d) => sum + d.capital_locked, 0);
     const topDead = deadStock.slice(0, 5).map(d => 
-      `• **${d.name}** (${d.stock_quantity} units | GHS ${d.capital_locked.toLocaleString()} locked)`
+      `• ${d.name} (${d.stock_quantity} units | GHS ${d.capital_locked.toLocaleString()} locked)`
     ).join('\n');
 
     return {
-      text: `You have **${deadStock.length} stagnant products** with **GHS ${totalLocked.toLocaleString('en-US', { minimumFractionDigits: 2 })}** locked in dead inventory:\n\n${topDead}\n\n💡 **AI Recommendation:** Run a 15% markdown or bundle these items with high-velocity bestsellers to liberate operating capital.`,
+      text: `You have ${deadStock.length} stagnant products with GHS ${totalLocked.toLocaleString('en-US', { minimumFractionDigits: 2 })} locked in dead inventory:\n\n${topDead}\n\nRecommendation: Run a 15% markdown or bundle these items with high-velocity bestsellers to liberate operating capital.`,
       actionType: 'dead_stock',
       data: deadStock
     };
@@ -266,7 +278,7 @@ export function generateStoreCopilotResponse(query, context = {}) {
     const cashRatio = cashflow.methodTotals ? ((cashflow.methodTotals.cash / (totalRev || 1)) * 100).toFixed(0) : 0;
 
     return {
-      text: `📊 **Store Revenue Summary:**\n\n• **Total Sales Recorded:** GHS ${totalRev.toLocaleString('en-US', { minimumFractionDigits: 2 })}\n• **Cash Payments:** GHS ${(cashflow.methodTotals?.cash || 0).toLocaleString()} (${cashRatio}%)\n• **MoMo Payments:** GHS ${(cashflow.methodTotals?.momo || 0).toLocaleString()} (${momoRatio}%)\n• **Uncollected Customer Credit:** GHS ${(cashflow.totalUncollected || 0).toLocaleString()}\n• **Projected 7-Day Run-Rate:** GHS ${(cashflow.projectedWeeklyRevenue || 0).toLocaleString()}`,
+      text: `Store Revenue Summary:\n\n• Total Sales Recorded: GHS ${totalRev.toLocaleString('en-US', { minimumFractionDigits: 2 })}\n• Cash Payments: GHS ${(cashflow.methodTotals?.cash || 0).toLocaleString()} (${cashRatio}%)\n• MoMo Payments: GHS ${(cashflow.methodTotals?.momo || 0).toLocaleString()} (${momoRatio}%)\n• Uncollected Customer Credit: GHS ${(cashflow.totalUncollected || 0).toLocaleString()}\n• Projected 7-Day Run-Rate: GHS ${(cashflow.projectedWeeklyRevenue || 0).toLocaleString()}`,
       actionType: 'sales_summary'
     };
   }
@@ -282,18 +294,18 @@ export function generateStoreCopilotResponse(query, context = {}) {
     const list = sorted.map(p => {
       const margin = (Number(p.selling_price || 0) - Number(p.cost_price || 0)).toFixed(2);
       const pct = p.cost_price > 0 ? (((p.selling_price - p.cost_price) / p.cost_price) * 100).toFixed(0) : 100;
-      return `• **${p.name}** — Margin: GHS ${margin} (+${pct}%)`;
+      return `• ${p.name} — Margin: GHS ${margin} (+${pct}%)`;
     }).join('\n');
 
     return {
-      text: `🏆 **Top Highest Margin Products:**\n\n${list}\n\n💡 **AI Tip:** Keep these items prominently positioned on the counter or front display!`,
+      text: `Top Highest Margin Products:\n\n${list}\n\nTip: Keep these items prominently positioned on the counter or front display!`,
       actionType: 'profit_summary'
     };
   }
 
   // Default fallback
   return {
-    text: `I've analyzed your store's live catalog (${products.length} products, ${sales.length} sales). You can ask me:\n\n1. *"What should I reorder from the market today?"*\n2. *"Which products are dead stock and tying up cash?"*\n3. *"Give me a breakdown of today's sales and payment methods."*\n4. *"Show my top highest-margin products."*`,
+    text: `I've analyzed your store's live catalog (${products.length} products, ${sales.length} sales). You can ask me:\n\n1. What should I reorder from the market today?\n2. Which products are dead stock and tying up cash?\n3. Give me a breakdown of today's sales and payment methods.\n4. Show my top highest-margin products.`,
     actionType: 'help'
   };
 }

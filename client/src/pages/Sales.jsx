@@ -1,62 +1,41 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
-import ConfirmationModal from "../components/ConfirmationModal";
-import "./Dashboard.css";
+import { useAuth } from "../context/AuthContext";
+import { useProducts } from "../hooks/useProducts";
+import { useCustomers } from "../hooks/useCustomers";
+import { useSales } from "../hooks/useSales";
+import { useToast } from "../context/ToastContext";
+import { useConfirmation } from "../hooks/useConfirmation";
 import { SalesService } from "../services/SalesService";
 import SalesForm from "../components/Sales/SalesForm";
 import SalesTable from "../components/Sales/SalesTable";
-import { useAuth } from "../context/AuthContext";
+import "./Dashboard.css";
+import { formatCurrency } from "../services/formatters";
+import { ActionButton, Input, Select } from "../components/ui/FormFields";
+import { PageSkeleton } from "../components/LoadingStates";
 
 export default function Sales() {
   const { user, activeOrgId } = useAuth();
   const location = useLocation();
-  const [sales, setSales] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [customers, setCustomers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { success, error: showError } = useToast();
+  const { modalState, confirm, handleConfirm, handleCancel, ConfirmationModal } = useConfirmation();
+  const { products, loading: productsLoading, refetch: refetchProducts } = useProducts();
+  const { customers, loading: customersLoading, refetch: refetchCustomers } = useCustomers();
+  const { sales, loading: salesLoading, refetch: refetchSales } = useSales();
+
+  const loading = productsLoading || customersLoading || salesLoading;
 
   // State for UI control
   const [showForm, setShowForm] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [error, setError] = useState('');
-  const [showErrorModal, setShowErrorModal] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState(null); // { message, type, action, actionLabel }
   const [pendingSaleData, setPendingSaleData] = useState(null);
+  const [saving, setSaving] = useState(false);
 
   // State for filtering and pagination
   const [statusFilter, setStatusFilter] = useState('All');
   const [search, setSearch] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [itemsToShow, setItemsToShow] = useState(25);
-
-  const fetchData = async () => {
-    const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
-    if (!resolvedOrgId) {
-      setSales([]);
-      setProducts([]);
-      setCustomers([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    const [salesRes, productsRes, customersRes] = await Promise.all([
-      supabase.from('sales').select('*').eq('organization_id', resolvedOrgId).order('created_at', { ascending: false }),
-      supabase.from('products').select('*').eq('organization_id', resolvedOrgId),
-      supabase.from('customers').select('*').eq('organization_id', resolvedOrgId)
-    ]);
-    if (salesRes.data) setSales(salesRes.data);
-    if (productsRes.data) setProducts(productsRes.data);
-    if (customersRes.data) setCustomers(customersRes.data);
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, [activeOrgId, user?.organization_id]);
-
 
   useEffect(() => {
     if (location.state?.isDeposit) {
@@ -65,7 +44,6 @@ export default function Sales() {
     if (location.state?.showForm) {
       setShowForm(true);
     }
-    // Clear state after handling it
     if (location.state) {
       window.history.replaceState({}, document.title);
     }
@@ -79,9 +57,7 @@ export default function Sales() {
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }, [sales, search, statusFilter, dateFilter]);
 
-  const paginated = useMemo(() => {
-    return filtered.slice(0, itemsToShow);
-  }, [filtered, itemsToShow]);
+  const paginated = useMemo(() => filtered.slice(0, itemsToShow), [filtered, itemsToShow]);
 
   const handleExportCSV = () => {
     SalesService.exportToCSV(filtered);
@@ -106,7 +82,6 @@ export default function Sales() {
         const row = {};
         headers.forEach((h, idx) => row[h] = values[idx]);
 
-        // Carry forward the date if empty
         if (row.date) {
           lastValidDate = row.date;
         } else {
@@ -117,7 +92,14 @@ export default function Sales() {
       }
 
       if (salesToImport.length > 0) {
-        if (!window.confirm(`Found ${salesToImport.length} records. Import them now?`)) return;
+        const confirmed = await confirm({
+          title: "Import Sales",
+          message: `Found ${salesToImport.length} records. Import them now?`,
+          confirmText: "Import",
+          type: "primary"
+        });
+
+        if (!confirmed) return;
 
         setSaving(true);
         try {
@@ -125,7 +107,6 @@ export default function Sales() {
             const prod = products.find(p => p.name.toLowerCase() === row.product?.toLowerCase()) || products[0];
             if (!prod) continue;
 
-            console.log("Importing row:", row);
             const cust = customers.find(c => c.name.toLowerCase() === (row.customer || 'Walk-in Customer').toLowerCase());
             const payload = {
               p_customer_id: cust ? cust.id : null,
@@ -141,7 +122,7 @@ export default function Sales() {
                 unit_price: parseFloat((row.price || '0').toString().replace(/[^\d.-]/g, '')) || prod.selling_price,
                 subtotal: (parseFloat((row.quantity || '0').toString().replace(/[^\d.-]/g, '')) || 1) * (parseFloat((row.price || '0').toString().replace(/[^\d.-]/g, '')) || prod.selling_price)
               }],
-              p_recorded_by: JSON.parse(localStorage.getItem("user"))?.email || 'Import',
+              p_recorded_by: user?.email || 'Import',
               p_tax_percentage: 0,
               p_tax_inclusive: true,
               p_credit_used: 0,
@@ -152,11 +133,13 @@ export default function Sales() {
 
             await SalesService.recordSaleTransaction(payload);
           }
-          alert("Import completed successfully!");
-          fetchData();
+          success("Import completed successfully!");
+          refetchProducts();
+          refetchCustomers();
+          refetchSales();
         } catch (err) {
           console.error(err);
-          alert("Import failed: " + err.message);
+          showError("Import failed: " + err.message);
         } finally {
           setSaving(false);
         }
@@ -167,55 +150,55 @@ export default function Sales() {
 
   const handleSaleSave = (data) => {
     setPendingSaleData(data);
-    setShowConfirm(true);
+    confirm({
+      title: "Confirm Transaction",
+      message: `Are you sure you want to record this sale for ${formatCurrency(data.grandTotal)}? This will deduct items from stock and create a journal entry.`,
+      confirmText: "Yes, Record Sale",
+      type: "primary",
+      onConfirm: (confirmData) => handleSubmit(confirmData || data),
+      confirmData: data
+    });
   };
 
-  const handleSubmit = async () => {
-    if (!pendingSaleData) return;
+  const handleSubmit = async (saleDataParam) => {
+    const data = saleDataParam || pendingSaleData;
+    if (!data) return;
     setSaving(true);
-    setError('');
-
-    // Prevent JWT expired error by proactively refreshing session if dormant
-    await supabase.auth.getSession();
-
-    const userEmail = JSON.parse(localStorage.getItem("user"))?.email || 'System';
-
     try {
-      let resolvedCustomerId = pendingSaleData.customerId ? parseInt(pendingSaleData.customerId) : null;
-      const isNewCustomer = pendingSaleData.customerName && pendingSaleData.customerName !== 'Walk-in Customer' && !pendingSaleData.customerId;
-      
+      let resolvedCustomerId = data.customerId ? parseInt(data.customerId) : null;
+      const isNewCustomer = data.customerName && data.customerName !== 'Walk-in Customer' && !data.customerId;
+
       if (isNewCustomer) {
         const { data: newCust, error: custErr } = await supabase.from('customers').insert([{
-          name: pendingSaleData.customerName,
-          phone: pendingSaleData.customerPhone,
-          email: pendingSaleData.customerEmail || '',
+          name: data.customerName,
+          phone: data.customerPhone,
+          email: data.customerEmail || '',
           is_contractor: false,
           organization_id: activeOrgId || user?.organization_id,
           created_at: new Date().toISOString()
         }]).select().single();
-        
+
         if (custErr) throw custErr;
         resolvedCustomerId = newCust.id;
-      } else if (resolvedCustomerId && pendingSaleData.customerEmail) {
-        // Update existing customer email if provided
+      } else if (resolvedCustomerId && data.customerEmail) {
         const { error: custErr } = await supabase.from('customers').update({
-          email: pendingSaleData.customerEmail
+          email: data.customerEmail
         }).eq('id', resolvedCustomerId);
-        
+
         if (custErr) console.error("Failed to update customer email:", custErr);
       }
 
       const validItems = [];
-      for (const item of pendingSaleData.items) {
+      for (const item of (data.items || [])) {
         if (!item.product_id) continue;
         const prod = products.find(p => p.id === parseInt(item.product_id) || p.id === item.product_id);
-        
-        if (!pendingSaleData.isDeposit && parseFloat(item.quantity) > prod.stock_quantity) {
-          throw new Error(`Insufficient stock for "${prod.name}". Available: ${prod.stock_quantity} ${prod.selling_uom}. Requested: ${item.quantity}`);
+
+        if (!data.isDeposit && prod && parseFloat(item.quantity) > prod.stock_quantity) {
+          throw new Error(`Insufficient stock for "${prod.name}". Available: ${prod.stock_quantity} ${prod.selling_uom || 'units'}. Requested: ${item.quantity}`);
         }
 
         validItems.push({
-          product_id: prod.id,
+          product_id: prod?.id || item.product_id,
           product_name: item.product_name,
           quantity: parseFloat(item.quantity),
           unit_price: parseFloat(item.unit_price),
@@ -223,60 +206,63 @@ export default function Sales() {
         });
       }
 
-      const status = pendingSaleData.isDeposit ? 'DEPOSIT' : (pendingSaleData.balance <= 0 ? 'PAID' : pendingSaleData.amountPaid > 0 ? 'PARTIAL' : 'UNPAID');
+      const status = data.isDeposit ? 'DEPOSIT' : (data.balance <= 0 ? 'PAID' : data.amountPaid > 0 ? 'PARTIAL' : 'UNPAID');
 
       const newSaleId = await SalesService.recordSaleTransaction({
         p_customer_id: resolvedCustomerId,
-        p_customer_name: pendingSaleData.customerName,
-        p_total_amount: pendingSaleData.grandTotal,
-        p_amount_paid: parseFloat(pendingSaleData.amountPaid) || 0,
-        p_payment_method: pendingSaleData.paymentMethod,
+        p_customer_name: data.customerName,
+        p_total_amount: data.grandTotal,
+        p_amount_paid: parseFloat(data.amountPaid) || 0,
+        p_payment_method: data.paymentMethod,
         p_payment_status: status,
         p_items: validItems,
-        p_recorded_by: userEmail,
-        p_tax_percentage: pendingSaleData.taxPercentage,
-        p_tax_inclusive: pendingSaleData.taxInclusive,
-        p_credit_used: parseFloat(pendingSaleData.useCredit) || 0,
+        p_recorded_by: user?.email || 'System',
+        p_tax_percentage: data.taxPercentage,
+        p_tax_inclusive: data.taxInclusive,
+        p_credit_used: parseFloat(data.useCredit) || 0,
         p_organization_id: activeOrgId || user?.organization_id
       });
 
       // Clear draft on success
       localStorage.removeItem("sales_draft");
-      setShowConfirm(false);
-      setShowForm(false);
       setPendingSaleData(null);
-      fetchData();
+      setShowForm(false);
+      refetchProducts();
+      refetchCustomers();
+      refetchSales();
 
-      setToast({ 
-        message: "Sale recorded successfully!", 
-        type: "success",
+      success("Sale recorded successfully!", {
         action: async () => {
           try {
             await SalesService.shareViaWhatsApp({
               id: newSaleId,
               customer_id: resolvedCustomerId,
-              customer_name: pendingSaleData.customerName,
-              total_amount: pendingSaleData.grandTotal,
-              amount_paid: (parseFloat(pendingSaleData.amountPaid) || 0) + (parseFloat(pendingSaleData.useCredit) || 0),
-              balance_due: pendingSaleData.balance,
+              customer_name: data.customerName,
+              total_amount: data.grandTotal,
+              amount_paid: (parseFloat(data.amountPaid) || 0) + (parseFloat(data.useCredit) || 0),
+              balance_due: data.balance,
               created_at: new Date().toISOString()
             }, {
-              customerPhone: pendingSaleData.customerPhone,
-              customerName: pendingSaleData.customerName,
+              customerPhone: data.customerPhone,
+              customerName: data.customerName,
               customers
             });
           } catch (err) {
-            setToast({ message: err.message, type: "error" });
+            showError(err.message);
           }
         },
         actionLabel: "Send WhatsApp Receipt"
       });
-      setTimeout(() => setToast(null), 10000);
     } catch (err) {
       console.error(err);
-      setShowConfirm(false);
-      setError(err.message || 'Network issue');
-      setShowErrorModal(true);
+      showError(err.message || 'Network issue');
+      confirm({
+        title: "⚠️ Transaction Failed",
+        message: `Reason: ${err.message}. Your data is safe in this draft. Please adjust the quantities and try again.`,
+        confirmText: "Okay, Let me fix it",
+        type: "danger",
+        onConfirm: () => {}
+      });
     } finally {
       setSaving(false);
     }
@@ -291,28 +277,14 @@ export default function Sales() {
   })();
 
   if (loading) {
-    return (
-      <div className="sales-container" style={{ padding: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-          <div className="skeleton" style={{ width: 300, height: 40 }} />
-          <div className="skeleton" style={{ width: 140, height: 40 }} />
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 24 }}>
-          {[1,2,3,4,5].map(i => <div key={i} className="skeleton" style={{ height: 45, borderRadius: 10 }} />)}
-        </div>
-        <div style={{ background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-          <div className="skeleton" style={{ height: 45, marginBottom: 20, width: '100%' }} />
-          {[1,2,3,4,5,6,7,8].map(i => (
-            <div key={i} className="skeleton" style={{ height: 55, marginBottom: 12, width: '100%' }} />
-          ))}
-        </div>
-      </div>
-    );
+    return <PageSkeleton title stats={true} table={true} tableRows={8} tableColumns={6} />;
   }
 
+  const currency = user?.organizations?.currency || 'GHS';
+
   return (
-    <div style={{ padding:24 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+    <div style={{ padding: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h2 className="section-title">Sales & Orders</h2>
           <p style={{ fontSize: '12.5px', color: '#6b7280' }}>Record transactions and track Momo/Cash payments</p>
@@ -321,21 +293,16 @@ export default function Sales() {
           {showForm && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ Draft Auto-saved</span>
-              <button 
-                onClick={() => { localStorage.removeItem("sales_draft"); window.location.reload(); }}
-                style={{ background: '#fef2f2', color: '#ef4444', border: '1px solid #fee2e2', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', fontWeight: 700, cursor: 'pointer' }}
-              >
+              <ActionButton variant="danger" size="sm" onClick={() => { localStorage.removeItem("sales_draft"); window.location.reload(); }}>
                 Clear Form
-              </button>
+              </ActionButton>
             </div>
           )}
-          <button className="quick-action-btn" style={{ width: 'auto' }} onClick={() => setShowForm(!showForm)}>
+          <ActionButton onClick={() => setShowForm(!showForm)}>
             {showForm ? 'Close Form' : '+ New Sale'}
-          </button>
+          </ActionButton>
         </div>
       </div>
-
-
 
       {showForm && (
         <SalesForm
@@ -345,6 +312,11 @@ export default function Sales() {
           onSave={handleSaleSave}
           onCancel={() => setShowForm(false)}
           saving={saving}
+          orgTaxSettings={user?.organizations ? {
+            default_tax_rate: user.organizations.default_tax_rate,
+            default_tax_inclusive: user.organizations.default_tax_inclusive,
+            is_vat_registered: user.organizations.is_vat_registered
+          } : {}}
         />
       )}
 
@@ -366,74 +338,20 @@ export default function Sales() {
           try {
             await SalesService.shareViaWhatsApp(s, { customers });
           } catch (err) {
-            setToast({ message: err.message, type: "error" });
+            showError(err.message);
           }
         }}
       />
 
-      {toast && (
-        <div 
-          onClick={(e) => e.stopPropagation()}
-          style={{ 
-            position:'fixed', top:24, left:'50%', transform:'translateX(-50%)', 
-            background: toast.type === 'error' ? '#991b1b' : '#064e3b', 
-            color:'#fff', padding:'16px 24px', borderRadius:'16px', 
-            boxShadow:'0 20px 25px -5px rgba(0,0,0,0.2), 0 10px 10px -5px rgba(0,0,0,0.1)', 
-            zIndex:3000, display:'flex', alignItems:'center', gap:15, 
-            animation:'slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-            minWidth: '300px'
-          }}
-        >
-          <div style={{ fontSize:24 }}>{toast.type === 'error' ? '⚠️' : '✅'}</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight:700, fontSize: 14 }}>{toast.message}</div>
-            {toast.action && (
-              <button 
-                onClick={() => { toast.action(); setToast(null); }}
-                style={{ 
-                  background: '#f15a24', border: 'none', color: '#fff', 
-                  padding: '6px 12px', borderRadius: '8px', fontSize: '11px', 
-                  fontWeight: 800, cursor: 'pointer', marginTop: 8,
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
-                }}
-              >
-                <span>📱</span> {toast.actionLabel}
-              </button>
-            )}
-          </div>
-          <button 
-            onClick={() => setToast(null)}
-            style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: 24, height: 24, borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12 }}
-          >✕</button>
-          <style>{`
-            @keyframes slideDown { 
-              from { transform: translateX(-50%) translateY(-100%); opacity: 0; }
-              to { transform: translateX(-50%) translateY(0); opacity: 1; }
-            }
-          `}</style>
-        </div>
-      )}
-
-      <ConfirmationModal 
-        show={showConfirm}
-        title="Confirm Transaction"
-        message={`Are you sure you want to record this sale for GHS ${pendingSaleData?.total?.toFixed(1)}? This will deduct items from stock and create a journal entry.`}
-        confirmText="Yes, Record Sale"
-        onConfirm={handleSubmit}
-        onCancel={() => setShowConfirm(false)}
-        type="primary"
-        isLoading={saving}
-      />
-
-      <ConfirmationModal 
-        show={showErrorModal}
-        title="⚠️ Transaction Failed"
-        message={`Reason: ${error}. Your data is safe in this draft. Please adjust the quantities and try again.`}
-        confirmText="Okay, Let me fix it"
-        onConfirm={() => { setShowErrorModal(false); setError(''); }}
-        onCancel={() => { setShowErrorModal(false); setError(''); }}
-        type="danger"
+      <ConfirmationModal
+        show={modalState.show}
+        title={modalState.title}
+        message={modalState.message}
+        confirmText={modalState.confirmText}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+        type={modalState.type}
+        isLoading={modalState.isLoading}
       />
     </div>
   );

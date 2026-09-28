@@ -1,3 +1,19 @@
+/**
+ * ⚠️ DEPRECATED - LEGACY SERVER CODE
+ *
+ * This Express/SQLite backend has been replaced by Supabase (PostgreSQL + Edge Functions).
+ * It is kept only for reference and local development testing.
+ *
+ * Production uses:
+ * - Supabase Auth for authentication
+ * - Supabase Database (PostgreSQL) with RLS for multi-tenant data
+ * - Supabase Edge Functions (Deno) for serverless logic:
+ *   - invite-user
+ *   - send-receipt
+ *   - send-low-stock-alert
+ * - Supabase Realtime for live updates
+ */
+
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');

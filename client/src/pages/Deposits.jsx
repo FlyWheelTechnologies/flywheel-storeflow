@@ -1,27 +1,42 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useLocation } from "react-router-dom";
+import {
+  Coins,
+  MagnifyingGlass,
+  Package,
+  CaretDown,
+  CaretRight,
+  ClipboardText,
+  Check,
+  X,
+  Plus,
+  HandCoins,
+  Warning,
+  CurrencyCircleDollar
+} from "@phosphor-icons/react";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
-import ConfirmationModal from "../components/ConfirmationModal";
+import { useProducts } from "../hooks/useProducts";
+import { useSales } from "../hooks/useSales";
+import { useToast } from "../context/ToastContext";
+import { useConfirmation } from "../hooks/useConfirmation";
 import "./Dashboard.css";
 import { formatCurrency, formatPhone } from "../services/formatters";
+import { Label, Input, Select, ActionButton, SectionHeader, CardSection, FieldGroup } from "../components/ui/FormFields";
+import { PageSkeleton } from "../components/LoadingStates";
 
 export default function Deposits() {
   const { user, activeOrgId } = useAuth();
   const location = useLocation();
+  const { success, error: showError } = useToast();
+  const { modalState, confirm, handleConfirm, handleCancel, ConfirmationModal } = useConfirmation();
+  const { products, loading: productsLoading, refetch: refetchProducts } = useProducts();
+  const { sales, loading: salesLoading, refetch: refetchSales } = useSales();
+
   const [deposits, setDeposits] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [expandedCustomerId, setExpandedCustomerId] = useState(null);
   const [customerOrders, setCustomerOrders] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [fulfilling, setFulfilling] = useState(false);
-  const [toast, setToast] = useState(null);
-  
-  // Search & Sort & Pagination
-  const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState('latest');
-  const [itemsToShow, setItemsToShow] = useState(25);
-  
+
   // Record Deposit Modal State
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [depCustName, setDepCustName] = useState('');
@@ -34,47 +49,50 @@ export default function Deposits() {
   const [showFulfillModal, setShowFulfillModal] = useState(false);
   const [selectedSale, setSelectedSale] = useState(null);
   const [items, setItems] = useState([{ product_id: '', product_name: '', quantity: 1, unit_price: 0 }]);
-  
-  // Confirmation Modal State
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [saleToFulfill, setSaleToFulfill] = useState(null);
+  const [fulfilling, setFulfilling] = useState(false);
 
-  useEffect(() => { 
-    fetchDeposits(); 
+  // Settle & Fulfill Modal State (for regular deposit orders)
+  const [showSettleModal, setShowSettleModal] = useState(false);
+  const [settleSale, setSettleSale] = useState(null);
+  const [settleAmount, setSettleAmount] = useState('');
+  const [settleMethod, setSettleMethod] = useState('Cash');
+
+  // Search & Sort & Pagination
+  const [search, setSearch] = useState('');
+  const [sortBy, setSortBy] = useState('latest');
+  const [itemsToShow, setItemsToShow] = useState(25);
+
+  const loading = productsLoading || salesLoading;
+
+  const fetchDeposits = useCallback(async () => {
+    if (!activeOrgId) {
+      setDeposits([]);
+      return;
+    }
+    const [depRes] = await Promise.all([
+      supabase.from("deposits").select("*").eq("organization_id", activeOrgId)
+    ]);
+    setDeposits(depRes.data || []);
+    refetchProducts();
+    refetchSales();
+  }, [activeOrgId, refetchProducts, refetchSales]);
+
+  useEffect(() => {
+    fetchDeposits();
     if (location.state?.showForm) {
       setShowDepositModal(true);
       window.history.replaceState({}, document.title);
     }
-  }, [location.state, activeOrgId, user?.organization_id]);
+  }, [location.state, fetchDeposits]);
 
-  const fetchDeposits = async () => {
-    const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
-    if (!resolvedOrgId) {
-      setDeposits([]);
-      setProducts([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    const [depRes, prodRes] = await Promise.all([
-      supabase.from("deposits").select("*").eq("organization_id", resolvedOrgId),
-      supabase.from("products").select("*").eq("organization_id", resolvedOrgId)
-    ]);
-    setDeposits(depRes.data || []);
-    setProducts(prodRes.data || []);
-    setLoading(false);
-  };
-
-  const toggleOrders = async (cid) => {
+  const toggleOrders = useCallback(async (cid) => {
     if (expandedCustomerId === cid) {
       setExpandedCustomerId(null);
       setCustomerOrders([]);
       return;
     }
     setExpandedCustomerId(cid);
-    const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id;
-    if (!resolvedOrgId) {
+    if (!activeOrgId) {
       setCustomerOrders([]);
       return;
     }
@@ -82,89 +100,109 @@ export default function Deposits() {
     let ordersQ = supabase
       .from('sales')
       .select('*')
-      .eq('organization_id', resolvedOrgId)
+      .eq('organization_id', activeOrgId)
       .eq('customer_id', cid)
-      .or('payment_status.eq.DEPOSIT,notes.ilike.%Pure Deposit%,total_amount.eq.0,balance_due.lt.0')
+      .or('payment_status.eq.DEPOSIT,payment_status.eq.PARTIAL,payment_status.eq.UNPAID,notes.ilike.%Pure Deposit%,total_amount.eq.0,balance_due.lt.0,balance_due.gt.0')
       .not('notes', 'ilike', '%(Fulfilled)%');
 
     const { data } = await ordersQ.order('created_at', { ascending: false });
     setCustomerOrders(data || []);
-  };
+  }, [expandedCustomerId, activeOrgId]);
 
-
-  const handlePureDeposit = async () => {
-    if (!depCustName || !depAmount) {
-      setToast({ message: "Please enter name and amount", type: "error" });
-      return;
-    }
+  const handlePureDeposit = async (e) => {
+    e.preventDefault();
+    if (!depCustName || !depAmount) return showError("Please enter name and amount");
     setDepSaving(true);
-    // Prevent JWT expired error by proactively refreshing session if dormant
-    await supabase.auth.getSession();
     try {
-      const cachedUser = JSON.parse(localStorage.getItem("user") || "{}");
-      const resolvedOrgId = activeOrgId || user?.organization_id || cachedUser?.organization_id || user?.organizations?.id;
+      await supabase.auth.getSession();
       const { error } = await supabase.rpc('record_pure_deposit', {
         p_customer_name: depCustName,
         p_customer_phone: depCustPhone,
         p_amount: parseFloat(depAmount),
         p_payment_method: depMethod,
-        p_recorded_by: user?.email || cachedUser?.email || 'System',
-        p_organization_id: resolvedOrgId || null
+        p_recorded_by: user?.email || 'System',
+        p_organization_id: activeOrgId || null
       });
       if (error) throw error;
-      
-      setToast({ message: "Deposit recorded successfully!", type: "success" });
+
+      success("Deposit recorded successfully!");
       setShowDepositModal(false);
       setDepCustName(''); setDepAmount(''); setDepCustPhone('+233');
       fetchDeposits();
     } catch (err) {
-      setToast({ message: err.message, type: "error" });
+      showError(err.message);
     } finally {
       setDepSaving(false);
-      setTimeout(() => setToast(null), 4000);
     }
   };
 
   const handleFulfillClick = (sale) => {
     if (sale.total_amount === 0) {
-      // Pure Deposit - Need items selection
+      // Pure deposit: open item assignment modal
       setSelectedSale(sale);
       setItems([{ product_id: '', product_name: '', quantity: 1, unit_price: 0 }]);
       setShowFulfillModal(true);
     } else {
-      // Regular Deposit - Just confirmation
-      setSaleToFulfill(sale.id);
-      setShowConfirm(true);
+      // Regular deposit order: open settlement modal
+      setSettleSale(sale);
+      const outstanding = parseFloat(sale.balance_due || 0);
+      setSettleAmount(outstanding > 0 ? outstanding.toFixed(2) : '');
+      setSettleMethod('Cash');
+      setShowSettleModal(true);
     }
   };
 
-  const executeFulfillment = async () => {
+  const executeSettleAndFulfill = async () => {
+    if (!settleSale) return;
     setFulfilling(true);
-    // Prevent JWT expired error by proactively refreshing session if dormant
-    await supabase.auth.getSession();
-    const { error } = await supabase.rpc('fulfill_sale', { p_sale_id: saleToFulfill });
-    if (error) {
-      setToast({ message: "Error: " + error.message, type: "error" });
-    } else {
-      setToast({ message: "Order marked as fulfilled!", type: "success" });
-      setCustomerOrders(prev => prev.filter(o => o.id !== saleToFulfill));
+    try {
+      await supabase.auth.getSession();
+      const saleId = settleSale.id;
+      const outstanding = parseFloat(settleSale.balance_due || 0);
+      const additionalPayment = parseFloat(settleAmount) || 0;
+
+      // If user is collecting additional payment, update the sale record first
+      if (additionalPayment > 0 && outstanding > 0) {
+        const newAmountPaid = parseFloat(settleSale.amount_paid || 0) + additionalPayment;
+        const newBalance = Math.max(0, outstanding - additionalPayment);
+        const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIAL';
+        const paymentNote = `Additional payment: ${currency} ${additionalPayment.toFixed(2)} via ${settleMethod}`;
+
+        const { error: updateErr } = await supabase
+          .from('sales')
+          .update({
+            amount_paid: newAmountPaid,
+            balance_due: newBalance,
+            payment_status: newStatus,
+            notes: settleSale.notes
+              ? settleSale.notes + ` | ${paymentNote}`
+              : paymentNote
+          })
+          .eq('id', saleId)
+          .eq('organization_id', activeOrgId);
+
+        if (updateErr) throw updateErr;
+      }
+
+      // Now mark as fulfilled via RPC
+      const { error } = await supabase.rpc('fulfill_sale', { p_sale_id: saleId });
+      if (error) throw error;
+
+      success("Order settled and marked as fulfilled");
+      setShowSettleModal(false);
+      setSettleSale(null);
+      setCustomerOrders(prev => prev.filter(o => o.id !== saleId));
       fetchDeposits();
+    } catch (err) {
+      showError("Error: " + err.message);
+    } finally {
+      setFulfilling(false);
     }
-    setShowConfirm(false);
-    setFulfilling(false);
-    setTimeout(() => setToast(null), 4000);
   };
 
   const handlePureFulfillment = async () => {
-    if (items.length === 0 || !items[0].product_id) {
-      setToast({ message: "Please add at least one product.", type: "error" });
-      setTimeout(() => setToast(null), 3000);
-      return;
-    }
-    
+    if (items.length === 0 || !items[0].product_id) return showError("Please add at least one product.");
     setFulfilling(true);
-    // Prevent JWT expired error by proactively refreshing session if dormant
-    await supabase.auth.getSession();
     try {
       const validItems = items.map(i => ({
         product_id: i.product_id,
@@ -181,15 +219,14 @@ export default function Deposits() {
 
       if (error) throw error;
 
-      setToast({ message: "Deposit fulfilled and items deducted!", type: "success" });
+      success("Deposit fulfilled and items deducted!");
       setShowFulfillModal(false);
       setCustomerOrders(prev => prev.filter(o => o.id !== selectedSale.id));
       fetchDeposits();
     } catch (err) {
-      setToast({ message: "Error: " + err.message, type: "error" });
+      showError("Error: " + err.message);
     } finally {
       setFulfilling(false);
-      setTimeout(() => setToast(null), 4000);
     }
   };
 
@@ -218,44 +255,30 @@ export default function Deposits() {
     return { totalHeld: held, totalOwed: owed };
   }, [deposits]);
 
+  const currency = user?.organizations?.currency || 'GHS';
+
   if (loading) {
-    return (
-      <div className="deposits-container" style={{ padding: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
-          <div className="skeleton" style={{ width: 300, height: 40 }} />
-          <div className="skeleton" style={{ width: 250, height: 45 }} />
-        </div>
-        <div style={{ background: 'white', borderRadius: 16, padding: 24, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)' }}>
-          {[1,2,3,4,5,6].map(i => (
-            <div key={i} className="skeleton" style={{ height: 50, marginBottom: 12, width: '100%' }} />
-          ))}
-        </div>
-      </div>
-    );
+    return <PageSkeleton title stats table tableRows={6} tableColumns={5} />;
   }
 
   return (
-    <div style={{ padding:24 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+    <div style={{ padding: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
           <h2 className="section-title">Advance Deposits & Credit</h2>
           <p style={{ fontSize: '12.5px', color: '#6b7280' }}>Track customer prepayments (Credit) and outstanding balances (Debt)</p>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button 
-            className="quick-action-btn" 
-            onClick={() => setShowDepositModal(true)}
-            style={{ width: 'auto', background: '#3b82f6', padding: '10px 20px' }}
-          >
-            💰 Record Deposit
-          </button>
-          <div className="summary-card" style={{ padding:'10px 20px', width: 'auto', background: '#ecfdf5', borderColor: '#10b981' }}>
-            <span style={{ fontSize:10, color:'#065f46', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Total Credit:</span>
-            <span style={{ fontSize:18, fontWeight:700, color:'#059669' }}>GHS {formatCurrency(totalHeld)}</span>
+          <ActionButton variant="info" onClick={() => setShowDepositModal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <HandCoins size={16} weight="duotone" /> Record Deposit
+          </ActionButton>
+          <div className="summary-card" style={{ padding: '10px 20px', width: 'auto', background: '#ecfdf5', borderColor: '#10b981' }}>
+            <span style={{ fontSize: 10, color: '#065f46', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Total Credit:</span>
+            <span style={{ fontSize: 18, fontWeight: 700, color: '#059669' }}>{formatCurrency(totalHeld, currency)}</span>
           </div>
-          <div className="summary-card" style={{ padding:'10px 20px', width: 'auto', background: '#fef2f2', borderColor: '#ef4444' }}>
-            <span style={{ fontSize:10, color:'#991b1b', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Total Owed:</span>
-            <span style={{ fontSize:18, fontWeight:700, color:'#b91c1c' }}>GHS {formatCurrency(totalOwed)}</span>
+          <div className="summary-card" style={{ padding: '10px 20px', width: 'auto', background: '#fef2f2', borderColor: '#ef4444' }}>
+            <span style={{ fontSize: 10, color: '#991b1b', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Total Owed:</span>
+            <span style={{ fontSize: 18, fontWeight: 700, color: '#b91c1c' }}>{formatCurrency(totalOwed, currency)}</span>
           </div>
         </div>
       </div>
@@ -263,25 +286,31 @@ export default function Deposits() {
       <div className="table-card" style={{ marginBottom: 20 }}>
         <div className="table-card__header" style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ position: 'relative', flex: 1, minWidth: 250 }}>
-            <input 
-              type="search" 
-              className="table-search" 
-              placeholder="Search by name or phone..." 
-              value={search} 
-              onChange={e => setSearch(e.target.value)} 
+            <Input
+              type="search"
+              placeholder="Search by name or phone..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
               style={{ paddingLeft: 36, width: '100%' }}
             />
-            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }}>🔍</span>
+            <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#9ca3af', display: 'flex', alignItems: 'center' }}>
+              <MagnifyingGlass size={16} />
+            </span>
           </div>
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#6b7280' }}>Sort:</span>
-            <select style={{ ...miniInp, width: 180 }} value={sortBy} onChange={e => setSortBy(e.target.value)}>
-              <option value="latest">Latest Activity</option>
-              <option value="oldest">Oldest Activity</option>
-              <option value="credit_high">Highest Credit</option>
-              <option value="debt_high">Highest Debt</option>
-              <option value="name_az">Name (A-Z)</option>
-            </select>
+            <Select
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value)}
+              options={[
+                { value: "latest", label: "Latest Activity" },
+                { value: "oldest", label: "Oldest Activity" },
+                { value: "credit_high", label: "Highest Credit" },
+                { value: "debt_high", label: "Highest Debt" },
+                { value: "name_az", label: "Name (A-Z)" }
+              ]}
+              style={{ width: 180 }}
+            />
           </div>
         </div>
       </div>
@@ -289,38 +318,54 @@ export default function Deposits() {
       <div className="table-card">
         <div className="table-wrapper">
           <table className="stock-table">
-            <thead><tr><th>Customer Name</th><th>Phone</th><th>Status</th><th>Last Action</th><th>Balance</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Customer Name</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th>Last Action</th>
+                <th>Balance</th>
+              </tr>
+            </thead>
             <tbody>
               {paginated.length === 0 ? (
-                <tr><td colSpan="5" style={{textAlign:'center', padding:24}}>No customers matching filters. 📦</td></tr>
+                <tr>
+                  <td colSpan="5" style={{ textAlign: 'center', padding: 24, color: '#6b7280' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <Package size={20} weight="duotone" /> No customers matching filters.
+                    </div>
+                  </td>
+                </tr>
               ) : paginated.map(d => (
                 <React.Fragment key={d.customer_id}>
-                  <tr 
+                  <tr
                     onClick={() => toggleOrders(d.customer_id)}
                     style={{ cursor: 'pointer', background: expandedCustomerId === d.customer_id ? '#f9fafb' : 'transparent' }}
                   >
-                    <td style={{fontWeight:600}}>
-                      <span style={{ marginRight: 8 }}>{expandedCustomerId === d.customer_id ? '▼' : '▶'}</span>
+                    <td style={{ fontWeight: 600 }}>
+                      <span style={{ marginRight: 8, display: 'inline-flex', verticalAlign: 'middle' }}>
+                        {expandedCustomerId === d.customer_id ? <CaretDown size={14} weight="bold" /> : <CaretRight size={14} weight="bold" />}
+                      </span>
                       {d.customer_name}
                     </td>
                     <td>{d.phone || '—'}</td>
                     <td>
                       {d.pending_sales_count > 0 ? (
-                        <span style={{background: '#eff6ff', color: '#2563eb', padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight: 700}}>
+                        <span style={{ background: '#eff6ff', color: '#2563eb', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>
                           {d.pending_sales_count} PENDING ORDERS
                         </span>
                       ) : (
-                        <span style={{color: '#6b7280', fontSize: 11}}>No Pending Items</span>
+                        <span style={{ color: '#6b7280', fontSize: 11 }}>No Pending Items</span>
                       )}
                     </td>
-                    <td style={{fontSize:12, color:'#6b7280'}}>{d.last_sale_date ? new Date(d.last_sale_date).toLocaleDateString() : '—'}</td>
-                    <td style={{fontWeight:700, color: (d.total_balance || 0) < 0 ? '#059669' : ((d.total_balance || 0) === 0 ? '#6b7280' : '#b91c1c')}}>
+                    <td style={{ fontSize: 12, color: '#6b7280' }}>{d.last_sale_date ? new Date(d.last_sale_date).toLocaleDateString() : '—'}</td>
+                    <td style={{ fontWeight: 700, color: (d.total_balance || 0) < 0 ? '#059669' : ((d.total_balance || 0) === 0 ? '#6b7280' : '#b91c1c') }}>
                       {(d.total_balance || 0) < 0 ? (
-                        <span title="Customer has credit">GHS {formatCurrency(Math.abs(d.total_balance || 0))} (Credit)</span>
+                        <span title="Customer has credit">{formatCurrency(Math.abs(d.total_balance || 0), currency)} (Credit)</span>
                       ) : ((d.total_balance || 0) === 0 ? (
-                        <span title="No balance">GHS 0.00</span>
+                        <span title="No balance">{currency} 0.00</span>
                       ) : (
-                        <span title="Customer owes balance">GHS {formatCurrency(d.total_balance || 0)} (Due)</span>
+                        <span title="Customer owes balance">{formatCurrency(d.total_balance || 0, currency)} (Due)</span>
                       ))}
                     </td>
                   </tr>
@@ -329,7 +374,7 @@ export default function Deposits() {
                       <td colSpan="5" style={{ padding: '0 24px 24px', background: '#f9fafb' }}>
                         <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: 16, boxShadow: 'inset 0 2px 4px 0 rgba(0,0,0,0.05)' }}>
                           <h5 style={{ fontSize: 12, fontWeight: 700, color: '#374151', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                            📋 Pending Orders for {d.customer_name}
+                            <ClipboardText size={16} weight="duotone" /> Pending Orders for {d.customer_name}
                           </h5>
                           {customerOrders.length === 0 ? (
                             <p style={{ fontSize: 12, color: '#6b7280' }}>No items awaiting fulfillment for this customer.</p>
@@ -337,22 +382,41 @@ export default function Deposits() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                               {customerOrders.map(order => (
                                 <div key={order.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 12, background: '#f8fafc', borderRadius: 8, border: '1px solid #f1f5f9' }}>
-                                  <div>
-                                    <div style={{ fontSize: 13, fontWeight: 600 }}>{order.total_amount === 0 ? '💰 Pure Prepayment' : (order.invoice_no ? order.invoice_no : `Order #INV-${String(order.id).slice(-6)}`)}</div>
-                                    <div style={{ fontSize: 11, color: '#6b7280' }}>
-                                      {new Date(order.created_at).toLocaleString()} • GHS {formatCurrency(parseFloat(order.total_amount === 0 ? order.amount_paid : order.total_amount) || 0)}
-                                      {order.total_amount === 0 && <span style={{ marginLeft: 8, color: '#059669', fontWeight: 700 }}>(Credit Added)</span>}
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                      {order.total_amount === 0 ? <><HandCoins size={14} weight="duotone" color="#059669" /> Pure Prepayment</> : (order.invoice_no ? order.invoice_no : `Order #INV-${String(order.id).slice(-6)}`)}
+                                      {order.payment_status && order.total_amount > 0 && (
+                                        <span style={{
+                                          fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4,
+                                          background: order.payment_status === 'PAID' ? '#d1fae5' : order.payment_status === 'DEPOSIT' ? '#dbeafe' : '#fef3c7',
+                                          color: order.payment_status === 'PAID' ? '#065f46' : order.payment_status === 'DEPOSIT' ? '#1e40af' : '#92400e',
+                                          textTransform: 'uppercase', letterSpacing: '0.5px'
+                                        }}>
+                                          {order.payment_status}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div style={{ fontSize: 11, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 2 }}>
+                                      <span>{new Date(order.created_at).toLocaleString()}</span>
+                                      <span>•</span>
+                                      <span>{formatCurrency(parseFloat(order.total_amount === 0 ? order.amount_paid : order.total_amount) || 0, currency)}</span>
+                                      {order.total_amount === 0 && <span style={{ color: '#059669', fontWeight: 700 }}>(Credit Added)</span>}
+                                      {parseFloat(order.balance_due || 0) > 0 && (
+                                        <span style={{ color: '#dc2626', fontWeight: 700 }}>
+                                          (Owes {formatCurrency(parseFloat(order.balance_due), currency)})
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
-                                  <button 
+                                  <ActionButton
+                                    variant="success"
+                                    size="sm"
                                     onClick={(e) => { e.stopPropagation(); handleFulfillClick(order); }}
                                     disabled={fulfilling}
-                                    style={{ background: '#10b981', color: '#fff', border: 'none', padding: '6px 14px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s' }}
-                                    onMouseEnter={e => e.target.style.background = '#059669'}
-                                    onMouseLeave={e => e.target.style.background = '#10b981'}
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}
                                   >
-                                    ✓ Mark as Fulfilled
-                                  </button>
+                                    <Check size={14} weight="bold" /> {parseFloat(order.balance_due || 0) > 0 ? 'Settle & Fulfill' : 'Mark Fulfilled'}
+                                  </ActionButton>
                                 </div>
                               ))}
                             </div>
@@ -368,69 +432,57 @@ export default function Deposits() {
         </div>
         {filtered.length > itemsToShow && (
           <div style={{ padding: 20, textAlign: 'center', borderTop: '1px solid #f3f4f6' }}>
-            <button 
-              onClick={() => setItemsToShow(prev => prev + 25)}
-              style={{ width: '100%', padding: '12px', background: '#f9fafb', border: '1px dashed #d1d5db', borderRadius: 8, color: '#4b5563', fontWeight: 600, cursor: 'pointer' }}
-            >
-              See More Customers ↓
-            </button>
+            <ActionButton variant="secondary" fullWidth onClick={() => setItemsToShow(prev => prev + 25)} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              See More Customers <CaretDown size={14} weight="bold" />
+            </ActionButton>
           </div>
         )}
       </div>
-
-      {/* Toast Notifications */}
-      {toast && (
-        <div style={{ 
-          position:'fixed', top:24, left:'50%', transform:'translateX(-50%)', 
-          background: toast.type === 'success' ? '#064e3b' : '#7f1d1d', 
-          color:'#fff', padding:'12px 24px', borderRadius:'12px', 
-          boxShadow:'0 10px 15px -3px rgba(0,0,0,0.2)', zIndex:4000, 
-          display:'flex', alignItems:'center', gap:10, animation:'slideDown 0.3s ease' 
-        }}>
-          <span style={{fontSize:18}}>{toast.type === 'success' ? '✅' : '⚠️'}</span>
-          <span style={{fontWeight:600}}>{toast.message}</span>
-          <style>{`
-            @keyframes slideDown { 
-              from { transform: translateX(-50%) translateY(-50px); opacity: 0; }
-              to { transform: translateX(-50%) translateY(0); opacity: 1; }
-            }
-          `}</style>
-        </div>
-      )}
 
       {/* Pure Deposit Fulfillment Modal */}
       {showFulfillModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3000, backdropFilter: 'blur(4px)' }}>
           <div style={{ background: '#fff', padding: 24, borderRadius: 20, width: 700, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 20, fontWeight: 800 }}>📦 Fulfill Prepayment Items</h2>
-              <button onClick={() => setShowFulfillModal(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>✕</button>
+              <h2 style={{ fontSize: 20, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Package size={22} weight="duotone" color="#f97316" /> Fulfill Prepayment Items
+              </h2>
+              <ActionButton variant="ghost" size="sm" onClick={() => setShowFulfillModal(false)}>
+                <X size={16} weight="bold" />
+              </ActionButton>
             </div>
-            
+
             <div style={{ background: '#f0fdf4', padding: 12, borderRadius: 8, border: '1px solid #bbf7d0', marginBottom: 20, display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>
-                💰 Total Paid: GHS {formatCurrency(parseFloat(selectedSale?.amount_paid || 0))}
+                💰 Total Paid: {formatCurrency(parseFloat(selectedSale?.amount_paid || 0), currency)}
               </span>
               <span style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>
-                🏦 Remaining Credit: GHS {formatCurrency(Math.abs(selectedSale?.balance_due || 0))}
+                🏦 Remaining Credit: {formatCurrency(Math.abs(selectedSale?.balance_due || 0), currency)}
               </span>
             </div>
 
             <table className="stock-table" style={{ marginBottom: 20 }}>
-              <thead><tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th><th></th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Qty</th>
+                  <th>Unit Price</th>
+                  <th>Subtotal</th>
+                  <th></th>
+                </tr>
+              </thead>
               <tbody>
                 {items.map((item, idx) => (
                   <tr key={idx}>
                     <td style={{ position: 'relative' }}>
                       <div style={{ position: 'relative' }}>
-                        <input
-                          style={{ ...inp, width: '100%' }}
+                        <Input
                           placeholder="Search code or name..."
                           value={item.product_id ? (products.find(p => p.id === parseInt(item.product_id) || p.id === item.product_id)?.name || '') : item.searchQuery || ''}
                           onChange={(e) => {
                             const newItems = [...items];
                             newItems[idx].searchQuery = e.target.value;
-                            newItems[idx].product_id = ''; // Clear selected if typing
+                            newItems[idx].product_id = '';
                             setItems(newItems);
                           }}
                           onFocus={() => {
@@ -490,108 +542,243 @@ export default function Deposits() {
                         }} />}
                       </div>
                     </td>
-                    <td><input type="number" style={{ width: 60, padding: 6 }} value={item.quantity} onChange={e => {
-                      const newItems = [...items];
-                      newItems[idx].quantity = e.target.value;
-                      setItems(newItems);
-                    }} /></td>
-                    <td><input type="number" style={{ width: 100, padding: 6 }} value={item.unit_price} onChange={e => {
-                      const newItems = [...items];
-                      newItems[idx].unit_price = e.target.value;
-                      setItems(newItems);
-                    }} /></td>
-                    <td style={{ fontWeight: 600 }}>GHS {formatCurrency(item.quantity * item.unit_price)}</td>
-                    <td><button onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{ color: '#ef4444', border: 'none', background: 'none', cursor: 'pointer' }}>✕</button></td>
+                    <td>
+                      <Input
+                        type="number"
+                        value={item.quantity}
+                        onChange={e => {
+                          const newItems = [...items];
+                          newItems[idx].quantity = e.target.value;
+                          setItems(newItems);
+                        }}
+                        style={{ width: 60 }}
+                      />
+                    </td>
+                    <td>
+                      <Input
+                        type="number"
+                        value={item.unit_price}
+                        onChange={e => {
+                          const newItems = [...items];
+                          newItems[idx].unit_price = e.target.value;
+                          setItems(newItems);
+                        }}
+                        style={{ width: 100 }}
+                      />
+                    </td>
+                    <td style={{ fontWeight: 600 }}>{formatCurrency(item.quantity * item.unit_price, currency)}</td>
+                    <td>
+                      <ActionButton variant="ghost" size="sm" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{ color: '#ef4444' }}>
+                        <X size={14} weight="bold" />
+                      </ActionButton>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <button onClick={() => setItems([...items, { product_id: '', product_name: '', quantity: 1, unit_price: 0 }])} style={{ background: '#f3f4f6', padding: '8px 16px', borderRadius: 8, border: '1px solid #ddd', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>+ Add Row</button>
+              <ActionButton variant="secondary" onClick={() => setItems([...items, { product_id: '', product_name: '', quantity: 1, unit_price: 0 }])} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <Plus size={14} weight="bold" /> Add Row
+              </ActionButton>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>Total Items: GHS {formatCurrency(items.reduce((a, i) => a + (i.quantity * i.unit_price), 0))}</div>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>Total Items: {formatCurrency(items.reduce((a, i) => a + (i.quantity * i.unit_price), 0), currency)}</div>
                 <div style={{ fontSize: 15, fontWeight: 800, color: (items.reduce((a, i) => a + (i.quantity * i.unit_price), 0) - selectedSale?.amount_paid) > 0 ? '#ef4444' : '#059669' }}>
-                  Balance Due: GHS {formatCurrency(Math.max(0, items.reduce((a, i) => a + (i.quantity * i.unit_price), 0) - selectedSale?.amount_paid))}
+                  Balance Due: {currency} {formatCurrency(Math.max(0, items.reduce((a, i) => a + (i.quantity * i.unit_price), 0) - selectedSale?.amount_paid))}
                 </div>
               </div>
             </div>
 
             <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
-              <button onClick={() => setShowFulfillModal(false)} style={{ flex: 1, padding: '12px', borderRadius: 12, border: '1px solid #e5e7eb', background: '#fff', fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
-              <button 
-                onClick={handlePureFulfillment} 
-                disabled={fulfilling}
-                style={{ flex: 2, padding: '12px', borderRadius: 12, border: 'none', background: '#10b981', color: '#fff', fontWeight: 700, cursor: 'pointer', opacity: fulfilling ? 0.7 : 1 }}
-              >
+              <ActionButton variant="secondary" fullWidth onClick={() => setShowFulfillModal(false)}>
+                Cancel
+              </ActionButton>
+              <ActionButton variant="success" fullWidth disabled={fulfilling} onClick={handlePureFulfillment}>
                 {fulfilling ? 'Processing...' : 'Complete Fulfillment'}
-              </button>
+              </ActionButton>
             </div>
           </div>
         </div>
       )}
+
+      {/* Settle & Fulfill Modal (for regular deposit orders) */}
+      {showSettleModal && settleSale && (() => {
+        const outstanding = parseFloat(settleSale.balance_due || 0);
+        const paid = parseFloat(settleSale.amount_paid || 0);
+        const total = parseFloat(settleSale.total_amount || 0);
+        const collecting = parseFloat(settleAmount) || 0;
+        const remainingAfter = Math.max(0, outstanding - collecting);
+
+        return (
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3000, backdropFilter: 'blur(4px)' }}>
+            <div style={{ background: '#fff', padding: 28, borderRadius: 20, width: 480, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+                <h2 style={{ fontSize: 18, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <CurrencyCircleDollar size={22} weight="duotone" color="#2563eb" /> Settle and Fulfill Order
+                </h2>
+                <ActionButton variant="ghost" size="sm" onClick={() => setShowSettleModal(false)}>
+                  <X size={16} weight="bold" />
+                </ActionButton>
+              </div>
+
+              {/* Order Summary */}
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 }}>Order Details</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>Invoice</div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{settleSale.invoice_no || `#INV-${String(settleSale.id).slice(-6)}`}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>Customer</div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{settleSale.customer_name}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>Order Total</div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{formatCurrency(total, currency)}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>Already Paid</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>{formatCurrency(paid, currency)}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Outstanding Balance */}
+              {outstanding > 0 && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <Warning size={16} weight="duotone" color="#dc2626" />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#991b1b' }}>
+                      Outstanding Balance: {formatCurrency(outstanding, currency)}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div>
+                      <Label>Collect Payment ({currency})</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max={outstanding}
+                        value={settleAmount}
+                        onChange={e => setSettleAmount(e.target.value)}
+                        placeholder="0.00"
+                        style={{ fontSize: 16, fontWeight: 700 }}
+                      />
+                    </div>
+                    <div>
+                      <Label>Payment Method</Label>
+                      <Select
+                        value={settleMethod}
+                        onChange={e => setSettleMethod(e.target.value)}
+                        options={[
+                          { value: "Cash", label: "Cash" },
+                          { value: "Momo", label: "Momo" },
+                          { value: "Bank", label: "Bank Transfer" }
+                        ]}
+                      />
+                    </div>
+                    {remainingAfter > 0 && collecting > 0 && (
+                      <div style={{ fontSize: 12, color: '#b91c1c', fontWeight: 600, padding: '6px 10px', background: '#fff5f5', borderRadius: 6 }}>
+                        {formatCurrency(remainingAfter, currency)} will remain outstanding after this collection
+                      </div>
+                    )}
+                    {collecting >= outstanding && outstanding > 0 && (
+                      <div style={{ fontSize: 12, color: '#059669', fontWeight: 600, padding: '6px 10px', background: '#f0fdf4', borderRadius: 6 }}>
+                        Balance will be fully settled
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Already fully paid */}
+              {outstanding <= 0 && (
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <Check size={16} weight="bold" color="#059669" />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>
+                      This order is fully paid. Ready to mark as fulfilled.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                <ActionButton variant="secondary" fullWidth onClick={() => setShowSettleModal(false)}>
+                  Cancel
+                </ActionButton>
+                <ActionButton
+                  variant="success"
+                  fullWidth
+                  disabled={fulfilling}
+                  onClick={executeSettleAndFulfill}
+                  style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                >
+                  <Check size={14} weight="bold" />
+                  {fulfilling ? 'Processing...' : (outstanding > 0 && collecting > 0 ? 'Collect & Fulfill' : 'Mark as Fulfilled')}
+                </ActionButton>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Record Deposit Modal */}
       {showDepositModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3000, backdropFilter: 'blur(4px)' }}>
           <div style={{ background: '#fff', padding: 24, borderRadius: 20, width: 450, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h2 style={{ fontSize: 20, fontWeight: 800 }}>💰 Record New Deposit</h2>
-              <button onClick={() => setShowDepositModal(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>✕</button>
+              <h2 style={{ fontSize: 20, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Coins size={22} weight="duotone" color="#059669" /> Record New Deposit
+              </h2>
+              <ActionButton variant="ghost" size="sm" onClick={() => setShowDepositModal(false)}>
+                <X size={16} weight="bold" />
+              </ActionButton>
             </div>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label style={lbl}>Customer Name</label>
-                <input style={inp} value={depCustName} onChange={e => setDepCustName(e.target.value)} placeholder="Enter name..." />
-              </div>
-              <div>
-                <label style={lbl}>Customer Phone (Optional)</label>
-                <input 
-                  style={inp} 
-                  value={depCustPhone} 
-                  onChange={e => setDepCustPhone(formatPhone(e.target.value))} 
-                  placeholder="+233XXXXXXXXX" 
-                />
-              </div>
-              <div>
-                <label style={lbl}>Amount (GHS)</label>
-                <input style={{...inp, fontSize: 18, fontWeight: 700}} type="number" value={depAmount} onChange={e => setDepAmount(e.target.value)} placeholder="0.00" />
-              </div>
-              <div>
-                <label style={lbl}>Payment Method</label>
-                <select style={inp} value={depMethod} onChange={e => setDepMethod(e.target.value)}>
-                  <option value="Cash">Cash</option>
-                  <option value="Momo">Momo</option>
-                  <option value="Bank">Bank Transfer</option>
-                </select>
-              </div>
-              <button 
-                onClick={handlePureDeposit} 
-                disabled={depSaving}
-                style={{ marginTop: 10, padding: '14px', borderRadius: 12, border: 'none', background: '#3b82f6', color: '#fff', fontWeight: 700, cursor: 'pointer', opacity: depSaving ? 0.7 : 1 }}
-              >
-                {depSaving ? 'Saving...' : 'Record Deposit'}
-              </button>
-            </div>
+
+            <form onSubmit={handlePureDeposit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <FieldGroup columns={1}>
+                <div>
+                  <Label required>Customer Name</Label>
+                  <Input value={depCustName} onChange={e => setDepCustName(e.target.value)} placeholder="Enter name..." required />
+                </div>
+                <div>
+                  <Label>Customer Phone (Optional)</Label>
+                  <Input value={depCustPhone} onChange={e => setDepCustPhone(formatPhone(e.target.value))} placeholder="+233XXXXXXXXX" />
+                </div>
+                <div>
+                  <Label required>Amount ({currency})</Label>
+                  <Input type="number" step="0.01" value={depAmount} onChange={e => setDepAmount(e.target.value)} placeholder="0.00" required style={{ fontSize: 18, fontWeight: 700 }} />
+                </div>
+                <div>
+                  <Label required>Payment Method</Label>
+                  <Select value={depMethod} onChange={e => setDepMethod(e.target.value)} options={[
+                    { value: "Cash", label: "Cash" },
+                    { value: "Momo", label: "Momo" },
+                    { value: "Bank", label: "Bank Transfer" }
+                  ]} required />
+                </div>
+                <ActionButton type="submit" fullWidth disabled={depSaving}>
+                  {depSaving ? 'Saving...' : 'Record Deposit'}
+                </ActionButton>
+              </FieldGroup>
+            </form>
           </div>
         </div>
       )}
 
-      <ConfirmationModal 
-        show={showConfirm}
-        title="Confirm Fulfillment"
-        message="Are you sure you want to mark this order as fulfilled? This confirms items have been physically delivered to the customer."
-        confirmText="Yes, Mark Fulfilled"
-        onConfirm={executeFulfillment}
-        onCancel={() => setShowConfirm(false)}
-        type="primary"
-        isLoading={fulfilling}
+      <ConfirmationModal
+        show={modalState.show}
+        title={modalState.title}
+        message={modalState.message}
+        confirmText={modalState.confirmText}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+        type={modalState.type}
+        isLoading={modalState.isLoading}
       />
     </div>
   );
 }
-
-const lbl = { display:'block', fontSize:12, fontWeight:600, color:'#374151', marginBottom:4 };
-const inp = { width:'100%', padding:8, borderRadius:6, border:'1px solid #ddd', fontSize:13, outline: 'none' };
-const miniInp = { padding:'6px 10px', borderRadius:8, border:'1px solid #e5e7eb', fontSize:12, background:'#f9fafb', outline: 'none' };

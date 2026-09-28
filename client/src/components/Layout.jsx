@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import OfflineBanner from "./OfflineBanner";
 import InstallPWA from "./InstallPWA";
 import ImpersonationBanner from "./ImpersonationBanner";
+import AIBubble from "./AI/AIBubble";
 import "../pages/Dashboard.css";
 
 const AVATAR_PRESETS = [
@@ -277,6 +278,7 @@ export default function Layout({ children }) {
       </div>
 
       <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />
+      <AIBubble />
 
       <style>{`
         .topbar__user-container {

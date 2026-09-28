@@ -1,18 +1,32 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Trash2, Edit3 } from "lucide-react";
+import {
+  Trash,
+  PencilSimple,
+  MagnifyingGlass,
+  Plus,
+  ArrowRight,
+  Buildings,
+  Users,
+  Receipt,
+  WarningCircle,
+  ShieldCheck
+} from "@phosphor-icons/react";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import "./Dashboard.css";
 
 export default function SuperAdminDashboard() {
   const { user, impersonateOrg } = useAuth();
+  const toast = useToast();
   const navigate = useNavigate();
   const [orgs, setOrgs] = useState([]);
   const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState({ totalOrgs: 0, totalUsers: 0, totalSales: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [orgSearchQuery, setOrgSearchQuery] = useState("");
 
   const fetchData = async () => {
     setLoading(true);
@@ -79,7 +93,7 @@ export default function SuperAdminDashboard() {
   const handleDeleteOrg = async () => {
     if (!orgToDelete) return;
     if (deleteConfirmationInput.trim() !== orgToDelete.name.trim()) {
-      alert("The typed business name does not match.");
+      toast.error("The typed business name does not match.");
       return;
     }
 
@@ -102,12 +116,14 @@ export default function SuperAdminDashboard() {
         user_email: user?.email,
       });
 
+      const deletedName = orgToDelete.name;
       setOrgToDelete(null);
       setDeleteConfirmationInput("");
       fetchData();
+      toast.success(`Business "${deletedName}" permanently deleted`);
     } catch (err) {
       console.error("Delete organization error:", err);
-      alert("Error deleting business: " + err.message);
+      toast.error("Error deleting business: " + err.message);
     } finally {
       setIsDeleting(false);
     }
@@ -122,10 +138,21 @@ export default function SuperAdminDashboard() {
 
       if (updateError) throw updateError;
       fetchData();
+      toast.success(`Business status set to ${!currentStatus ? 'Active' : 'Suspended'}`);
     } catch (err) {
-      alert("Error toggling organization status: " + err.message);
+      toast.error("Error toggling organization status: " + err.message);
     }
   };
+
+  const filteredOrgs = useMemo(() => {
+    if (!orgSearchQuery.trim()) return orgs;
+    const q = orgSearchQuery.toLowerCase();
+    return orgs.filter(o =>
+      (o.name || "").toLowerCase().includes(q) ||
+      (o.slug || "").toLowerCase().includes(q) ||
+      (o.admin_email || "").toLowerCase().includes(q)
+    );
+  }, [orgs, orgSearchQuery]);
 
   if (loading) {
     return (
@@ -144,8 +171,9 @@ export default function SuperAdminDashboard() {
           <h2 className="section-title">Super Admin Dashboard</h2>
           <p style={{ color: "#6b7280", fontSize: 13 }}>StoreFlow Platform Command Center</p>
         </div>
-        <Link to="/admin/organizations/new" className="quick-action-btn" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center" }}>
-          + Onboard New Business
+        <Link to="/admin/organizations/new" className="quick-action-btn" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Plus size={14} weight="bold" />
+          Onboard New Business
         </Link>
       </div>
 
@@ -180,11 +208,34 @@ export default function SuperAdminDashboard() {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 24 }}>
         {/* Organizations Table */}
         <div className="table-card">
-          <div className="table-card__header">
-            <h3 className="table-card__title">Registered Businesses</h3>
+          <div className="table-card__header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+            <div>
+              <h3 className="table-card__title" style={{ margin: 0 }}>Registered Businesses</h3>
+              <span style={{ fontSize: 11, color: "#64748b" }}>
+                {filteredOrgs.length} of {orgs.length} total
+              </span>
+            </div>
+            <div style={{ position: "relative", minWidth: 200 }}>
+              <MagnifyingGlass size={13} weight="bold" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
+              <input
+                type="text"
+                placeholder="Search by name, slug, email..."
+                value={orgSearchQuery}
+                onChange={(e) => setOrgSearchQuery(e.target.value)}
+                style={{
+                  padding: "6px 10px 6px 28px",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  outline: "none",
+                  width: "100%",
+                  background: "#fff"
+                }}
+              />
+            </div>
           </div>
           <div className="table-wrapper">
             <table className="stock-table">
@@ -198,7 +249,7 @@ export default function SuperAdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {orgs.map((o) => (
+                {filteredOrgs.map((o) => (
                   <tr key={o.id}>
                     <td style={{ fontWeight: 600 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -243,7 +294,7 @@ export default function SuperAdminDashboard() {
                           textDecoration: "none"
                         }}
                       >
-                        <Edit3 size={13} />
+                        <PencilSimple size={13} weight="bold" />
                         Edit
                       </Link>
                       <button
@@ -254,10 +305,14 @@ export default function SuperAdminDashboard() {
                           color: "#0369a1",
                           fontSize: 12,
                           padding: "4px 10px",
-                          minHeight: "auto"
+                          minHeight: "auto",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 5
                         }}
                       >
-                        Enter Shop →
+                        Enter Shop
+                        <ArrowRight size={13} weight="bold" />
                       </button>
                       <button
                         onClick={() => {
@@ -277,14 +332,16 @@ export default function SuperAdminDashboard() {
                           justifyContent: "center"
                         }}
                       >
-                        <Trash2 size={14} />
+                        <Trash size={14} weight="bold" />
                       </button>
                     </td>
                   </tr>
                 ))}
-                {orgs.length === 0 && (
+                {filteredOrgs.length === 0 && (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: "center", color: "#6b7280" }}>No businesses registered yet.</td>
+                    <td colSpan="5" style={{ textAlign: "center", color: "#6b7280", padding: 24 }}>
+                      {orgs.length === 0 ? "No businesses registered yet." : `No businesses found matching "${orgSearchQuery}".`}
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -302,7 +359,13 @@ export default function SuperAdminDashboard() {
               <div key={l.id} style={{ borderBottom: "1px solid #f3f4f6", paddingBottom: 10, marginBottom: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
                   <span style={{ fontWeight: 600, fontSize: 12, color: "#1e293b" }}>{l.organization_name || "Platform"}</span>
-                  <span style={{ fontSize: 10, color: "#9ca3af" }}>{new Date(l.created_at).toLocaleTimeString()}</span>
+                  <span style={{ fontSize: 10, color: "#9ca3af" }}>{(() => {
+                    const d = new Date(l.created_at);
+                    const today = new Date();
+                    const isToday = d.toDateString() === today.toDateString();
+                    const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    return isToday ? `Today, ${time}` : `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
+                  })()}</span>
                 </div>
                 <div style={{ fontSize: 12, color: "#374151", fontWeight: 500 }}>
                   <span style={{ color: "#3b82f6", fontWeight: 600 }}>{l.action}</span> - {l.details}
@@ -340,8 +403,8 @@ export default function SuperAdminDashboard() {
             border: "1px solid #fee2e2"
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-              <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, color: "#dc2626" }}>
-                ⚠️
+              <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626" }}>
+                <WarningCircle size={22} weight="fill" />
               </div>
               <div>
                 <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1e293b" }}>Delete Organization</h3>

@@ -1,13 +1,19 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
+import { useProducts } from "../hooks/useProducts";
+import { useSales } from "../hooks/useSales";
+import { useExpenses } from "../hooks/useExpenses";
+import { useToast } from "../context/ToastContext";
 import { BarChart, Bar, AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer, Legend } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { BrainCircuit, ArrowRight, TrendingUp } from "lucide-react";
 import "./Dashboard.css";
 import { formatCurrency, formatPhone } from "../services/formatters";
+import { ActionButton, Label, Input, Select } from "../components/ui/FormFields";
+import { PageSkeleton } from "../components/LoadingStates";
 
 const InfoTip = ({ text }) => (
   <span className="info-tip" title={text}>ⓘ
@@ -34,6 +40,7 @@ export default function Dashboard() {
   const { user, activeOrg, activeOrgId, impersonatedOrg } = useAuth();
   const businessName = activeOrg?.name || user?.organizations?.name || (user?.role === 'super_admin' ? 'StoreFlow Admin' : 'StoreFlow');
   const navigate = useNavigate();
+  const { success, error: showError } = useToast();
 
   // If a Super Admin enters /dashboard directly without actively impersonating a store, route them to /admin
   useEffect(() => {
@@ -41,10 +48,11 @@ export default function Dashboard() {
       navigate("/admin", { replace: true });
     }
   }, [user, impersonatedOrg, navigate]);
-  const [products, setProducts] = useState([]);
-  const [sales, setSales] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [expenses, setExpenses] = useState([]);
+
+  const { products, loading: productsLoading, refetch: refetchProducts } = useProducts();
+  const { sales, loading: salesLoading, refetch: refetchSales } = useSales();
+  const { expenses, loading: expensesLoading, refetch: refetchExpenses } = useExpenses();
+
   const [logs, setLogs] = useState([]);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [depCustName, setDepCustName] = useState('');
@@ -53,79 +61,56 @@ export default function Dashboard() {
   const [depMethod, setDepMethod] = useState('Cash');
   const [depSaving, setDepSaving] = useState(false);
   const [timeframe, setTimeframe] = useState('7d');
-  const [toast, setToast] = useState(null);
+  const [showAudit, setShowAudit] = useState(false);
 
-  const fetchData = async () => {
-    if (!navigator.onLine) return; 
-    
-    const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
+  const loading = productsLoading || salesLoading || expensesLoading;
 
-    if (!resolvedOrgId) {
-      setProducts([]);
-      setSales([]);
-      setExpenses([]);
-      setLogs([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-
-    const [productsRes, salesRes, expensesRes, logsRes] = await Promise.all([
-      supabase.from('products').select('*').eq('organization_id', resolvedOrgId),
-      supabase.from('sales').select('*').eq('organization_id', resolvedOrgId),
-      supabase.from('expenses').select('*').eq('organization_id', resolvedOrgId),
-      supabase.from('logs').select('*').eq('organization_id', resolvedOrgId).order('created_at', { ascending: false }).limit(50)
-    ]);
-
-    setProducts(productsRes.data || []);
-    setSales(salesRes.data || []);
-    setExpenses(expensesRes.data || []);
-    setLogs(logsRes.data || []);
-    setLoading(false);
-  };
+  const fetchLogs = useCallback(async () => {
+    if (!activeOrgId) return;
+    const { data } = await supabase
+      .from('logs')
+      .select('*')
+      .eq('organization_id', activeOrgId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+    setLogs(data || []);
+  }, [activeOrgId]);
 
   useEffect(() => {
-    fetchData();
-  }, [activeOrgId, user?.organization_id]);
-
+    fetchLogs();
+  }, [fetchLogs]);
 
   const handlePureDeposit = async (e) => {
     e.preventDefault();
-    if (!depCustName || !depCustPhone || !depAmount) return setToast({ message: "Please fill all fields", type: "error" });
+    if (!depCustName || !depCustPhone || !depAmount) return showError("Please fill all fields");
     setDepSaving(true);
     try {
-      const resolvedOrgId = activeOrgId || user?.organization_id || user?.organizations?.id || user?.user_metadata?.organization_id;
       const { data, error } = await supabase.rpc('record_pure_deposit', {
         p_customer_name: depCustName,
         p_customer_phone: depCustPhone,
         p_amount: parseFloat(depAmount),
         p_recorded_by: user?.email || 'System',
         p_payment_method: depMethod,
-        p_organization_id: resolvedOrgId || null
+        p_organization_id: activeOrgId || null
       });
 
       if (error) throw error;
 
-      // Success logic
       setShowDepositModal(false);
       setDepCustName('');
       setDepCustPhone('+233');
       setDepAmount('');
-      
-      setToast({ message: "Deposit recorded successfully!", type: "success" });
-      setTimeout(() => setToast(null), 4000);
-      
-      // Refresh data locally without page reload
-      fetchData();
+
+      success("Deposit recorded successfully!");
+      refetchProducts();
+      refetchSales();
+      fetchLogs();
     } catch (err) {
-      setToast({ message: "Error: " + err.message, type: "error" });
-      setTimeout(() => setToast(null), 5000);
+      showError("Error: " + err.message);
     } finally {
       setDepSaving(false);
     }
   };
-  const [showAudit, setShowAudit] = useState(false);
 
   const generatePDF = () => {
     const orgName = activeOrg?.name || 'StoreFlow';
@@ -190,7 +175,7 @@ export default function Dashboard() {
     const pPct = sVal > 0 ? ((tProfit / sVal) * 100).toFixed(1) : 0;
     const lowStock = products.filter(p => p.stock_quantity > 0 && p.stock_quantity < (p.low_stock_threshold || 10)).length;
     const depleted = products.filter(p => p.stock_quantity <= 0).length;
-    const bSeller = products.length > 0 
+    const bSeller = products.length > 0
       ? [...products]
           .sort((a, b) => (b.total_sold || 0) - (a.total_sold || 0))
           .slice(0, 3)
@@ -222,7 +207,7 @@ export default function Dashboard() {
         const daySales = sales.filter(s => new Date(s.created_at).toDateString() === dateStr)
                              .reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
         const dayExpenses = expenses.filter(e => new Date(e.created_at).toDateString() === dateStr)
-                                   .reduce((acc, e) => acc + parseFloat(e.amount || 0), 0);
+                                     .reduce((acc, e) => acc + parseFloat(e.amount || 0), 0);
         return {
           name: days === 7 ? d.toLocaleDateString([], { weekday: 'short' }) : d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
           Revenue: daySales,
@@ -235,18 +220,18 @@ export default function Dashboard() {
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       const thisYear = new Date().getFullYear();
       const lastYear = thisYear - 1;
-      
+
       return months.map((m, i) => {
         const thisYearSales = sales.filter(s => {
           const d = new Date(s.created_at);
           return d.getFullYear() === thisYear && d.getMonth() === i;
         }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
-        
+
         const lastYearSales = sales.filter(s => {
           const d = new Date(s.created_at);
           return d.getFullYear() === lastYear && d.getMonth() === i;
         }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
-        
+
         return {
           name: m,
           'This Year': thisYearSales,
@@ -257,26 +242,10 @@ export default function Dashboard() {
     return [];
   }, [timeframe, sales, expenses]);
 
+  const currency = user?.organizations?.currency || 'GHS';
+
   if (loading) {
-    return (
-      <div className="dashboard-container" style={{ padding: 30 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:30 }}>
-          <div className="skeleton" style={{ width: 350, height: 45 }} />
-          <div className="skeleton" style={{ width: 140, height: 40 }} />
-        </div>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 24, marginBottom: 32 }}>
-          {[1,2,3,4].map(i => (
-            <div key={i} className="skeleton" style={{ height: 140, borderRadius: 16 }} />
-          ))}
-        </div>
-        
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 24 }}>
-          <div className="skeleton" style={{ height: 450, borderRadius: 16 }} />
-          <div className="skeleton" style={{ height: 450, borderRadius: 16 }} />
-        </div>
-      </div>
-    );
+    return <PageSkeleton title stats={true} table={false} />;
   }
 
   return (
@@ -285,10 +254,10 @@ export default function Dashboard() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div className="greeting-card__content">
             {/* Prominent Business Name on top of Dashboard */}
-            <div style={{ 
-              display: 'inline-flex', 
-              alignItems: 'center', 
-              gap: 8, 
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
               marginBottom: 8,
               padding: '5px 14px',
               borderRadius: 8,
@@ -296,26 +265,26 @@ export default function Dashboard() {
               border: '1px solid var(--brand-border, rgba(249, 115, 22, 0.2))'
             }}>
               {activeOrg?.logo_url ? (
-                <img 
-                  src={activeOrg.logo_url} 
-                  alt={businessName} 
-                  style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }} 
+                <img
+                  src={activeOrg.logo_url}
+                  alt={businessName}
+                  style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }}
                 />
               ) : (
-                <span style={{ 
-                  width: 8, 
-                  height: 8, 
-                  borderRadius: '50%', 
+                <span style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
                   background: 'var(--brand-primary, #f97316)',
-                  boxShadow: '0 0 6px var(--brand-primary, #f97316)' 
+                  boxShadow: '0 0 6px var(--brand-primary, #f97316)'
                 }} />
               )}
-              <span style={{ 
-                fontSize: 13, 
-                fontWeight: 800, 
-                color: 'var(--brand-primary, #f97316)', 
-                textTransform: 'uppercase', 
-                letterSpacing: 1.2 
+              <span style={{
+                fontSize: 13,
+                fontWeight: 800,
+                color: 'var(--brand-primary, #f97316)',
+                textTransform: 'uppercase',
+                letterSpacing: 1.2
               }}>
                 {businessName}
               </span>
@@ -330,7 +299,7 @@ export default function Dashboard() {
                 'All stock levels are healthy. '
               )}
               {user?.role !== 'storekeeper' && (
-                <>Today's revenue is <span style={{ fontWeight: 700, color: '#f15a24' }}>GHS {todayRevenue.toFixed(1)}</span>.</>
+                <>Today's revenue is <span style={{ fontWeight: 700, color: '#f15a24' }}>{formatCurrency(todayRevenue, currency)}</span>.</>
               )}
             </p>
           </div>
@@ -338,10 +307,18 @@ export default function Dashboard() {
         <div style={{ display: 'flex', gap: 10 }}>
           {user?.role !== 'auditor' && (
             <>
-              <button className="quick-action-btn" style={{ background: '#6b7280' }} onClick={() => navigate("/expenses", { state: { showForm: true } })}>Record Expense</button>
-              <button className="quick-action-btn" style={{ background: '#3b82f6' }} onClick={() => navigate("/deposits", { state: { showForm: true } })}>📥 Record Deposit</button>
-              <button className="quick-action-btn" style={{ background: '#4f46e5' }} onClick={() => navigate("/products", { state: { showForm: true } })}>+ Add Product</button>
-              <button className="quick-action-btn" style={{ background: '#059669' }} onClick={() => navigate("/sales", { state: { showForm: true } })}>Record Sale</button>
+              <ActionButton variant="secondary" onClick={() => navigate("/expenses", { state: { showForm: true } })}>
+                Record Expense
+              </ActionButton>
+              <ActionButton variant="info" onClick={() => navigate("/deposits", { state: { showForm: true } })}>
+                📥 Record Deposit
+              </ActionButton>
+              <ActionButton variant="info" style={{ background: '#4f46e5' }} onClick={() => navigate("/products", { state: { showForm: true } })}>
+                + Add Product
+              </ActionButton>
+              <ActionButton variant="success" onClick={() => navigate("/sales", { state: { showForm: true } })}>
+                Record Sale
+              </ActionButton>
             </>
           )}
         </div>
@@ -352,12 +329,12 @@ export default function Dashboard() {
           <>
             <StatCard
               label={<>Today's Cash In <InfoTip text="Total cash and momo collected today." /></>}
-              value={`GHS ${formatCurrency(todayCashIn)}`}
+              value={`${formatCurrency(todayCashIn, currency)}`}
               icon="💰"
             />
             <StatCard
               label={<>Today's Revenue <InfoTip text="Total volume of sales recorded (Paid + Credit)." /></>}
-              value={`GHS ${formatCurrency(todayRevenue)}`}
+              value={`${formatCurrency(todayRevenue, currency)}`}
               icon="📈"
               accent="primary"
             />
@@ -379,17 +356,17 @@ export default function Dashboard() {
           <>
             <StatCard
               label={<>Stock Value <InfoTip text="Total value of all items currently in warehouse (Cost Price)." /></>}
-              value={`GHS ${formatCurrency(stockValue)}`}
+              value={`${formatCurrency(stockValue, currency)}`}
               icon="📦"
             />
             <StatCard
               label={<>Sales Value <InfoTip text="Total cash you'll collect if everything sells. The % shows your 'Markup'—how much you added on top of the cost price." /></>}
-              value={`GHS ${formatCurrency(totalSalesValue)}`}
+              value={`${formatCurrency(totalSalesValue, currency)}`}
               icon="💵"
             >
               {totalProfit > 0 && (
                 <div style={{ marginTop: 8, fontSize: 13, color: '#10b981', fontWeight: 600 }}>
-                  +GHS {formatCurrency(totalProfit)} (+{profitPercentage}%)
+                  +{formatCurrency(totalProfit, currency)} (+{profitPercentage}%)
                 </div>
               )}
             </StatCard>
@@ -412,23 +389,15 @@ export default function Dashboard() {
               </h3>
               <div style={{ display: 'flex', background: '#f3f4f6', borderRadius: 8, padding: 3 }}>
                 {['7d', '30d', 'YoY'].map(t => (
-                  <button
+                  <ActionButton
                     key={t}
+                    variant={timeframe === t ? 'primary' : 'ghost'}
+                    size="sm"
                     onClick={() => setTimeframe(t)}
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: 6,
-                      border: 'none',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      background: timeframe === t ? '#fff' : 'transparent',
-                      color: timeframe === t ? '#f15a24' : '#6b7280',
-                      boxShadow: timeframe === t ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                    }}
+                    style={{ padding: '4px 10px', fontSize: 11, height: 'auto' }}
                   >
                     {t === '7d' ? '7D' : t === '30d' ? '30D' : 'YoY'}
-                  </button>
+                  </ActionButton>
                 ))}
               </div>
             </div>
@@ -480,25 +449,21 @@ export default function Dashboard() {
           <div className="table-card" style={{ height: '100%', padding: 20 }}>
             <h3 className="table-card__title" style={{ marginBottom: 20 }}>System Tools</h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <button className="quick-action-btn" style={{ background: '#374151', width: '100%' }} onClick={generatePDF}>
+              <ActionButton variant="secondary" fullWidth onClick={generatePDF}>
                 📄 Download PDF Report
-              </button>
+              </ActionButton>
               {user?.role === 'admin' && (
-                <button className="quick-action-btn" style={{ background: '#4b5563', width: '100%' }} onClick={() => setShowAudit(true)}>
+                <ActionButton variant="secondary" fullWidth onClick={() => setShowAudit(true)}>
                   🔍 System Audit View
-                </button>
+                </ActionButton>
               )}
               {user?.role === 'storekeeper' && (
-                <button 
-                  className="quick-action-btn" 
-                  style={{ background: '#0f172a', width: '100%' }} 
-                  onClick={() => navigate('/ai')}
-                >
+                <ActionButton variant="secondary" fullWidth style={{ background: '#0f172a' }} onClick={() => navigate('/ai')}>
                   <BrainCircuit size={15} /> StoreFlow AI Assistant
-                </button>
+                </ActionButton>
               )}
             </div>
-            
+
             {user?.role !== 'storekeeper' && (
               <>
                 <h3 className="table-card__title" style={{ marginTop: 28, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 7 }}>
@@ -525,53 +490,74 @@ export default function Dashboard() {
 
                   {/* StoreFlow AI Executive Button & Capabilities */}
                   <div className="storeflow-ai-widget">
-                    <button
-                      type="button"
-                      className="storeflow-ai-btn"
+                    <ActionButton
+                      variant="secondary"
+                      fullWidth
                       onClick={() => navigate(user?.role === 'super_admin' ? "/admin/ai" : "/ai")}
                       title="Open StoreFlow AI Copilot"
                     >
-                      <div className="storeflow-ai-btn__main">
-                        <div className="storeflow-ai-btn__icon-wrapper">
-                          <BrainCircuit size={17} />
-                        </div>
-                        <div className="storeflow-ai-btn__text">
-                          <div className="storeflow-ai-btn__header-row">
-                            <span className="storeflow-ai-btn__title">StoreFlow AI</span>
-                            <span className="storeflow-ai-btn__pill">Copilot</span>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <div style={{
+                            background: 'var(--brand-primary, #f15a24)',
+                            padding: 8,
+                            borderRadius: 10,
+                            boxShadow: '0 0 12px var(--brand-primary, #f15a24)'
+                          }}>
+                            <BrainCircuit size={17} style={{ color: '#fff' }} />
                           </div>
-                          <span className="storeflow-ai-btn__subtitle">
-                            Stockout forecasts & retail copilot
-                          </span>
+                          <div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontWeight: 700, fontSize: 14 }}>StoreFlow AI</span>
+                              <span style={{
+                                background: 'var(--brand-primary, #f15a24)',
+                                color: '#fff',
+                                fontSize: 10,
+                                fontWeight: 700,
+                                padding: '2px 8px',
+                                borderRadius: 999
+                              }}>
+                                Copilot
+                              </span>
+                            </div>
+                            <span style={{ fontSize: 12, color: '#6b7280' }}>
+                              Stockout forecasts & retail copilot
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{
+                          background: 'var(--brand-primary, #f15a24)',
+                          padding: 8,
+                          borderRadius: 8,
+                          color: '#fff'
+                        }}>
+                          <ArrowRight size={14} />
                         </div>
                       </div>
-                      <div className="storeflow-ai-btn__arrow-box">
-                        <ArrowRight size={14} />
-                      </div>
-                    </button>
-                    
-                    <div className="storeflow-ai-quick-links">
-                      <button 
-                        type="button" 
-                        className="storeflow-ai-chip"
+                    </ActionButton>
+
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <ActionButton
+                        variant="ghost"
+                        size="sm"
                         onClick={() => navigate(user?.role === 'super_admin' ? "/admin/ai" : "/ai", { state: { tab: 'reorder' } })}
                       >
                         Restock Forecast
-                      </button>
-                      <button 
-                        type="button" 
-                        className="storeflow-ai-chip"
+                      </ActionButton>
+                      <ActionButton
+                        variant="ghost"
+                        size="sm"
                         onClick={() => navigate(user?.role === 'super_admin' ? "/admin/ai" : "/ai", { state: { tab: 'deadstock' } })}
                       >
                         Dead Stock
-                      </button>
-                      <button 
-                        type="button" 
-                        className="storeflow-ai-chip"
+                      </ActionButton>
+                      <ActionButton
+                        variant="ghost"
+                        size="sm"
                         onClick={() => navigate(user?.role === 'super_admin' ? "/admin/ai" : "/ai", { state: { tab: 'copilot' } })}
                       >
                         Ask Copilot
-                      </button>
+                      </ActionButton>
                     </div>
                   </div>
                 </div>
@@ -598,9 +584,9 @@ export default function Dashboard() {
               </thead>
               <tbody>
                 {products.slice(0, 8).map((p) => (
-                  <tr 
-                    key={p.id} 
-                    onClick={() => navigate("/products")} 
+                  <tr
+                    key={p.id}
+                    onClick={() => navigate("/products")}
                     style={{ cursor: 'pointer' }}
                     className="clickable-row"
                   >
@@ -611,9 +597,13 @@ export default function Dashboard() {
                     <td>
                       {p.stock_quantity <= 0 ? (
                         <span className="status-pill" style={{ background: '#000', color: '#fff', fontSize: '10px' }}>DEPLETED</span>
+                      ) : p.stock_quantity < (p.low_stock_threshold || 10) ? (
+                        <span className={`status-pill status-pill--low`} style={{ fontSize: '10px' }}>
+                          Low Stock
+                        </span>
                       ) : (
-                        <span className={`status-pill status-pill--low`}>
-                          Low
+                        <span className={`status-pill status-pill--ok`} style={{ fontSize: '10px' }}>
+                          OK
                         </span>
                       )}
                     </td>
@@ -654,67 +644,48 @@ export default function Dashboard() {
           <div style={{ background: '#fff', padding: 32, borderRadius: 20, width: 420, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
             <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8, color: '#111827' }}>📥 Record Customer Deposit</h2>
             <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>Add a prepayment to a customer's account balance. This does not affect stock.</p>
-            
+
             <form onSubmit={handlePureDeposit}>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Customer Name</label>
-                <input type="text" value={depCustName} onChange={e => setDepCustName(e.target.value)} placeholder="e.g. John Doe" style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 14 }} required />
+                <Label required>Customer Name</Label>
+                <Input value={depCustName} onChange={e => setDepCustName(e.target.value)} placeholder="e.g. John Doe" required />
               </div>
-              
+
               <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Phone Number</label>
-                <input 
-                  type="text" 
-                  value={depCustPhone} 
-                  onChange={e => setDepCustPhone(formatPhone(e.target.value))} 
-                  placeholder="+233XXXXXXXXX" 
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 14 }} 
-                  required 
+                <Label required>Phone Number</Label>
+                <Input
+                  value={depCustPhone}
+                  onChange={e => setDepCustPhone(formatPhone(e.target.value))}
+                  placeholder="+233XXXXXXXXX"
+                  required
                 />
               </div>
-              
+
               <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Amount (GHS)</label>
-                  <input type="number" step="0.1" value={depAmount} onChange={e => setDepAmount(e.target.value)} placeholder="0.0" style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 14 }} required />
+                  <Label required>Amount ({currency})</Label>
+                  <Input type="number" step="0.1" value={depAmount} onChange={e => setDepAmount(e.target.value)} placeholder="0.0" required />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: '#374151', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>Method</label>
-                  <select value={depMethod} onChange={e => setDepMethod(e.target.value)} style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: 14, background: '#fff' }}>
-                    <option>Cash</option>
-                    <option>Momo</option>
-                    <option>Bank</option>
-                  </select>
+                  <Label required>Method</Label>
+                  <Select value={depMethod} onChange={e => setDepMethod(e.target.value)} options={[
+                    { value: 'Cash', label: 'Cash' },
+                    { value: 'Momo', label: 'Momo' },
+                    { value: 'Bank', label: 'Bank' }
+                  ]} required />
                 </div>
               </div>
-              
+
               <div style={{ display: 'flex', gap: 12 }}>
-                <button type="button" onClick={() => setShowDepositModal(false)} style={{ flex: 1, padding: '14px', borderRadius: 12, border: '1px solid #e5e7eb', background: '#fff', fontWeight: 700, cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" disabled={depSaving} style={{ flex: 2, padding: '14px', borderRadius: 12, border: 'none', background: '#3b82f6', color: '#fff', fontWeight: 700, cursor: 'pointer', opacity: depSaving ? 0.7 : 1 }}>
+                <ActionButton variant="secondary" fullWidth onClick={() => setShowDepositModal(false)}>
+                  Cancel
+                </ActionButton>
+                <ActionButton type="submit" fullWidth disabled={depSaving}>
                   {depSaving ? 'Recording...' : 'Record Deposit'}
-                </button>
+                </ActionButton>
               </div>
             </form>
           </div>
-        </div>
-      )}
-      {/* Status Toasts */}
-      {toast && (
-        <div style={{ 
-          position:'fixed', top:24, left:'50%', transform:'translateX(-50%)', 
-          background: toast.type === 'success' ? '#064e3b' : '#7f1d1d', 
-          color:'#fff', padding:'12px 24px', borderRadius:'12px', 
-          boxShadow:'0 10px 15px -3px rgba(0,0,0,0.2)', zIndex:4000, 
-          display:'flex', alignItems:'center', gap:10, animation:'slideDown 0.3s ease' 
-        }}>
-          <span style={{fontSize:18}}>{toast.type === 'success' ? '✅' : '⚠️'}</span>
-          <span style={{fontWeight:600}}>{toast.message}</span>
-          <style>{`
-            @keyframes slideDown { 
-              from { transform: translateX(-50%) translateY(-50px); opacity: 0; }
-              to { transform: translateX(-50%) translateY(0); opacity: 1; }
-            }
-          `}</style>
         </div>
       )}
     </div>

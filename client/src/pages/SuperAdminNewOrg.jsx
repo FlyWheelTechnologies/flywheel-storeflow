@@ -356,4 +356,4 @@ export default function SuperAdminNewOrg() {
 }
 
 const lbl = { display: "block", fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 };
-const inp = { width: "100%", padding: 10, borderRadius: 6, border: "1px solid #ddd", fontSize: 13 };
+const inp = { width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13, boxSizing: "border-box", transition: "border-color 0.15s ease" };

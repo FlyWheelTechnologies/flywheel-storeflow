@@ -1,11 +1,22 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  CreditCard,
+  Plus,
+  WarningCircle,
+  ClockCountdown,
+  PencilSimple,
+  WhatsappLogo,
+  X
+} from "@phosphor-icons/react";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import "./Dashboard.css";
 
 export default function SuperAdminBilling() {
   const { user } = useAuth();
+  const toast = useToast();
   const [orgs, setOrgs] = useState([]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -148,17 +159,31 @@ export default function SuperAdminBilling() {
 
       setSelectedOrg(null);
       fetchData();
+      toast.success(`Payment of GH₵ ${amount} recorded for ${selectedOrg.name}!`);
     } catch (err) {
-      alert("Error recording payment: " + err.message);
+      toast.error("Error recording payment: " + err.message);
     } finally {
       setSavingPayment(false);
     }
   };
 
-  const generateWhatsAppReminder = (org) => {
+  const generateWhatsAppReminder = async (org) => {
     const text = `Hello ${org.name} Admin,\n\nYour StoreFlow SaaS subscription is due for renewal.\nAmount Due: GH₵ ${org.subscription_amount || 0}\nBilling Cycle: ${org.billing_cycle || 'monthly'}\nExpiry Date: ${org.subscription_expires_at ? new Date(org.subscription_expires_at).toLocaleDateString() : 'Immediate'}\n\nPlease send payment via Mobile Money to Godwin.\nThank you!`;
-    navigator.clipboard.writeText(text);
-    alert("WhatsApp payment reminder copied to clipboard!\n\n" + text);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      // Fallback if clipboard API restricted
+    }
+
+    const phoneClean = (org.phone || org.admin_phone || "").replace(/[^0-9]/g, "");
+    const waUrl = phoneClean
+      ? `https://wa.me/${phoneClean}?text=${encodeURIComponent(text)}`
+      : `https://wa.me/?text=${encodeURIComponent(text)}`;
+
+    toast.success("WhatsApp reminder text copied to clipboard!", {
+      action: () => window.open(waUrl, "_blank"),
+      actionLabel: "Open WhatsApp"
+    });
   };
 
   if (loading) {
@@ -175,17 +200,20 @@ export default function SuperAdminBilling() {
     <div style={{ padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
-          <h2 className="section-title">💳 Ghanaian Business Billing & Revenue Hub</h2>
+          <h2 className="section-title" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <CreditCard size={24} color="#f97316" weight="duotone" />
+            Ghanaian Business Billing & Revenue Hub
+          </h2>
           <p style={{ color: "#6b7280", fontSize: 13 }}>Verified MRR, Cash Collected, Setup Fees & Renewal Watchlist</p>
         </div>
-        <Link to="/admin/organizations/new" className="quick-action-btn" style={{ textDecoration: "none" }}>
-          + Onboard New Business
+        <Link to="/admin/organizations/new" className="quick-action-btn" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Plus size={14} weight="bold" /> Onboard New Business
         </Link>
       </div>
 
       {error && (
-        <div style={{ background: "#fef2f2", color: "#ef4444", padding: 12, borderRadius: 8, marginBottom: 20, fontSize: 13, border: "1px solid #fee2e2" }}>
-          ⚠️ {error}
+        <div style={{ background: "#fef2f2", color: "#ef4444", padding: 12, borderRadius: 8, marginBottom: 20, fontSize: 13, border: "1px solid #fee2e2", display: "flex", alignItems: "center", gap: 8 }}>
+          <WarningCircle size={18} weight="fill" /> {error}
         </div>
       )}
 
@@ -229,7 +257,8 @@ export default function SuperAdminBilling() {
         <div className="table-card" style={{ marginBottom: 24, border: "1px solid #fecaca" }}>
           <div className="table-card__header" style={{ background: "#fff5f5" }}>
             <h3 className="table-card__title" style={{ color: "#991b1b", display: "flex", alignItems: "center", gap: 8 }}>
-              ⏰ 30-Day Expiration & Renewal Watchlist ({watchlist.length})
+              <ClockCountdown size={20} color="#991b1b" weight="duotone" />
+              30-Day Expiration & Renewal Watchlist ({watchlist.length})
             </h3>
           </div>
           <div className="table-wrapper">
@@ -259,11 +288,11 @@ export default function SuperAdminBilling() {
                       </span>
                     </td>
                     <td style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => openPaymentModal(o)} className="quick-action-btn" style={{ background: "#d1fae5", color: "#047857", fontSize: 12, padding: "4px 8px" }}>
-                        ✏️ Record Payment
+                      <button onClick={() => openPaymentModal(o)} className="quick-action-btn" style={{ background: "#d1fae5", color: "#047857", fontSize: 12, padding: "4px 8px", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                        <PencilSimple size={13} weight="bold" /> Record Payment
                       </button>
-                      <button onClick={() => generateWhatsAppReminder(o)} className="quick-action-btn" style={{ background: "#25d366", color: "#ffffff", fontSize: 12, padding: "4px 8px" }}>
-                        💬 WhatsApp Reminder
+                      <button onClick={() => generateWhatsAppReminder(o)} className="quick-action-btn" style={{ background: "#25d366", color: "#ffffff", fontSize: 12, padding: "4px 8px", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                        <WhatsappLogo size={14} weight="fill" /> WhatsApp Reminder
                       </button>
                     </td>
                   </tr>
@@ -314,8 +343,8 @@ export default function SuperAdminBilling() {
                     {o.payment_terms || "Standard MoMo terms"}
                   </td>
                   <td>
-                    <button onClick={() => openPaymentModal(o)} className="quick-action-btn" style={{ background: "#e0f2fe", color: "#0369a1", fontSize: 12, padding: "4px 10px" }}>
-                      ✏️ Edit & Record Payment
+                    <button onClick={() => openPaymentModal(o)} className="quick-action-btn" style={{ background: "#e0f2fe", color: "#0369a1", fontSize: 12, padding: "4px 10px", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                      <PencilSimple size={13} weight="bold" /> Edit & Record Payment
                     </button>
                   </td>
                 </tr>
@@ -340,7 +369,9 @@ export default function SuperAdminBilling() {
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1e293b" }}>
                 Record Payment & Update Terms — {selectedOrg.name}
               </h3>
-              <button type="button" onClick={() => setSelectedOrg(null)} style={{ background: "none", border: "none", fontSize: 18, cursor: "pointer" }}>✕</button>
+              <button type="button" onClick={() => setSelectedOrg(null)} style={{ background: "none", border: "none", display: "flex", alignItems: "center", color: "#64748b", cursor: "pointer", padding: 4 }}>
+                <X size={18} weight="bold" />
+              </button>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
@@ -396,7 +427,24 @@ export default function SuperAdminBilling() {
               <button type="button" onClick={() => setSelectedOrg(null)} style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
                 Cancel
               </button>
-              <button type="submit" disabled={savingPayment} style={{ background: "#059669", color: "#ffffff", border: "none", padding: "10px 18px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              <button
+                type="submit"
+                disabled={savingPayment}
+                style={{
+                  background: "#059669",
+                  color: "#ffffff",
+                  border: "none",
+                  padding: "10px 18px",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: savingPayment ? "not-allowed" : "pointer",
+                  opacity: savingPayment ? 0.7 : 1,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6
+                }}
+              >
                 {savingPayment ? "Saving Payment..." : "Save Payment & Update Expiry"}
               </button>
             </div>
@@ -408,4 +456,4 @@ export default function SuperAdminBilling() {
 }
 
 const lbl = { display: "block", fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 };
-const inp = { width: "100%", padding: "8px 12px", borderRadius: 6, border: "1px solid #cbd5e1", fontSize: 13, boxSizing: "border-box" };
+const inp = { width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13, boxSizing: "border-box", transition: "border-color 0.15s ease" };

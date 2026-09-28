@@ -1,3 +1,5 @@
+import { CircleNotch } from "@phosphor-icons/react";
+
 export default function ConfirmationModal({ show, title, message, onConfirm, onCancel, confirmText = "Confirm", cancelText = "Cancel", type = "danger", isLoading = false }) {
   if (!show) return null;
 
@@ -15,11 +17,19 @@ export default function ConfirmationModal({ show, title, message, onConfirm, onC
           <button className="btn-secondary" onClick={onCancel} disabled={isLoading}>{cancelText}</button>
           <button 
             className="btn-primary" 
-            style={{ background: type === 'danger' ? '#ef4444' : '#2563eb', opacity: isLoading ? 0.7 : 1 }}
+            style={{
+              background: type === 'danger' ? '#ef4444' : '#2563eb',
+              opacity: isLoading ? 0.75 : 1,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6
+            }}
             onClick={onConfirm}
             disabled={isLoading}
           >
-            {isLoading ? 'Processing...' : confirmText}
+            {isLoading && <CircleNotch size={14} className="spin" weight="bold" />}
+            {isLoading ? 'Recording...' : confirmText}
           </button>
         </div>
       </div>

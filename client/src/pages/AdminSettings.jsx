@@ -1,5 +1,16 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import {
+  Storefront,
+  UsersThree,
+  Eye,
+  EyeSlash,
+  Plus,
+  PencilSimple,
+  Trash,
+  CheckCircle,
+  WarningCircle
+} from "@phosphor-icons/react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabaseClient";
 import { createClient } from "@supabase/supabase-js";
@@ -405,7 +416,7 @@ export default function AdminSettings() {
             animation:'slideDown 0.3s ease', cursor: 'pointer'
           }}
         >
-          <span style={{ fontSize: 20 }}>{toast.type === 'error' ? '⚠️' : '✅'}</span>
+          {toast.type === 'error' ? <WarningCircle size={22} weight="fill" /> : <CheckCircle size={22} weight="fill" />}
           <span style={{ fontWeight: 600, fontSize: 13.5 }}>{toast.message}</span>
         </div>
       )}
@@ -420,15 +431,15 @@ export default function AdminSettings() {
           <button className="quick-action-btn" onClick={() => {
             setShowAddUser(!showAddUser);
             if (showAddUser) { setEditUserId(null); setNewUser({ email: '', password: '', role: 'storekeeper', full_name: '' }); }
-          }}>
-            {showAddUser ? 'Cancel' : '+ Add New Staff'}
+          }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            {showAddUser ? 'Cancel' : <><Plus size={14} weight="bold" /> Add New Staff</>}
           </button>
         )}
       </div>
 
       {error && (
-        <div style={{ background: '#fef2f2', color: '#ef4444', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '13px', border: '1px solid #fee2e2' }}>
-          ⚠️ {error}
+        <div style={{ background: '#fef2f2', color: '#ef4444', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontSize: '13px', border: '1px solid #fee2e2', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <WarningCircle size={18} weight="fill" /> {error}
         </div>
       )}
 
@@ -437,7 +448,7 @@ export default function AdminSettings() {
         <button
           onClick={() => handleTabChange('organization')}
           style={{
-            background: activeTab === 'organization' ? '#f15a24' : '#f3f4f6',
+            background: activeTab === 'organization' ? 'var(--brand-primary, #f15a24)' : '#f3f4f6',
             color: activeTab === 'organization' ? '#fff' : '#4b5563',
             border: 'none',
             padding: '8px 18px',
@@ -445,15 +456,19 @@ export default function AdminSettings() {
             fontSize: 13,
             fontWeight: 700,
             cursor: 'pointer',
-            transition: 'all 0.2s'
+            transition: 'all 0.2s',
+            boxShadow: activeTab === 'organization' ? '0 2px 4px rgba(241, 90, 36, 0.2)' : 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8
           }}
         >
-          🏢 Store & Tax Profile
+          <Storefront size={16} weight="duotone" /> Store & Tax Profile
         </button>
         <button
           onClick={() => handleTabChange('staff')}
           style={{
-            background: activeTab === 'staff' ? '#f15a24' : '#f3f4f6',
+            background: activeTab === 'staff' ? 'var(--brand-primary, #f15a24)' : '#f3f4f6',
             color: activeTab === 'staff' ? '#fff' : '#4b5563',
             border: 'none',
             padding: '8px 18px',
@@ -461,10 +476,14 @@ export default function AdminSettings() {
             fontSize: 13,
             fontWeight: 700,
             cursor: 'pointer',
-            transition: 'all 0.2s'
+            transition: 'all 0.2s',
+            boxShadow: activeTab === 'staff' ? '0 2px 4px rgba(241, 90, 36, 0.2)' : 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8
           }}
         >
-          👥 Staff & Roles ({users.length})
+          <UsersThree size={16} weight="duotone" /> Staff & Roles ({users.length})
         </button>
       </div>
 
@@ -583,7 +602,7 @@ export default function AdminSettings() {
                   <label style={lbl}>{editUserId ? 'New Password (leave blank to keep current)' : 'Temporary Password'}</label>
                   <div style={{ position:'relative' }}>
                     <input 
-                      style={inp} 
+                      style={{ ...inp, paddingRight: 64 }} 
                       type={showPassword ? "text" : "password"} 
                       value={newUser.password} 
                       onChange={e => setNewUser({...newUser, password: e.target.value})} 
@@ -592,9 +611,27 @@ export default function AdminSettings() {
                     <button 
                       type="button" 
                       onClick={() => setShowPassword(!showPassword)}
-                      style={{ position:'absolute', right:8, top:8, background:'none', border:'none', fontSize:12, cursor:'pointer', color:'#6b7280' }}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      style={{
+                        position: 'absolute',
+                        right: 8,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: '#f1f5f9',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: 6,
+                        padding: '4px 8px',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        color: '#475569',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        transition: 'background 0.15s'
+                      }}
                     >
-                      {showPassword ? 'Hide' : 'Show'}
+                      {showPassword ? <><EyeSlash size={13} weight="bold" /> Hide</> : <><Eye size={13} weight="bold" /> Show</>}
                     </button>
                   </div>
                 </div>
@@ -638,16 +675,16 @@ export default function AdminSettings() {
                       <td style={{ display:'flex', gap:10 }}>
                         <button 
                           onClick={() => startEdit(u)} 
-                          style={{ background:'none', border:'none', cursor:'pointer', color:'#2563eb', fontWeight:600, fontSize:13 }}
+                          style={{ background:'none', border:'none', cursor:'pointer', color:'#2563eb', fontWeight:600, fontSize:13, display:'inline-flex', alignItems:'center', gap:4 }}
                         >
-                          Edit
+                          <PencilSimple size={13} weight="bold" /> Edit
                         </button>
                         {u.id !== currentUser?.id && (
                           <button 
                             onClick={() => deleteUser(u.id)} 
-                            style={{ background:'none', border:'none', cursor:'pointer', color:'#ef4444', fontWeight:600, fontSize:13 }}
+                            style={{ background:'none', border:'none', cursor:'pointer', color:'#ef4444', fontWeight:600, fontSize:13, display:'inline-flex', alignItems:'center', gap:4 }}
                           >
-                            Delete
+                            <Trash size={13} weight="bold" /> Delete
                           </button>
                         )}
                       </td>
@@ -664,4 +701,4 @@ export default function AdminSettings() {
 }
 
 const lbl = { display:'block', fontSize:12, fontWeight:600, color:'#374151', marginBottom:4 };
-const inp = { width:'100%', padding:8, borderRadius:6, border:'1px solid #ddd', fontSize:13 };
+const inp = { width:'100%', padding:'8px 12px', borderRadius:8, border:'1px solid #cbd5e1', fontSize:13, boxSizing:'border-box', transition:'border-color 0.15s ease' };
