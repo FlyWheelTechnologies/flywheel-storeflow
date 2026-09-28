@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
+import { captureEvent } from "../services/posthogService";
 import {
   Key,
   Cpu,
@@ -14,7 +15,10 @@ import {
   ArrowLeft,
   WarningCircle,
   CheckCircle,
-  PaperPlaneRight
+  PaperPlaneRight,
+  Database,
+  ChartLineUp,
+  ArrowSquareOut
 } from "@phosphor-icons/react";
 import "./Dashboard.css";
 
@@ -22,9 +26,57 @@ export default function SuperAdminApiKeys() {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "https://ongyutrabagetgdebdib.supabase.co";
   const hasKey = !!(import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
 
+  const posthogKey = import.meta.env.VITE_POSTHOG_KEY || "";
+  const posthogHost = import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com";
+  const posthogProjectId = import.meta.env.VITE_POSTHOG_PROJECT_ID || "632874";
+  const hasPosthog = !!posthogKey;
+
   const [copied, setCopied] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
   const [testResult, setTestResult] = useState(null);
+
+  const [copiedPosthogKey, setCopiedPosthogKey] = useState(false);
+  const [testingPosthog, setTestingPosthog] = useState(false);
+  const [posthogTestResult, setPosthogTestResult] = useState(null);
+
+  const handleCopyPosthogKey = async () => {
+    try {
+      await navigator.clipboard.writeText(posthogKey);
+      setCopiedPosthogKey(true);
+      setTimeout(() => setCopiedPosthogKey(false), 2000);
+    } catch {
+      setCopiedPosthogKey(true);
+      setTimeout(() => setCopiedPosthogKey(false), 2000);
+    }
+  };
+
+  const handleTestPosthogPing = async () => {
+    setTestingPosthog(true);
+    setPosthogTestResult(null);
+    const start = performance.now();
+
+    try {
+      captureEvent("superadmin_diagnostic_ping", {
+        source: "superadmin_api_keys",
+        project_id: posthogProjectId,
+        environment: import.meta.env.MODE,
+        timestamp: new Date().toISOString()
+      });
+
+      const latency = Math.round(performance.now() - start);
+      setPosthogTestResult({
+        success: true,
+        message: `Diagnostic telemetry ping dispatched to PostHog Project ${posthogProjectId} (${latency}ms)`
+      });
+    } catch (err) {
+      setPosthogTestResult({
+        success: false,
+        message: err.message || "Failed to dispatch event"
+      });
+    } finally {
+      setTestingPosthog(false);
+    }
+  };
 
   const handleCopyUrl = async () => {
     try {
@@ -101,7 +153,7 @@ export default function SuperAdminApiKeys() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
             <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: "#ecfdf5", display: "flex", alignItems: "center", justifyContent: "center", color: "#059669", flexShrink: 0 }}>
-                <Server size={22} weight="duotone" />
+                <Database size={22} weight="duotone" />
               </div>
               <div>
                 <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#1e293b" }}>Supabase Database & Auth API</h3>
@@ -185,6 +237,133 @@ export default function SuperAdminApiKeys() {
             }}>
               {testResult.success ? <Lightning size={16} weight="fill" color="#059669" /> : <WarningCircle size={16} weight="fill" color="#dc2626" />}
               <span style={{ fontWeight: 600 }}>{testResult.message}</span>
+            </div>
+          )}
+        </div>
+
+        {/* PostHog Product Telemetry & Error Diagnostics */}
+        <div className="table-card" style={{ padding: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: "#e0e7ff", display: "flex", alignItems: "center", justifyContent: "center", color: "#4338ca", flexShrink: 0 }}>
+                <ChartLineUp size={22} weight="duotone" />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#1e293b" }}>PostHog Product Telemetry & Error Diagnostics</h3>
+                <p style={{ margin: "4px 0 0 0", fontSize: 12, color: "#64748b" }}>
+                  Real-time exception capture, user session replay, and multi-tenant RPC diagnostics
+                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                  <span style={{ background: "#f1f5f9", color: "#475569", fontSize: 11, padding: "2px 8px", borderRadius: 4, fontWeight: 600 }}>
+                    Project ID: {posthogProjectId}
+                  </span>
+                  <span style={{ background: "#eff6ff", color: "#1d4ed8", fontSize: 11, padding: "2px 8px", borderRadius: 4, fontWeight: 600 }}>
+                    Region: US Cloud ({posthogHost})
+                  </span>
+                  {hasPosthog && (
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <code style={{ fontSize: 11, background: "#f8fafc", border: "1px solid #e2e8f0", padding: "1px 6px", borderRadius: 4, color: "#334155" }}>
+                        {posthogKey.slice(0, 7)}...{posthogKey.slice(-4)}
+                      </code>
+                      <button
+                        onClick={handleCopyPosthogKey}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
+                          fontSize: 11,
+                          color: copiedPosthogKey ? "#059669" : "#64748b",
+                          padding: "2px 6px",
+                          borderRadius: 4
+                        }}
+                        title="Copy PostHog Token"
+                      >
+                        {copiedPosthogKey ? <Check size={12} color="#059669" weight="bold" /> : <Copy size={12} weight="bold" />}
+                        {copiedPosthogKey ? "Copied" : "Copy Token"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+              <button
+                onClick={handleTestPosthogPing}
+                disabled={testingPosthog || !hasPosthog}
+                style={{
+                  background: "#f8fafc",
+                  color: "#4338ca",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 6,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: testingPosthog || !hasPosthog ? "not-allowed" : "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  transition: "all 0.15s"
+                }}
+              >
+                <PaperPlaneRight size={13} className={testingPosthog ? "spin" : ""} weight="bold" />
+                {testingPosthog ? "Dispatching..." : "Send Test Ping"}
+              </button>
+              <a
+                href={`https://us.posthog.com/project/${posthogProjectId}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  background: "#4338ca",
+                  color: "#ffffff",
+                  borderRadius: 6,
+                  padding: "6px 12px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 6,
+                  textDecoration: "none"
+                }}
+              >
+                <ArrowSquareOut size={13} weight="bold" />
+                Open Console
+              </a>
+              <span style={{
+                background: hasPosthog ? "#d1fae5" : "#fef2f2",
+                color: hasPosthog ? "#059669" : "#dc2626",
+                padding: "4px 12px",
+                borderRadius: 20,
+                fontSize: 12,
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5
+              }}>
+                {hasPosthog ? <CheckCircle size={14} weight="fill" /> : <WarningCircle size={14} weight="fill" />}
+                {hasPosthog ? "Telemetry Active" : "Key Unconfigured"}
+              </span>
+            </div>
+          </div>
+
+          {/* PostHog test ping output banner */}
+          {posthogTestResult && (
+            <div style={{
+              marginTop: 14,
+              padding: "10px 14px",
+              borderRadius: 8,
+              fontSize: 12,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              background: posthogTestResult.success ? "#ecfdf5" : "#fef2f2",
+              border: `1px solid ${posthogTestResult.success ? "#a7f3d0" : "#fecaca"}`,
+              color: posthogTestResult.success ? "#065f46" : "#991b1b"
+            }}>
+              {posthogTestResult.success ? <Lightning size={16} weight="fill" color="#059669" /> : <WarningCircle size={16} weight="fill" color="#dc2626" />}
+              <span style={{ fontWeight: 600 }}>{posthogTestResult.message}</span>
             </div>
           )}
         </div>
