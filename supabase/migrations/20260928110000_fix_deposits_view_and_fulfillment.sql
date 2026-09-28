@@ -199,7 +199,7 @@ BEGIN
     v_total_with_tax, 
     ROUND(p_amount_paid + COALESCE(p_credit_used, 0), 2),
     ROUND(v_total_with_tax - (p_amount_paid + COALESCE(p_credit_used, 0)), 2),
-    p_payment_status, p_payment_method, p_recorded_by,
+    UPPER(p_payment_status), p_payment_method, p_recorded_by,
     p_tax_percentage, p_tax_inclusive, v_tax_amount,
     COALESCE(p_created_at, pg_catalog.now()),
     p_invoice_no,
@@ -415,7 +415,6 @@ BEGIN
     payment_method,
     payment_status,
     notes,
-    items,
     recorded_by,
     invoice_no,
     organization_id,
@@ -429,7 +428,6 @@ BEGIN
     p_payment_method,
     'DEPOSIT',
     'Pure Deposit',
-    '[]'::jsonb,
     p_recorded_by,
     'DEP-' || upper(substr(md5(random()::text), 1, 8)),
     v_org_id,
@@ -482,8 +480,11 @@ GRANT EXECUTE ON FUNCTION public.record_pure_deposit(text, text, numeric, text, 
 -- Deletes a customer and EVERYTHING associated with them:
 -- journal entries, sale items, sales, and the customer record.
 -- ------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.delete_customer_cascade(integer, uuid) CASCADE;
+DROP FUNCTION IF EXISTS public.delete_customer_cascade(bigint, uuid) CASCADE;
+
 CREATE OR REPLACE FUNCTION public.delete_customer_cascade(
-  p_customer_id integer,
+  p_customer_id bigint,
   p_organization_id uuid DEFAULT NULL
 )
 RETURNS boolean
@@ -552,7 +553,7 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.delete_customer_cascade(integer, uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.delete_customer_cascade(bigint, uuid) TO anon, authenticated, service_role;
 
 -- ------------------------------------------------------------
 -- STEP 8: Recreate deposits view with support for all pending order types

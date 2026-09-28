@@ -497,7 +497,9 @@ CREATE OR REPLACE FUNCTION public.record_pure_deposit(
   p_customer_phone text,
   p_amount numeric,
   p_payment_method text,
-  p_recorded_by text
+  p_recorded_by text,
+  p_organization_id uuid DEFAULT NULL,
+  p_customer_id integer DEFAULT NULL
 )
 RETURNS uuid
 LANGUAGE plpgsql
@@ -505,45 +507,132 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_customer_id bigint;
+  v_customer_id bigint := p_customer_id;
   v_sale_id uuid;
   v_org_id uuid;
+  v_jwt_email text;
 BEGIN
-  v_org_id := public.get_my_organization_id();
-  IF v_org_id IS NULL THEN
-    RAISE EXCEPTION 'Unauthorized: User is not associated with an active organization';
-  END IF;
-  
-  SELECT id INTO v_customer_id 
-  FROM public.customers 
-  WHERE name = p_customer_name 
-    AND (phone = p_customer_phone OR (phone IS NULL AND p_customer_phone IS NULL))
-    AND organization_id = v_org_id
-  ORDER BY id ASC
-  LIMIT 1;
-    
-  IF v_customer_id IS NULL THEN
-    INSERT INTO public.customers (name, phone, organization_id)
-    VALUES (p_customer_name, p_customer_phone, v_org_id)
-    RETURNING id INTO v_customer_id;
+  v_jwt_email := (SELECT auth.jwt()->>'email');
+
+  -- Resolve organization ID
+  IF public.is_super_admin() THEN
+    v_org_id := p_organization_id;
+    IF v_org_id IS NULL AND v_customer_id IS NOT NULL THEN
+      SELECT organization_id INTO v_org_id FROM public.customers WHERE id = v_customer_id;
+    END IF;
+    IF v_org_id IS NULL THEN
+      SELECT organization_id INTO v_org_id 
+      FROM public.customers 
+      WHERE (phone = p_customer_phone OR name = p_customer_name)
+        AND organization_id IS NOT NULL
+      ORDER BY id ASC
+      LIMIT 1;
+    END IF;
+    IF v_org_id IS NULL THEN
+      IF (SELECT COUNT(*) FROM public.organizations) = 1 THEN
+        SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
+      END IF;
+    END IF;
+  ELSE
+    v_org_id := public.get_my_organization_id();
+    IF v_org_id IS NULL AND p_organization_id IS NOT NULL THEN
+      v_org_id := p_organization_id;
+    END IF;
+    IF v_org_id IS NULL AND v_customer_id IS NOT NULL THEN
+      SELECT organization_id INTO v_org_id FROM public.customers WHERE id = v_customer_id;
+    END IF;
+    IF v_org_id IS NULL THEN
+      SELECT organization_id INTO v_org_id 
+      FROM public.customers 
+      WHERE (phone = p_customer_phone OR name = p_customer_name)
+        AND organization_id IS NOT NULL
+      ORDER BY id ASC
+      LIMIT 1;
+    END IF;
+    IF v_org_id IS NULL THEN
+      SELECT organization_id INTO v_org_id 
+      FROM public.profiles 
+      WHERE (email = v_jwt_email OR email = p_recorded_by)
+        AND organization_id IS NOT NULL
+      LIMIT 1;
+    END IF;
   END IF;
 
+  IF v_org_id IS NULL THEN
+    RAISE EXCEPTION 'Failed to resolve organization_id for deposit. User profile or target organization required.';
+  END IF;
+
+  -- Customer resolution
+  IF v_customer_id IS NOT NULL THEN
+    IF NOT EXISTS (SELECT 1 FROM public.customers WHERE id = v_customer_id AND organization_id = v_org_id) THEN
+      v_customer_id := NULL;
+    END IF;
+  END IF;
+
+  IF v_customer_id IS NULL THEN
+    IF p_customer_phone IS NOT NULL AND p_customer_phone NOT IN ('', '+233') THEN
+      SELECT id INTO v_customer_id 
+      FROM public.customers 
+      WHERE phone = p_customer_phone AND organization_id = v_org_id
+      ORDER BY id ASC
+      LIMIT 1;
+    END IF;
+
+    IF v_customer_id IS NULL AND p_customer_name IS NOT NULL AND TRIM(p_customer_name) != '' THEN
+      SELECT id INTO v_customer_id 
+      FROM public.customers 
+      WHERE LOWER(TRIM(name)) = LOWER(TRIM(p_customer_name)) AND organization_id = v_org_id
+      ORDER BY id ASC
+      LIMIT 1;
+    END IF;
+  END IF;
+
+  IF v_customer_id IS NULL THEN
+    INSERT INTO public.customers (name, phone, credit_balance, organization_id)
+    VALUES (p_customer_name, p_customer_phone, p_amount, v_org_id)
+    RETURNING id INTO v_customer_id;
+  ELSE
+    UPDATE public.customers 
+    SET credit_balance = COALESCE(credit_balance, 0) + p_amount,
+        updated_at = now()
+    WHERE id = v_customer_id AND organization_id = v_org_id;
+  END IF;
+
+  -- Create sale record for pure deposit with negative balance_due representing customer credit
   INSERT INTO public.sales (
-    customer_id, customer_name, total_amount, amount_paid, 
-    balance_due, payment_status, payment_method, recorded_by,
-    notes, organization_id
-  )
-  VALUES (
-    v_customer_id, p_customer_name, 0, p_amount, 
-    -p_amount, 'DEPOSIT', p_payment_method, p_recorded_by,
-    'Pure Deposit', v_org_id
+    customer_id,
+    customer_name,
+    total_amount,
+    amount_paid,
+    balance_due,
+    payment_method,
+    payment_status,
+    notes,
+    recorded_by,
+    invoice_no,
+    organization_id,
+    created_at
+  ) VALUES (
+    v_customer_id,
+    p_customer_name,
+    0,
+    p_amount,
+    -p_amount,
+    p_payment_method,
+    'DEPOSIT',
+    'Pure Deposit',
+    p_recorded_by,
+    'DEP-' || upper(substr(md5(random()::text), 1, 8)),
+    v_org_id,
+    now()
   )
   RETURNING id INTO v_sale_id;
 
-  INSERT INTO public.journal_entries (sale_id, account_type, debit, credit, description, organization_id)
+  -- Insert Double-Entry Journal Entry
+  INSERT INTO public.journal_entries (account_type, debit, credit, description, organization_id, created_at, sale_id)
   VALUES 
-    (v_sale_id, pg_catalog.upper(p_payment_method), p_amount, 0, 'Deposit received from ' || p_customer_name, v_org_id),
-    (v_sale_id, 'CUSTOMER_DEPOSIT', 0, p_amount, 'Customer credit recorded', v_org_id);
+    ('asset_cash', p_amount, 0, 'Pure Deposit from ' || p_customer_name, v_org_id, now(), v_sale_id),
+    ('liability_customer_credit', 0, p_amount, 'Credit liability for ' || p_customer_name, v_org_id, now(), v_sale_id);
 
   RETURN v_sale_id;
 END;
@@ -647,10 +736,12 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.record_sale_transaction(integer, text, numeric, numeric, text, text, jsonb, text, numeric, boolean, numeric, timestamptz, text) TO authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.record_pure_deposit(text, text, numeric, text, text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.record_sale_transaction(integer, text, numeric, numeric, text, text, jsonb, text, numeric, boolean, numeric, timestamptz, text, uuid) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.record_pure_deposit(text, text, numeric, text, text, uuid, integer) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.record_pure_deposit(text, text, numeric, text, text, uuid) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.fulfill_sale(uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.fulfill_pure_deposit(uuid, jsonb) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.delete_customer_cascade(bigint, uuid) TO anon, authenticated, service_role;
 
-GRANT SELECT ON public.deposits TO authenticated, service_role;
-GRANT SELECT ON public.customer_stats TO authenticated, service_role;
+GRANT SELECT ON public.deposits TO anon, authenticated, service_role;
+GRANT SELECT ON public.customer_stats TO anon, authenticated, service_role;
