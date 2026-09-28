@@ -26,7 +26,7 @@ export function initPostHog() {
   }
 
   try {
-    posthog.init(apiKey, {
+    posthog.init(apiKey,  {
       api_host: apiHost,
       autocapture: true,
       capture_pageview: true,
