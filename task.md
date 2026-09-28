@@ -32,4 +32,11 @@
 - [x] 4.2 Update `AdminSettings.jsx` with Store & Tax Profile card to manage TIN, VAT status, and default tax rate <!-- id: 4.2 -->
 - [x] 4.3 Update `SalesService.js` (PDF & WhatsApp receipts) to format TIN and Act 1151 tax breakdown <!-- id: 4.3 -->
 - [x] 4.4 Scale down regulatory/tax compliance language on `LandingPage.jsx` and focus on speed, operations, and inventory <!-- id: 4.4 -->
-- [/] 4.5 Verify build with `npm run build` <!-- id: 4.5 -->
+- [x] 4.5 Verify build with `npm run build` <!-- id: 4.5 -->
+
+## Phase 5: Diagnostics, Error Monitoring & PostHog Setup
+- [x] 5.1 Create PostHog service template [`client/src/services/posthogService.js`](file:///c:/Users/gokro/Documents/GitHub/flywheel-storeflow/client/src/services/posthogService.js) with safe fallbacks and exception capture <!-- id: 5.1 -->
+- [x] 5.2 Wire PostHog initialization into [`client/src/main.jsx`](file:///c:/Users/gokro/Documents/GitHub/flywheel-storeflow/client/src/main.jsx) and auth lifecycle (identify/reset) in [`AuthContext.jsx`](file:///c:/Users/gokro/Documents/GitHub/flywheel-storeflow/client/src/context/AuthContext.jsx) <!-- id: 5.2 -->
+- [x] 5.3 Add environment variable templates (`VITE_POSTHOG_KEY`, `VITE_POSTHOG_HOST`) to [`client/.env.example`](file:///c:/Users/gokro/Documents/GitHub/flywheel-storeflow/client/.env.example) <!-- id: 5.3 -->
+- [ ] 5.4 When ready to activate: run `npm install posthog-js` in `client/` and add PostHog API key to `client/.env.local` <!-- id: 5.4 -->
+- [ ] 5.5 Set up error alerts and session replays in PostHog dashboard to monitor production RPC failures <!-- id: 5.5 -->

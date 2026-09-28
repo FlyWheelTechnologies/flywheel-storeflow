@@ -4,6 +4,11 @@ import App from "./App";
 import "./index.css";
 import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
+import { initPostHog } from "./services/posthogService";
+
+// Initialize diagnostics & telemetry (PostHog)
+initPostHog();
+
 window.addEventListener('online', () => {
   console.log('App is back online!');
 });

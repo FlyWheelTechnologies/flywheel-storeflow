@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "../services/supabaseClient";
+import { identifyUser, resetUser } from "../services/posthogService";
 const orangeReceiptMachine = "/orange_receipt_machine.jpg";
 
 const AuthContext = createContext();
@@ -203,8 +204,12 @@ export function AuthProvider({ children }) {
         
         if (session && isMounted) {
           const fullUser = await fetchProfile(session.user);
-          if (isMounted) setUser(fullUser);
+          if (isMounted) {
+            setUser(fullUser);
+            identifyUser(fullUser, fullUser?.organization_id);
+          }
         } else if (isMounted) {
+          resetUser();
           setUser(null);
           localStorage.removeItem("user");
         }
@@ -237,9 +242,13 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session && isMounted) {
         fetchProfile(session.user).then(fullUser => {
-          if (isMounted) setUser(fullUser);
+          if (isMounted) {
+            setUser(fullUser);
+            identifyUser(fullUser, fullUser?.organization_id);
+          }
         });
       } else if (isMounted) {
+        resetUser();
         setUser(null);
         localStorage.removeItem("user");
       }
@@ -264,6 +273,7 @@ export function AuthProvider({ children }) {
     }
     
     // Clear state and storage immediately
+    resetUser();
     setUser(null);
     setImpersonatedOrg(null);
     try {
