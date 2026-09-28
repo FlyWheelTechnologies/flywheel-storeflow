@@ -15,8 +15,9 @@ let isInitialized = false;
 export function initPostHog() {
   if (isInitialized) return posthog;
 
-  const apiKey = import.meta.env.VITE_POSTHOG_KEY;
+  const apiKey = import.meta.env.VITE_POSTHOG_KEY || 'phc_nfTiY9aGg8WY6Z8kPVGAXc7R8cLeQEzZeXUSwRRkdqRY';
   const apiHost = import.meta.env.VITE_POSTHOG_HOST || 'https://us.i.posthog.com';
+  const projectId = import.meta.env.VITE_POSTHOG_PROJECT_ID || '632874';
 
   if (!apiKey) {
     if (import.meta.env.DEV) {
@@ -26,7 +27,7 @@ export function initPostHog() {
   }
 
   try {
-    posthog.init(apiKey,  {
+    posthog.init(apiKey, {
       api_host: apiHost,
       autocapture: true,
       capture_pageview: true,
@@ -38,12 +39,25 @@ export function initPostHog() {
         }
       },
       loaded: () => {
-        console.log('⚡ [PostHog] Initialized successfully for diagnostics (Project:', import.meta.env.VITE_POSTHOG_PROJECT_ID || 'Active', ')');
+        console.log('⚡ [PostHog] Initialized successfully for diagnostics (Project:', projectId, ')');
       }
     });
 
-    if (typeof window !== 'undefined' && import.meta.env.DEV) {
-      window.__posthog = posthog;
+    if (typeof window !== 'undefined') {
+      if (import.meta.env.DEV) {
+        window.__posthog = posthog;
+      }
+
+      // Automatically capture uncaught Javascript errors and unhandled promise rejections
+      if (!window.__posthog_error_listeners_attached) {
+        window.addEventListener('error', (event) => {
+          captureException(event.error || event.message, { source: 'window.onerror' });
+        });
+        window.addEventListener('unhandledrejection', (event) => {
+          captureException(event.reason, { source: 'window.onunhandledrejection' });
+        });
+        window.__posthog_error_listeners_attached = true;
+      }
     }
 
     isInitialized = true;
