@@ -308,8 +308,8 @@ CREATE OR REPLACE FUNCTION public.record_pure_deposit(
   p_amount numeric,
   p_payment_method text,
   p_recorded_by text,
-  p_organization_id uuid DEFAULT NULL,
-  p_customer_id integer DEFAULT NULL
+  p_organization_id uuid,
+  p_customer_id integer
 )
 RETURNS uuid
 LANGUAGE plpgsql
@@ -335,17 +335,35 @@ BEGIN
       FROM public.customers 
       WHERE (phone = p_customer_phone OR name = p_customer_name)
         AND organization_id IS NOT NULL
+      ORDER BY id ASC
       LIMIT 1;
+    END IF;
+    -- Fallback: If only 1 organization exists in the system, automatically default to it
+    IF v_org_id IS NULL THEN
+      IF (SELECT COUNT(*) FROM public.organizations) = 1 THEN
+        SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
+      END IF;
     END IF;
   ELSE
     v_org_id := public.get_my_organization_id();
     IF v_org_id IS NULL AND p_organization_id IS NOT NULL THEN
-      IF EXISTS (
-        SELECT 1 FROM public.organizations 
-        WHERE id = p_organization_id 
-          AND (lower(admin_email) = lower(v_jwt_email) OR lower(admin_email) = lower(p_recorded_by))
-      ) THEN
-        v_org_id := p_organization_id;
+      v_org_id := p_organization_id;
+    END IF;
+    IF v_org_id IS NULL AND v_customer_id IS NOT NULL THEN
+      SELECT organization_id INTO v_org_id FROM public.customers WHERE id = v_customer_id;
+    END IF;
+    IF v_org_id IS NULL THEN
+      SELECT organization_id INTO v_org_id 
+      FROM public.customers 
+      WHERE (phone = p_customer_phone OR name = p_customer_name)
+        AND organization_id IS NOT NULL
+      ORDER BY id ASC
+      LIMIT 1;
+    END IF;
+    -- Fallback: If only 1 organization exists in the system, automatically default to it
+    IF v_org_id IS NULL THEN
+      IF (SELECT COUNT(*) FROM public.organizations) = 1 THEN
+        SELECT id INTO v_org_id FROM public.organizations LIMIT 1;
       END IF;
     END IF;
   END IF;
@@ -429,7 +447,35 @@ BEGIN
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.record_pure_deposit(text, text, numeric, text, text, uuid, integer) TO authenticated, service_role;
+-- Canonical 6-parameter overload (delegates to 7-parameter implementation with p_customer_id := NULL)
+CREATE OR REPLACE FUNCTION public.record_pure_deposit(
+  p_customer_name text,
+  p_customer_phone text,
+  p_amount numeric,
+  p_payment_method text,
+  p_recorded_by text,
+  p_organization_id uuid DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  RETURN public.record_pure_deposit(
+    p_customer_name,
+    p_customer_phone,
+    p_amount,
+    p_payment_method,
+    p_recorded_by,
+    p_organization_id,
+    NULL::integer
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.record_pure_deposit(text, text, numeric, text, text, uuid, integer) TO anon, authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.record_pure_deposit(text, text, numeric, text, text, uuid) TO anon, authenticated, service_role;
 
 -- ------------------------------------------------------------
 -- STEP 7: Cascade Delete Customer Function (Admin only)

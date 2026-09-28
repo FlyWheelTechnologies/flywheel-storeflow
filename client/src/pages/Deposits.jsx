@@ -16,6 +16,7 @@ import {
 } from "@phosphor-icons/react";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
+import { useActiveOrgId } from "../hooks/useActiveOrgId";
 import { useProducts } from "../hooks/useProducts";
 import { useCustomers } from "../hooks/useCustomers";
 import { useSales } from "../hooks/useSales";
@@ -27,7 +28,9 @@ import { Label, Input, Select, ActionButton, SectionHeader, CardSection, FieldGr
 import { PageSkeleton } from "../components/LoadingStates";
 
 export default function Deposits() {
-  const { user, activeOrgId } = useAuth();
+  const { user } = useAuth();
+  const activeOrgId = useActiveOrgId();
+  const isSuperAdmin = user?.role === 'super_admin';
   const location = useLocation();
   const { success, error: showError } = useToast();
   const { modalState, confirm, handleConfirm, handleCancel, ConfirmationModal } = useConfirmation();
@@ -38,6 +41,8 @@ export default function Deposits() {
   const [deposits, setDeposits] = useState([]);
   const [expandedCustomerId, setExpandedCustomerId] = useState(null);
   const [customerOrders, setCustomerOrders] = useState([]);
+  const [organizations, setOrganizations] = useState([]);
+  const [selectedOrgId, setSelectedOrgId] = useState('');
 
   // Record Deposit Modal State
   const [showDepositModal, setShowDepositModal] = useState(false);
@@ -69,18 +74,37 @@ export default function Deposits() {
 
   const loading = productsLoading || salesLoading;
 
+  // Load organizations for Super Admin so they can select a store
+  useEffect(() => {
+    if (isSuperAdmin) {
+      supabase.from("organizations").select("id, name").order("name").then(({ data, error }) => {
+        if (!error && data && data.length > 0) {
+          setOrganizations(data);
+          if (!activeOrgId && !selectedOrgId) {
+            setSelectedOrgId(data[0].id);
+          }
+        }
+      });
+    }
+  }, [isSuperAdmin, activeOrgId]);
+
   const fetchDeposits = useCallback(async () => {
-    if (!activeOrgId) {
+    const effectiveOrgId = activeOrgId || selectedOrgId;
+    if (!effectiveOrgId && !isSuperAdmin) {
       setDeposits([]);
       return;
     }
-    const [depRes] = await Promise.all([
-      supabase.from("deposits").select("*").eq("organization_id", activeOrgId)
-    ]);
-    setDeposits(depRes.data || []);
+    let query = supabase.from("deposits").select("*");
+    if (effectiveOrgId) {
+      query = query.eq("organization_id", effectiveOrgId);
+    }
+    const { data, error } = await query;
+    if (!error) {
+      setDeposits(data || []);
+    }
     refetchProducts();
     refetchSales();
-  }, [activeOrgId, refetchProducts, refetchSales]);
+  }, [activeOrgId, selectedOrgId, isSuperAdmin, refetchProducts, refetchSales]);
 
   useEffect(() => {
     fetchDeposits();
@@ -153,28 +177,57 @@ export default function Deposits() {
 
       // Check if customer already exists by phone or name to avoid duplicates
       let resolvedCustId = depCustomerId || null;
-      if (!resolvedCustId && customers && customers.length > 0) {
-        const cleanPhone = (depCustPhone || '').replace(/\s+/g, '');
-        if (cleanPhone && cleanPhone !== '+233') {
-          const match = customers.find(c => c.phone && c.phone.replace(/\s+/g, '') === cleanPhone);
-          if (match) resolvedCustId = match.id;
+      let matchedCustOrgId = null;
+      if (customers && customers.length > 0) {
+        let match = null;
+        if (depCustomerId) {
+          match = customers.find(c => String(c.id) === String(depCustomerId));
         }
-        if (!resolvedCustId && depCustName) {
-          const match = customers.find(c => c.name?.trim().toLowerCase() === depCustName.trim().toLowerCase());
-          if (match) resolvedCustId = match.id;
+        if (!match) {
+          const cleanPhone = (depCustPhone || '').replace(/\s+/g, '');
+          if (cleanPhone && cleanPhone !== '+233') {
+            match = customers.find(c => c.phone && c.phone.replace(/\s+/g, '') === cleanPhone);
+          }
+        }
+        if (!match && depCustName) {
+          match = customers.find(c => c.name?.trim().toLowerCase() === depCustName.trim().toLowerCase());
+        }
+        if (match) {
+          resolvedCustId = match.id;
+          matchedCustOrgId = match.organization_id;
         }
       }
 
-      const { error } = await supabase.rpc('record_pure_deposit', {
+      // Resolve target organization ID
+      const targetOrgId = selectedOrgId || activeOrgId || matchedCustOrgId || (organizations[0]?.id) || null;
+      if (!targetOrgId && isSuperAdmin) {
+        throw new Error("Please select an organization before recording a deposit.");
+      }
+
+      const basePayload = {
         p_customer_name: depCustName.trim(),
         p_customer_phone: depCustPhone || null,
         p_amount: parseFloat(depAmount),
         p_payment_method: depMethod,
         p_recorded_by: user?.email || 'System',
-        p_organization_id: activeOrgId || null,
-        p_customer_id: resolvedCustId ? parseInt(resolvedCustId) : null
-      });
-      if (error) throw error;
+        p_organization_id: targetOrgId || null
+      };
+
+      let rpcRes = null;
+      if (resolvedCustId) {
+        // Attempt 7-parameter signature first
+        rpcRes = await supabase.rpc('record_pure_deposit', {
+          ...basePayload,
+          p_customer_id: parseInt(resolvedCustId)
+        });
+      }
+
+      // If no customer ID was resolved or if 7-param signature is not found (PGRST202 schema cache error), call canonical 6-param
+      if (!resolvedCustId || (rpcRes?.error && rpcRes.error.code === 'PGRST202')) {
+        rpcRes = await supabase.rpc('record_pure_deposit', basePayload);
+      }
+
+      if (rpcRes?.error) throw rpcRes.error;
 
       success("Deposit recorded successfully!");
       setShowDepositModal(false);
@@ -353,6 +406,20 @@ export default function Deposits() {
               <MagnifyingGlass size={16} />
             </span>
           </div>
+          {isSuperAdmin && organizations.length > 0 && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#6b7280' }}>Store:</span>
+              <Select
+                value={selectedOrgId || activeOrgId || ''}
+                onChange={e => setSelectedOrgId(e.target.value)}
+                options={[
+                  { value: "", label: "All Stores" },
+                  ...organizations.map(o => ({ value: o.id, label: o.name }))
+                ]}
+                style={{ width: 170 }}
+              />
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: '#6b7280' }}>Sort:</span>
             <Select
@@ -827,6 +894,17 @@ export default function Deposits() {
 
             <form onSubmit={handlePureDeposit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <FieldGroup columns={1}>
+                {isSuperAdmin && organizations.length > 0 && (
+                  <div>
+                    <Label required>Target Store / Organization</Label>
+                    <Select
+                      value={selectedOrgId || activeOrgId || (organizations[0]?.id || '')}
+                      onChange={e => setSelectedOrgId(e.target.value)}
+                      options={organizations.map(o => ({ value: o.id, label: o.name }))}
+                      required
+                    />
+                  </div>
+                )}
                 <div style={{ position: 'relative' }}>
                   <Label required>Customer Name</Label>
                   <Input
