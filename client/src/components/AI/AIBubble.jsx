@@ -329,6 +329,7 @@ export default function AIBubble() {
                 className="ai-overlay__header-btn"
                 onClick={handleClear}
                 title="Clear chat"
+                aria-label="Clear chat"
               >
                 <Trash size={14} />
               </button>
@@ -336,6 +337,7 @@ export default function AIBubble() {
                 className="ai-overlay__header-btn"
                 onClick={handleExpand}
                 title="Open full AI page"
+                aria-label="Open full AI page"
               >
                 <ArrowsOutSimple size={14} />
               </button>
@@ -457,6 +459,7 @@ export default function AIBubble() {
               type="submit"
               className="ai-overlay__send-btn"
               disabled={loading || !query.trim()}
+              aria-label="Send message"
             >
               <PaperPlaneTilt size={16} weight="fill" />
             </button>
