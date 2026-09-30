@@ -618,7 +618,7 @@ export default function Dashboard() {
           <div className="modal-card" style={{ maxWidth: 600 }}>
             <div className="modal-header">
               <h3>System Activity Audit</h3>
-              <button className="close-btn" onClick={() => setShowAudit(false)}>✕</button>
+              <button className="close-btn" aria-label="Close modal" onClick={() => setShowAudit(false)}>✕</button>
             </div>
             <div className="modal-body" style={{ maxHeight: 400, overflowY: 'auto' }}>
               <table className="stock-table" style={{ fontSize: 12 }}>
