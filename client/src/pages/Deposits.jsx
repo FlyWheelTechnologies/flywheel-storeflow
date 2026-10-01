@@ -601,7 +601,7 @@ export default function Deposits() {
               <h2 style={{ fontSize: 20, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Package size={22} weight="duotone" color="#f97316" /> Fulfill Prepayment Items
               </h2>
-              <ActionButton variant="ghost" size="sm" onClick={() => setShowFulfillModal(false)}>
+              <ActionButton variant="ghost" size="sm" onClick={() => setShowFulfillModal(false)} aria-label="Close fulfill prepayment items modal">
                 <X size={16} weight="bold" />
               </ActionButton>
             </div>
@@ -722,7 +722,7 @@ export default function Deposits() {
                     </td>
                     <td style={{ fontWeight: 600 }}>{formatCurrency(item.quantity * item.unit_price, currency)}</td>
                     <td>
-                      <ActionButton variant="ghost" size="sm" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{ color: '#ef4444' }}>
+                    <ActionButton variant="ghost" size="sm" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{ color: '#ef4444' }} aria-label="Remove item">
                         <X size={14} weight="bold" />
                       </ActionButton>
                     </td>
@@ -770,7 +770,7 @@ export default function Deposits() {
                 <h2 style={{ fontSize: 18, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10 }}>
                   <CurrencyCircleDollar size={22} weight="duotone" color="#2563eb" /> Settle and Fulfill Order
                 </h2>
-                <ActionButton variant="ghost" size="sm" onClick={() => setShowSettleModal(false)}>
+              <ActionButton variant="ghost" size="sm" onClick={() => setShowSettleModal(false)} aria-label="Close fulfill & settle modal">
                   <X size={16} weight="bold" />
                 </ActionButton>
               </div>
@@ -887,7 +887,7 @@ export default function Deposits() {
               <h2 style={{ fontSize: 20, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Coins size={22} weight="duotone" color="#059669" /> Record New Deposit
               </h2>
-              <ActionButton variant="ghost" size="sm" onClick={() => setShowDepositModal(false)}>
+              <ActionButton variant="ghost" size="sm" onClick={() => setShowDepositModal(false)} aria-label="Close record new deposit modal">
                 <X size={16} weight="bold" />
               </ActionButton>
             </div>

@@ -112,6 +112,7 @@ const SalesTable = ({
                         size="sm"
                         onClick={() => onGenerateReceipt(s)}
                         title="Download PDF Receipt"
+                        aria-label="Download PDF Receipt"
                       >
                         📄
                       </ActionButton>
@@ -120,6 +121,7 @@ const SalesTable = ({
                         size="sm"
                         onClick={() => onShareViaWhatsApp(s)}
                         title="Send receipt on WhatsApp"
+                        aria-label="Send receipt on WhatsApp"
                       >
                         📱
                       </ActionButton>
