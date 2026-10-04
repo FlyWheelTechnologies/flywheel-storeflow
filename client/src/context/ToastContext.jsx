@@ -138,6 +138,7 @@ function ToastItem({ toast, onClose }) {
           width: 24, height: 24, borderRadius: '50%', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12
         }}
+        aria-label="Close toast notification"
       >✕</button>
     </div>
   );
