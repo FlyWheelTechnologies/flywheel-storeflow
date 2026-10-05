@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
+import { Eye, EyeSlash } from "@phosphor-icons/react";
 import "./Auth.css";
 
 export default function Login() {
@@ -107,8 +108,9 @@ export default function Login() {
 
         <form className="auth-form" onSubmit={handleLogin}>
           <div className="form-group">
-            <label>Email Address</label>
+            <label htmlFor="email">Email Address</label>
             <input
+              id="email"
               type="email"
               placeholder="name@company.com"
               value={email}
@@ -119,9 +121,10 @@ export default function Login() {
           </div>
 
           <div className="form-group">
-            <label>Password</label>
+            <label htmlFor="password">Password</label>
             <div style={{ position: 'relative' }}>
               <input
+                id="password"
                 type={showPassword ? "text" : "password"}
                 placeholder="••••••••"
                 value={password}
@@ -133,9 +136,11 @@ export default function Login() {
               <button 
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6b7280', fontSize: '18px', cursor: 'pointer', padding: '5px' }}
+                style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#6b7280', fontSize: '18px', cursor: 'pointer', padding: '5px', display: 'flex', alignItems: 'center' }}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                title={showPassword ? "Hide password" : "Show password"}
               >
-                {showPassword ? "👁️‍🗨️" : "👁️"}
+                {showPassword ? <EyeSlash size={20} /> : <Eye size={20} />}
               </button>
             </div>
           </div>
