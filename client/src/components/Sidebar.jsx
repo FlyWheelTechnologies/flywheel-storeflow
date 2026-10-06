@@ -197,6 +197,7 @@ export default function Sidebar({ collapsed, onToggle }) {
                 onMouseEnter={e => e.currentTarget.style.color = '#f97316'}
                 onMouseLeave={e => e.currentTarget.style.color = '#6b7280'}
                 title="Refresh Data"
+                aria-label="Refresh Data"
               >
                 <ArrowsClockwise size={13} weight="bold" />
               </button>
