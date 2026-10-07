@@ -8,7 +8,7 @@ export default function ConfirmationModal({ show, title, message, onConfirm, onC
       <div className="modal-card" style={{ maxWidth: '380px' }}>
         <div className="modal-header">
           <h3 style={{ color: type === 'danger' ? '#ef4444' : '#111827' }}>{title}</h3>
-          <button className="close-btn" onClick={onCancel} disabled={isLoading}>✕</button>
+          <button aria-label="Close modal" className="close-btn" onClick={onCancel} disabled={isLoading}>✕</button>
         </div>
         <div className="modal-body">
           <p style={{ fontSize: '14px', color: '#374151', lineHeight: '1.5' }}>{message}</p>

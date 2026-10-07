@@ -314,7 +314,7 @@ const SalesForm = ({
                 </td>
                 <td style={{ fontWeight: 600 }}>GHS {formatCurrency(item.quantity * item.unit_price)}</td>
                 <td>
-                  <ActionButton variant="ghost" size="sm" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{ color: '#ef4444' }}>
+                  <ActionButton aria-label="Remove item" variant="ghost" size="sm" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{ color: '#ef4444' }}>
                     ✕
                   </ActionButton>
                 </td>
