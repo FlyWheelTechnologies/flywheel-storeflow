@@ -38,13 +38,42 @@ Deno.serve(async (req: Request) => {
       .select('product_name, quantity, unit_price, subtotal')
       .eq('sale_id', record.id);
 
-    // Get all admins to notify
-    const { data: admins } = await supabase
-      .from('profiles')
-      .select('email, full_name')
-      .eq('role', 'admin');
+    // Collect recipient emails to notify
+    const recipientEmails = new Set<string>();
 
-    if (!admins || admins.length === 0) {
+    if (record.admin_email) {
+      recipientEmails.add(record.admin_email);
+    }
+    if (record.notification_email) {
+      recipientEmails.add(record.notification_email);
+    }
+
+    // Check organization admin email if organization_id is provided
+    if (record.organization_id) {
+      const { data: orgData } = await supabase
+        .from('organizations')
+        .select('admin_email')
+        .eq('id', record.organization_id)
+        .single();
+      if (orgData?.admin_email) {
+        recipientEmails.add(orgData.admin_email);
+      }
+    }
+
+    // Get admin profiles (scoped to organization if provided)
+    let adminQuery = supabase.from('profiles').select('email').eq('role', 'admin');
+    if (record.organization_id) {
+      adminQuery = adminQuery.eq('organization_id', record.organization_id);
+    }
+    const { data: admins } = await adminQuery;
+    if (admins) {
+      for (const a of admins) {
+        if (a.email) recipientEmails.add(a.email);
+      }
+    }
+
+    if (recipientEmails.size === 0) {
+      console.log('No admin email addresses found to notify for deposit', record.id);
       return new Response('No admins to notify', { status: 200 });
     }
 
@@ -137,14 +166,12 @@ Deno.serve(async (req: Request) => {
       </div>
     `;
 
-    for (const admin of admins) {
-      if (admin.email) {
-        await sendEmail({
-          to: admin.email,
-          subject: `📥 New Deposit: ${record.customer_name} — GHS ${Number(record.total_amount).toFixed(2)}`,
-          html,
-        });
-      }
+    for (const email of recipientEmails) {
+      await sendEmail({
+        to: email,
+        subject: `📥 New Deposit: ${record.customer_name} — GHS ${Number(record.total_amount).toFixed(2)}`,
+        html,
+      });
     }
 
     return new Response(JSON.stringify({ sent: true }), {
