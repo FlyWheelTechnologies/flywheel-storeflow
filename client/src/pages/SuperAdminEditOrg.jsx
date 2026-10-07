@@ -442,7 +442,16 @@ export default function SuperAdminEditOrg() {
 
     setIsDeletingOrg(true);
     try {
-      // Delete organization row (cascades products, sales, customers, debt ledgers, payments)
+      // 1. Delete associated staff profiles for this business (preserve super admins)
+      const { error: staffDelErr } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("organization_id", id)
+        .neq("role", "super_admin");
+
+      if (staffDelErr) console.warn("Staff deletion warning:", staffDelErr.message);
+
+      // 2. Delete organization row (cascades products, sales, customers, debt ledgers, payments)
       const { error: delErr } = await supabase
         .from("organizations")
         .delete()
@@ -455,7 +464,7 @@ export default function SuperAdminEditOrg() {
         organization_id: null,
         organization_name: org.name,
         action: "ORG_DELETE",
-        details: `Permanently deleted business "${org.name}" and all associated tenant records.`,
+        details: `Permanently deleted business "${org.name}", removed staff accounts, and cleared tenant records.`,
         user_email: currentUser?.email
       });
 
@@ -1251,7 +1260,7 @@ export default function SuperAdminEditOrg() {
             <li>All completed and pending sales orders, receipts, and line-item records</li>
             <li>All customer directories and customer outstanding balance ledgers</li>
             <li>All expense entries, accounting records, and payment history</li>
-            <li>Staff profiles will be disassociated and unlinked from this store</li>
+            <li>All associated staff profiles and storekeeper accounts will be permanently removed</li>
           </ul>
 
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -1553,7 +1562,7 @@ export default function SuperAdminEditOrg() {
 
             <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: 12, marginBottom: 16 }}>
               <p style={{ margin: 0, fontSize: 13, color: "#991b1b", lineHeight: 1.5, fontWeight: 500 }}>
-                This will permanently delete all products, sales records, customer balances, expenses, and payments for <strong>{org.name}</strong>.
+                This will permanently delete all products, sales records, customer balances, expenses, payments, and associated staff accounts for <strong>{org.name}</strong>.
               </p>
             </div>
 

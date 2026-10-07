@@ -23,10 +23,11 @@ export default function SuperAdminDashboard() {
   const navigate = useNavigate();
   const [orgs, setOrgs] = useState([]);
   const [logs, setLogs] = useState([]);
-  const [stats, setStats] = useState({ totalOrgs: 0, totalUsers: 0, totalSales: 0 });
+  const [stats, setStats] = useState({ totalOrgs: 0, totalUsers: 0, orphanedUsers: 0, totalSales: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [orgSearchQuery, setOrgSearchQuery] = useState("");
+  const [isPurgingOrphans, setIsPurgingOrphans] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -55,9 +56,19 @@ export default function SuperAdminDashboard() {
         .from("organizations")
         .select("*", { count: "exact", head: true });
 
+      // Active staff accounts assigned to registered businesses (excluding super admins)
       const { count: userCount } = await supabase
         .from("profiles")
-        .select("*", { count: "exact", head: true });
+        .select("*", { count: "exact", head: true })
+        .not("organization_id", "is", null)
+        .neq("role", "super_admin");
+
+      // Orphaned staff accounts without any organization
+      const { count: orphanedUserCount } = await supabase
+        .from("profiles")
+        .select("*", { count: "exact", head: true })
+        .is("organization_id", null)
+        .neq("role", "super_admin");
 
       const { count: salesCount } = await supabase
         .from("sales")
@@ -66,6 +77,7 @@ export default function SuperAdminDashboard() {
       setStats({
         totalOrgs: orgCount || 0,
         totalUsers: userCount || 0,
+        orphanedUsers: orphanedUserCount || 0,
         totalSales: salesCount || 0,
       });
 
@@ -90,6 +102,31 @@ export default function SuperAdminDashboard() {
   const [deleteConfirmationInput, setDeleteConfirmationInput] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const handleCleanupOrphanedStaff = async () => {
+    if (!window.confirm(`Are you sure you want to permanently delete all ${stats.orphanedUsers} orphaned staff accounts? These accounts belonged to deleted stores and are unassigned.`)) {
+      return;
+    }
+
+    setIsPurgingOrphans(true);
+    try {
+      const { error: delErr } = await supabase
+        .from("profiles")
+        .delete()
+        .is("organization_id", null)
+        .neq("role", "super_admin");
+
+      if (delErr) throw delErr;
+
+      toast.success(`Successfully removed ${stats.orphanedUsers} orphaned staff accounts`);
+      await fetchData();
+    } catch (err) {
+      console.error("Cleanup error:", err);
+      toast.error("Failed to clean up orphaned accounts: " + err.message);
+    } finally {
+      setIsPurgingOrphans(false);
+    }
+  };
+
   const handleDeleteOrg = async () => {
     if (!orgToDelete) return;
     if (deleteConfirmationInput.trim() !== orgToDelete.name.trim()) {
@@ -99,7 +136,16 @@ export default function SuperAdminDashboard() {
 
     setIsDeleting(true);
     try {
-      // Delete organization (Cascade deletes products, sales, customers, etc.)
+      // 1. Delete associated staff profiles for this business (preserve super admins)
+      const { error: staffDelErr } = await supabase
+        .from("profiles")
+        .delete()
+        .eq("organization_id", orgToDelete.id)
+        .neq("role", "super_admin");
+
+      if (staffDelErr) console.warn("Staff deletion warning:", staffDelErr.message);
+
+      // 2. Delete organization (Cascade deletes products, sales, customers, etc.)
       const { error: deleteErr } = await supabase
         .from("organizations")
         .delete()
@@ -112,7 +158,7 @@ export default function SuperAdminDashboard() {
         organization_id: null,
         organization_name: orgToDelete.name,
         action: "ORG_DELETE",
-        details: `Permanently deleted business "${orgToDelete.name}"`,
+        details: `Permanently deleted business "${orgToDelete.name}" and removed associated staff accounts.`,
         user_email: user?.email,
       });
 
@@ -180,6 +226,44 @@ export default function SuperAdminDashboard() {
       {error && (
         <div style={{ background: "#fef2f2", color: "#ef4444", padding: "12px", borderRadius: "8px", marginBottom: "20px", fontSize: "13px", border: "1px solid #fee2e2" }}>
           ⚠️ {error}
+        </div>
+      )}
+
+      {stats.orphanedUsers > 0 && (
+        <div style={{
+          background: "#fffbeb",
+          color: "#92400e",
+          padding: "14px 18px",
+          borderRadius: "8px",
+          marginBottom: "20px",
+          fontSize: "13px",
+          border: "1px solid #fde68a",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 12
+        }}>
+          <div>
+            <strong>⚠️ {stats.orphanedUsers} Orphaned Staff Account{stats.orphanedUsers > 1 ? "s" : ""} Detected:</strong>{" "}
+            These accounts belonged to deleted businesses and are unassigned.
+          </div>
+          <button
+            onClick={handleCleanupOrphanedStaff}
+            disabled={isPurgingOrphans}
+            style={{
+              background: "#b45309",
+              color: "#fff",
+              border: "none",
+              padding: "7px 16px",
+              borderRadius: "6px",
+              fontSize: "12px",
+              fontWeight: 600,
+              cursor: isPurgingOrphans ? "not-allowed" : "pointer"
+            }}
+          >
+            {isPurgingOrphans ? "Purging..." : `Purge ${stats.orphanedUsers} Orphaned Account${stats.orphanedUsers > 1 ? "s" : ""}`}
+          </button>
         </div>
       )}
 
