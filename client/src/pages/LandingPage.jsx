@@ -410,7 +410,7 @@ export default function LandingPage() {
                 Store<span className="lp-brand-accent">Flow</span>
               </span>
             </Link>
-            <button className="lp-mobile-drawer-close" onClick={() => setMobileMenuOpen(false)}>
+            <button aria-label="Close mobile menu" className="lp-mobile-drawer-close" onClick={() => setMobileMenuOpen(false)}>
               ✕
             </button>
           </div>
