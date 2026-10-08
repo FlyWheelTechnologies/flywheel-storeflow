@@ -1,0 +1,3 @@
+## 2026-10-08 - Add ARIA Labels to Icon-Only Buttons
+**Learning:** The frontend app extensively uses icon-only buttons (like ✕, 📄, 📱) within crucial components like `SalesForm.jsx` and `SalesTable.jsx` without providing `aria-label` attributes. This presents a critical accessibility barrier for screen reader users who rely on textual descriptions to understand the purpose of these interactive elements.
+**Action:** Add descriptive `aria-label` attributes to all icon-only buttons (e.g., `aria-label="Remove item"` for a delete button) to ensure they are accessible. When building new components with icon buttons, always mandate the inclusion of an `aria-label`.
