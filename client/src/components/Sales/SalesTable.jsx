@@ -1,6 +1,7 @@
 import React from "react";
 import { formatCurrency } from "../../services/formatters";
 import { ActionButton, Input, Select } from "../ui/FormFields";
+import { DownloadSimple, UploadSimple, FilePdf, WhatsappLogo } from "@phosphor-icons/react";
 
 const SalesTable = ({
   filteredSales,
@@ -25,11 +26,11 @@ const SalesTable = ({
         <div className="table-card__actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 8 }}>
             <ActionButton variant="secondary" size="sm" onClick={onExportCSV} title="Export to CSV">
-              📤 Export
+              <DownloadSimple size={14} weight="bold" /> Export
             </ActionButton>
             <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Import from CSV">
               <ActionButton variant="secondary" size="sm">
-                📥 Import
+                <UploadSimple size={14} weight="bold" /> Import
               </ActionButton>
               <input type="file" accept=".csv" onChange={onImportCSV} style={{ display: 'none' }} />
             </label>
@@ -98,22 +99,22 @@ const SalesTable = ({
                   <td className="table-code">{s.invoice_no ? s.invoice_no : `#INV-${String(s.id).slice(-6).padStart(3, '0')}`}</td>
                   <td>{new Date(s.created_at).toLocaleDateString()}</td>
                   <td>{s.customer_name}</td>
-                  <td style={{ fontWeight: 600 }}>GHS {formatCurrency(s.total_amount)}</td>
-                  <td>GHS {formatCurrency(amountPaidDisplay)}</td>
+                  <td style={{ fontWeight: 600 }}>{formatCurrency(s.total_amount)}</td>
+                  <td>{formatCurrency(amountPaidDisplay)}</td>
                   <td>
                     <span className={`status-pill status-pill--${s.payment_status === 'PAID' ? 'ok' : 'low'}`}>
                       {s.payment_status}
                     </span>
                   </td>
                   <td>
-                    <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                       <ActionButton
                         variant="ghost"
                         size="sm"
                         onClick={() => onGenerateReceipt(s)}
                         title="Download PDF Receipt"
                       >
-                        📄
+                        <FilePdf size={16} weight="duotone" />
                       </ActionButton>
                       <ActionButton
                         variant="ghost"
@@ -121,7 +122,7 @@ const SalesTable = ({
                         onClick={() => onShareViaWhatsApp(s)}
                         title="Send receipt on WhatsApp"
                       >
-                        📱
+                        <WhatsappLogo size={16} weight="duotone" />
                       </ActionButton>
                     </div>
                   </td>

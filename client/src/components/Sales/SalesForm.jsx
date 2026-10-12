@@ -135,7 +135,7 @@ const SalesForm = ({
       {/* SECTION 1: CUSTOMER & NOTES */}
       <CardSection>
         <SectionHeader number="01">Customer Information</SectionHeader>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 20 }}>
+        <div className="sales-form-grid-3">
           <div style={{ position: 'relative' }}>
             <Label required>Select Customer</Label>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -216,112 +216,114 @@ const SalesForm = ({
       {/* SECTION 2: ITEMS */}
       <CardSection>
         <SectionHeader number="02">Items Selection</SectionHeader>
-        <table className="stock-table" style={{ marginBottom: 16 }}>
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>Qty</th>
-              <th>Unit Price</th>
-              <th>Subtotal</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item, idx) => (
-              <tr key={idx}>
-                <td style={{ position: 'relative' }}>
-                  <div style={{ position: 'relative' }}>
-                    <Input
-                      placeholder="Search code or name..."
-                      value={item.product_id ? (products.find(p => p.id === parseInt(item.product_id) || p.id === item.product_id)?.name || '') : item.searchQuery || ''}
-                      onChange={(e) => {
-                        const newItems = [...items];
-                        newItems[idx].searchQuery = e.target.value;
-                        newItems[idx].product_id = '';
-                        setItems(newItems);
-                      }}
-                      onFocus={() => {
-                        const newItems = [...items];
-                        newItems[idx].showDropdown = true;
-                        setItems(newItems);
-                      }}
-                      style={{ minWidth: 250 }}
-                    />
-                    {item.showDropdown && (
-                      <div className="search-dropdown" style={{
-                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-                        background: 'white', border: '1px solid #e5e7eb', borderRadius: 8,
-                        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', marginTop: 4,
-                        maxHeight: 250, overflowY: 'auto'
-                      }}>
-                        {products.filter(p =>
-                          !item.searchQuery ||
-                          (p.name?.toLowerCase() || '').includes(item.searchQuery.toLowerCase()) ||
-                          (p.item_code?.toLowerCase() || '').includes(item.searchQuery.toLowerCase())
-                        ).length === 0 ? (
-                          <div style={{ padding: '12px 16px', color: '#9ca3af', fontSize: 13, textAlign: 'center' }}>
-                            ⚠️ Product not found
-                          </div>
-                        ) : (
-                          products.filter(p =>
+        <div className="table-wrapper">
+          <table className="stock-table" style={{ marginBottom: 16 }}>
+            <thead>
+              <tr>
+                <th>Product</th>
+                <th>Qty</th>
+                <th>Unit Price</th>
+                <th>Subtotal</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, idx) => (
+                <tr key={idx}>
+                  <td style={{ position: 'relative' }}>
+                    <div style={{ position: 'relative' }}>
+                      <Input
+                        placeholder="Search code or name..."
+                        value={item.product_id ? (products.find(p => p.id === parseInt(item.product_id) || p.id === item.product_id)?.name || '') : item.searchQuery || ''}
+                        onChange={(e) => {
+                          const newItems = [...items];
+                          newItems[idx].searchQuery = e.target.value;
+                          newItems[idx].product_id = '';
+                          setItems(newItems);
+                        }}
+                        onFocus={() => {
+                          const newItems = [...items];
+                          newItems[idx].showDropdown = true;
+                          setItems(newItems);
+                        }}
+                        style={{ minWidth: 250 }}
+                      />
+                      {item.showDropdown && (
+                        <div className="search-dropdown" style={{
+                          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                          background: 'white', border: '1px solid #e5e7eb', borderRadius: 8,
+                          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', marginTop: 4,
+                          maxHeight: 250, overflowY: 'auto'
+                        }}>
+                          {products.filter(p =>
                             !item.searchQuery ||
                             (p.name?.toLowerCase() || '').includes(item.searchQuery.toLowerCase()) ||
                             (p.item_code?.toLowerCase() || '').includes(item.searchQuery.toLowerCase())
-                          ).map(p => (
-                            <div
-                              key={p.id}
-                              style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', transition: 'background 0.2s' }}
-                              className="search-item"
-                              onClick={() => {
-                                const newItems = [...items];
-                                newItems[idx].product_id = p.id;
-                                newItems[idx].product_name = p.name;
-                                newItems[idx].unit_price = p.selling_price;
-                                newItems[idx].showDropdown = false;
-                                newItems[idx].searchQuery = p.name;
-                                setItems(newItems);
-                              }}
-                            >
-                              <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{p.name}</div>
-                              <div style={{ fontSize: 11, color: '#6b7280' }}>
-                                {p.item_code} • {p.stock_quantity} {p.selling_uom} available
-                              </div>
+                          ).length === 0 ? (
+                            <div style={{ padding: '12px 16px', color: '#9ca3af', fontSize: 13, textAlign: 'center' }}>
+                              ⚠️ Product not found
                             </div>
-                          ))
-                        )}
-                      </div>
-                    )}
-                    {item.showDropdown && <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={() => {
+                          ) : (
+                            products.filter(p =>
+                              !item.searchQuery ||
+                              (p.name?.toLowerCase() || '').includes(item.searchQuery.toLowerCase()) ||
+                              (p.item_code?.toLowerCase() || '').includes(item.searchQuery.toLowerCase())
+                            ).map(p => (
+                              <div
+                                key={p.id}
+                                style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', transition: 'background 0.2s' }}
+                                className="search-item"
+                                onClick={() => {
+                                  const newItems = [...items];
+                                  newItems[idx].product_id = p.id;
+                                  newItems[idx].product_name = p.name;
+                                  newItems[idx].unit_price = p.selling_price;
+                                  newItems[idx].showDropdown = false;
+                                  newItems[idx].searchQuery = p.name;
+                                  setItems(newItems);
+                                }}
+                              >
+                                <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{p.name}</div>
+                                <div style={{ fontSize: 11, color: '#6b7280' }}>
+                                  {p.item_code} • {p.stock_quantity} {p.selling_uom} available
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                      {item.showDropdown && <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={() => {
+                        const newItems = [...items];
+                        newItems[idx].showDropdown = false;
+                        setItems(newItems);
+                      }} />}
+                    </div>
+                  </td>
+                  <td>
+                    <Input type="number" min="1" value={item.quantity} onChange={e => {
                       const newItems = [...items];
-                      newItems[idx].showDropdown = false;
+                      newItems[idx].quantity = parseFloat(e.target.value) || 0;
                       setItems(newItems);
-                    }} />}
-                  </div>
-                </td>
-                <td>
-                  <Input type="number" min="1" value={item.quantity} onChange={e => {
-                    const newItems = [...items];
-                    newItems[idx].quantity = parseFloat(e.target.value) || 0;
-                    setItems(newItems);
-                  }} style={{ width: 80 }} />
-                </td>
-                <td>
-                  <Input type="number" step="0.01" value={item.unit_price} onChange={e => {
-                    const newItems = [...items];
-                    newItems[idx].unit_price = parseFloat(e.target.value) || 0;
-                    setItems(newItems);
-                  }} style={{ width: 100 }} />
-                </td>
-                <td style={{ fontWeight: 600 }}>GHS {formatCurrency(item.quantity * item.unit_price)}</td>
-                <td>
-                  <ActionButton variant="ghost" size="sm" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{ color: '#ef4444' }}>
-                    ✕
-                  </ActionButton>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                    }} style={{ width: 80 }} />
+                  </td>
+                  <td>
+                    <Input type="number" step="0.01" value={item.unit_price} onChange={e => {
+                      const newItems = [...items];
+                      newItems[idx].unit_price = parseFloat(e.target.value) || 0;
+                      setItems(newItems);
+                    }} style={{ width: 100 }} />
+                  </td>
+                  <td style={{ fontWeight: 600 }}>{formatCurrency(item.quantity * item.unit_price)}</td>
+                  <td>
+                    <ActionButton variant="ghost" size="sm" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{ color: '#ef4444' }}>
+                      ✕
+                    </ActionButton>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
         <ActionButton variant="secondary" size="sm" onClick={() => setItems([...items, { product_id: '', product_name: '', quantity: 1, unit_price: 0 }])}>
           + Add Item Row
         </ActionButton>
@@ -344,7 +346,7 @@ const SalesForm = ({
           </span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', gap: 20, padding: 20, background: '#f9fafb', borderRadius: 12, border: '1px solid #e5e7eb' }}>
+        <div className="sales-form-grid-4">
           <div>
             <Label>Tax Options</Label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -359,7 +361,7 @@ const SalesForm = ({
               </label>
             </div>
             <div style={{ fontSize: 11, color: '#6b7280', marginTop: 6 }}>
-              Tax: GHS {formatCurrency(taxAmount)}
+              Tax: {formatCurrency(taxAmount)}
               {taxPercentage === 20 && (
                 <span style={{ display: 'block', fontSize: '10px', color: '#059669', fontWeight: 600, marginTop: 2 }}>
                   🇬🇭 15% VAT • 2.5% NHIL • 2.5% GETFund
@@ -379,7 +381,7 @@ const SalesForm = ({
           </div>
           <div>
             <Label>Grand Total</Label>
-            <p style={{ fontSize: 24, fontWeight: 800, color: '#111827' }}>GHS {formatCurrency(grandTotal)}</p>
+            <p style={{ fontSize: 24, fontWeight: 800, color: '#111827' }}>{formatCurrency(grandTotal)}</p>
           </div>
           <div>
             <Label required>{isDeposit ? 'Deposit Amt' : 'Paid Amt'}</Label>
@@ -397,9 +399,9 @@ const SalesForm = ({
               value={paymentMethod}
               onChange={e => setPaymentMethod(e.target.value)}
               options={[
-                { value: "Cash", label: "💵 Cash" },
-                { value: "Momo", label: "📱 Momo" },
-                { value: "Bank", label: "🏦 Bank" }
+                { value: "Cash", label: "Cash" },
+                { value: "Momo", label: "Mobile Money (MoMo)" },
+                { value: "Bank", label: "Bank Transfer" }
               ]}
               style={{ fontWeight: 600 }}
             />
@@ -407,22 +409,22 @@ const SalesForm = ({
         </div>
 
         {customerCredit > 0 && (
-          <div style={{ marginTop: 16, padding: 16, background: '#f0fdf4', borderRadius: 12, border: '1.5px dashed #22c55e', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ marginTop: 16, padding: 16, background: '#f8fafc', borderRadius: 12, border: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <div>
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#166534' }}>🎁 Available Customer Credit: GHS {formatCurrency(customerCredit)}</span>
-              <p style={{ fontSize: 11, color: '#15803d', margin: '4px 0 0' }}>This customer has overpaid in the past. You can apply this to the current sale.</p>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>Available Customer Credit: {formatCurrency(customerCredit)}</span>
+              <p style={{ fontSize: 11, color: '#64748b', margin: '4px 0 0' }}>This customer has overpaid in the past. You can apply this to the current sale.</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <label style={{ fontSize: 12, fontWeight: 600 }}>Apply Credit: </label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Apply Credit: </label>
               <Input
                 type="number"
                 step="0.01"
                 value={useCredit}
                 onChange={e => setUseCredit(e.target.value)}
-                style={{ width: 100, border: '1.5px solid #22c55e' }}
+                style={{ width: 100, border: '1px solid #cbd5e1' }}
               />
               <ActionButton
-                variant="success"
+                variant="secondary"
                 size="sm"
                 onClick={() => setUseCredit(Math.min(customerCredit, grandTotal))}
               >
@@ -432,27 +434,27 @@ const SalesForm = ({
           </div>
         )}
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20 }}>
-          <div style={{ display: 'flex', gap: 20 }}>
+        <div className="sales-form-submit-row">
+          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap' }}>
             <div>
               <Label>Subtotal</Label>
-              <p style={{ fontSize: 15, fontWeight: 600, color: '#6b7280' }}>GHS {formatCurrency(total)}</p>
+              <p style={{ fontSize: 15, fontWeight: 600, color: '#64748b' }}>{formatCurrency(total)}</p>
             </div>
             <div>
               <Label>{isDeposit ? 'Balance on Delivery' : (balance < 0 ? 'Change' : 'Balance Due')}</Label>
-              <p style={{ fontSize: 15, fontWeight: 700, color: balance > 0 ? (isDeposit ? '#f59e0b' : '#ef4444') : '#059669' }}>
-                GHS {formatCurrency(Math.abs(balance))}
+              <p style={{ fontSize: 15, fontWeight: 700, color: balance > 0 ? (isDeposit ? '#d97706' : '#ef4444') : '#0f172a' }}>
+                {formatCurrency(Math.abs(balance))}
               </p>
             </div>
           </div>
           <ActionButton
-            variant={isDeposit ? 'success' : 'primary'}
-            fullWidth
+            variant={isDeposit ? 'primary' : 'primary'}
             onClick={handleSubmit}
             disabled={saving}
-            style={{ width: 280, height: 50, fontSize: 16 }}
+            className="sales-form-confirm-btn"
+            style={{ minWidth: 240, height: 48, fontSize: 15 }}
           >
-            {isDeposit ? '📥 Record Deposit' : 'Confirm & Complete Sale'}
+            {isDeposit ? 'Record Deposit' : 'Confirm & Complete Sale'}
           </ActionButton>
         </div>
       </CardSection>

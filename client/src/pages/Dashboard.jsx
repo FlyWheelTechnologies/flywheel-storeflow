@@ -9,7 +9,25 @@ import { useToast } from "../context/ToastContext";
 import { BarChart, Bar, AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, ResponsiveContainer, Legend } from 'recharts';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { BrainCircuit, ArrowRight, TrendingUp } from "lucide-react";
+import {
+  Package,
+  TrendUp,
+  Percent,
+  Receipt,
+  Warning,
+  Tag,
+  ArrowDownLeft,
+  ArrowUpRight,
+  FileText,
+  ShieldCheck,
+  ChartLineUp,
+  Coins,
+  Clock,
+  CurrencyCircleDollar,
+  HandCoins,
+  Plus,
+  ShoppingCart
+} from "@phosphor-icons/react";
 import "./Dashboard.css";
 import { formatCurrency, formatPhone } from "../services/formatters";
 import { ActionButton, Label, Input, Select } from "../components/ui/FormFields";
@@ -197,6 +215,17 @@ export default function Dashboard() {
 
   const userName = user?.full_name || user?.email?.split('@')[0];
 
+  const todayExpenses = useMemo(() => {
+    const todayDate = new Date().toDateString();
+    return expenses
+      .filter(e => new Date(e.created_at).toDateString() === todayDate)
+      .reduce((acc, e) => acc + parseFloat(e.amount || 0), 0);
+  }, [expenses]);
+
+  const pendingOrdersCount = useMemo(() => {
+    return sales.filter(s => s.payment_status === 'DEPOSIT' || (s.payment_status === 'PARTIAL' && s.balance_due > 0)).length;
+  }, [sales]);
+
   const chartData = useMemo(() => {
     if (timeframe === '7d' || timeframe === '30d') {
       const days = timeframe === '7d' ? 7 : 30;
@@ -248,136 +277,132 @@ export default function Dashboard() {
     return <PageSkeleton title stats={true} table={false} />;
   }
 
+  const locationString = activeOrg?.address || activeOrg?.city || user?.organizations?.address || 'SUNYANI, GHANA';
+  const firstName = userName ? userName.split(' ')[0] : 'Godwin';
+
   return (
     <div className="page-wrapper" style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div className="greeting-card__content">
-            {/* Prominent Business Name on top of Dashboard */}
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 8,
-              marginBottom: 8,
-              padding: '5px 14px',
-              borderRadius: 8,
-              background: 'var(--brand-bg-light, rgba(249, 115, 22, 0.08))',
-              border: '1px solid var(--brand-border, rgba(249, 115, 22, 0.2))'
-            }}>
-              {activeOrg?.logo_url ? (
-                <img
-                  src={activeOrg.logo_url}
-                  alt={businessName}
-                  style={{ width: 20, height: 20, borderRadius: '50%', objectFit: 'cover' }}
-                />
-              ) : (
-                <span style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: 'var(--brand-primary, #f97316)',
-                  boxShadow: '0 0 6px var(--brand-primary, #f97316)'
-                }} />
-              )}
-              <span style={{
-                fontSize: 13,
-                fontWeight: 800,
-                color: 'var(--brand-primary, #f97316)',
-                textTransform: 'uppercase',
-                letterSpacing: 1.2
-              }}>
-                {businessName}
-              </span>
-            </div>
-            <h1 className="greeting" style={{ marginBottom: 4 }}>Good {getGreeting()}, <span style={{ color: 'var(--brand-primary, #f15a24)' }}>{user?.full_name?.split(' ')[0] || 'Member'}</span>!</h1>
-            <p className="greeting-sub">
-              {depletedCount > 0 ? (
-                <span style={{ color: '#ef4444', fontWeight: 800 }}>⚠️ {depletedCount} items are completely depleted! </span>
-              ) : lowStockCount > 0 ? (
-                `You have ${lowStockCount} items running low. `
-              ) : (
-                'All stock levels are healthy. '
-              )}
-              {user?.role !== 'storekeeper' && (
-                <>Today's revenue is <span style={{ fontWeight: 700, color: '#f15a24' }}>{formatCurrency(todayRevenue, currency)}</span>.</>
-              )}
-            </p>
+      {/* ─── Top Header with Main Action Buttons on the Top Right Corner ─── */}
+      <div className="dash-header-row">
+        <div className="dash-header-left">
+          <div className="dash-header-location">
+            {locationString.toUpperCase()} <span className="dash-header-country">GH</span>
           </div>
-        </div>
-        <div style={{ display: 'flex', gap: 10 }}>
-          {user?.role !== 'auditor' && (
-            <>
-              <ActionButton variant="secondary" onClick={() => navigate("/expenses", { state: { showForm: true } })}>
-                Record Expense
-              </ActionButton>
-              <ActionButton variant="info" onClick={() => navigate("/deposits", { state: { showForm: true } })}>
-                📥 Record Deposit
-              </ActionButton>
-              <ActionButton variant="info" style={{ background: '#4f46e5' }} onClick={() => navigate("/products", { state: { showForm: true } })}>
-                + Add Product
-              </ActionButton>
-              <ActionButton variant="success" onClick={() => navigate("/sales", { state: { showForm: true } })}>
-                Record Sale
-              </ActionButton>
-            </>
+          <h1 className="dash-header-title">
+            Good {getGreeting()}, <span className="dash-header-name">{firstName}!</span>
+          </h1>
+          {depletedCount > 0 ? (
+            <div className="dash-header-alert">
+              <span className="dash-header-alert-icon">⚠️</span>{" "}
+              <strong>{depletedCount} item{depletedCount > 1 ? 's are' : ' is'} completely depleted!</strong> Today's revenue is {formatCurrency(todayRevenue, currency)}.
+            </div>
+          ) : (
+            <div className="dash-header-subtitle">
+              Today's revenue is <strong>{formatCurrency(todayRevenue, currency)}</strong>.
+            </div>
           )}
         </div>
+
+        {user?.role !== 'auditor' && (
+          <div className="dash-header-actions">
+            <button
+              type="button"
+              className="dash-action-btn dash-action-btn--expense"
+              onClick={() => navigate("/expenses", { state: { showForm: true } })}
+            >
+              Record Expense
+            </button>
+
+            <button
+              type="button"
+              className="dash-action-btn dash-action-btn--deposit"
+              onClick={() => setShowDepositModal(true)}
+            >
+              Record Deposit
+            </button>
+
+            <button
+              type="button"
+              className="dash-action-btn dash-action-btn--product"
+              onClick={() => navigate("/products", { state: { showAddProduct: true } })}
+            >
+              + Add Product
+            </button>
+
+            <button
+              type="button"
+              className="dash-action-btn dash-action-btn--sale"
+              onClick={() => navigate("/sales")}
+            >
+              Record Sale
+            </button>
+          </div>
+        )}
       </div>
 
+      {/* ─── Executive KPI Cards Grid ─── */}
       <div className="kpi-row">
-        {user?.role !== 'storekeeper' && (
+        {user?.role !== 'storekeeper' ? (
           <>
             <StatCard
-              label={<>Today's Cash In <InfoTip text="Total cash and momo collected today." /></>}
+              label={<>Today's Cash In <InfoTip text="Money collected from customer payments today." /></>}
               value={`${formatCurrency(todayCashIn, currency)}`}
-              icon="💰"
+              icon={<Coins size={18} weight="duotone" />}
             />
             <StatCard
-              label={<>Today's Revenue <InfoTip text="Total volume of sales recorded (Paid + Credit)." /></>}
+              label={<>Today's Revenue <InfoTip text="Total value of sales recorded today." /></>}
               value={`${formatCurrency(todayRevenue, currency)}`}
-              icon="📈"
-              accent="primary"
+              icon={<TrendUp size={18} weight="duotone" />}
             />
-          </>
-        )}
-        <StatCard
-          label={<>Pending Deposits <InfoTip text="Orders paid in advance awaiting fulfillment." /></>}
-          value={`${sales.filter(s => s.payment_status === 'DEPOSIT' || (s.payment_status === 'PARTIAL' && s.balance_due > 0)).length} Orders`}
-          accent="primary"
-          icon="⏳"
-        />
-        {user?.role === 'storekeeper' ? (
-          <StatCard
-            label={<>Total Products <InfoTip text="Total number of unique products." /></>}
-            value={`${products.length} Products`}
-            icon="📦"
-          />
-        ) : (
-          <>
             <StatCard
-              label={<>Stock Value <InfoTip text="Total value of all items currently in warehouse (Cost Price)." /></>}
+              label={<>Pending Deposits <InfoTip text="Orders with outstanding balance or customer advance deposits awaiting fulfillment." /></>}
+              value={`${pendingOrdersCount} Orders`}
+              icon={<Clock size={18} weight="duotone" />}
+            />
+            <StatCard
+              label={<>Stock Value <InfoTip text="Total warehouse inventory value at cost price." /></>}
               value={`${formatCurrency(stockValue, currency)}`}
-              icon="📦"
+              icon={<Package size={18} weight="duotone" />}
             />
             <StatCard
-              label={<>Sales Value <InfoTip text="Total cash you'll collect if everything sells. The % shows your 'Markup'—how much you added on top of the cost price." /></>}
+              label={<>Sales Value <InfoTip text="Estimated cash collection if all inventory sells at current prices." /></>}
               value={`${formatCurrency(totalSalesValue, currency)}`}
-              icon="💵"
+              icon={<CurrencyCircleDollar size={18} weight="duotone" />}
             >
               {totalProfit > 0 && (
-                <div style={{ marginTop: 8, fontSize: 13, color: '#10b981', fontWeight: 600 }}>
+                <div style={{ marginTop: 4, fontSize: 11.5, color: '#059669', fontWeight: 600 }}>
                   +{formatCurrency(totalProfit, currency)} (+{profitPercentage}%)
                 </div>
               )}
             </StatCard>
+            <StatCard
+              label={<>Low Stock <InfoTip text="Items that have fallen below their minimum restock threshold." /></>}
+              value={`${lowStockCount} Items`}
+              accent={lowStockCount > 0 ? "warning" : ""}
+              icon={<Warning size={18} weight="duotone" />}
+            >
+              {depletedCount > 0 && (
+                <div style={{ marginTop: 4, fontSize: 11.5, color: '#dc2626', fontWeight: 600 }}>
+                  {depletedCount} completely depleted
+                </div>
+              )}
+            </StatCard>
+          </>
+        ) : (
+          <>
+            <StatCard
+              label={<>Total Products <InfoTip text="Total number of unique catalog products." /></>}
+              value={`${products.length} Products`}
+              icon={<Package size={18} weight="duotone" />}
+            />
+            <StatCard
+              label={<>Low Stock <InfoTip text="Items that have fallen below their minimum restock threshold." /></>}
+              value={`${lowStockCount} Items`}
+              accent={lowStockCount > 0 ? "warning" : ""}
+              icon={<Warning size={18} weight="duotone" />}
+            />
           </>
         )}
-        <StatCard
-          label={<>Low Stock <InfoTip text="Items that have fallen below their minimum threshold." /></>}
-          value={`${lowStockCount} Items`}
-          accent="warning"
-          icon="⚠️"
-        />
       </div>
 
       <div className={`dashboard-grid ${user?.role === 'storekeeper' ? 'dashboard-grid--storekeeper' : ''}`}>
@@ -447,30 +472,25 @@ export default function Dashboard() {
 
         <div className="quick-actions" style={{ width: '100%' }}>
           <div className="table-card" style={{ height: '100%', padding: 20 }}>
-            <h3 className="table-card__title" style={{ marginBottom: 20 }}>System Tools</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <h3 className="table-card__title" style={{ marginBottom: 16 }}>System Tools</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <ActionButton variant="secondary" fullWidth onClick={generatePDF}>
-                📄 Download PDF Report
+                <FileText size={15} weight="bold" /> Download PDF Report
               </ActionButton>
               {user?.role === 'admin' && (
                 <ActionButton variant="secondary" fullWidth onClick={() => setShowAudit(true)}>
-                  🔍 System Audit View
-                </ActionButton>
-              )}
-              {user?.role === 'storekeeper' && (
-                <ActionButton variant="secondary" fullWidth style={{ background: '#0f172a' }} onClick={() => navigate('/ai')}>
-                  <BrainCircuit size={15} /> StoreFlow AI Assistant
+                  <ShieldCheck size={15} weight="bold" /> System Audit View
                 </ActionButton>
               )}
             </div>
 
             {user?.role !== 'storekeeper' && (
               <>
-                <h3 className="table-card__title" style={{ marginTop: 28, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 7 }}>
-                  <TrendingUp size={16} style={{ color: 'var(--brand-primary, #f15a24)' }} />
+                <h3 className="table-card__title" style={{ marginTop: 24, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <ChartLineUp size={16} weight="bold" />
                   Quick Insights
                 </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <div className="summary-card">
                     <div className="summary-card__label">Best Sellers</div>
                     <div className="summary-card__value" style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
@@ -482,83 +502,10 @@ export default function Dashboard() {
                     </div>
                     <div className="summary-card__sub">Top items by volume</div>
                   </div>
-                  <div className="summary-card" style={{ background: '#ecfdf5', borderColor: '#a7f3d0' }}>
-                    <div className="summary-card__label" style={{ color: '#065f46' }}>Gross Margin <InfoTip text="How much of your current sales is actual profit. It shows what percentage of every GHS 1 earned is yours to keep after paying for the products." /></div>
-                    <div className="summary-card__value" style={{ color: '#065f46' }}>{actualGrossMargin}%</div>
-                    <div className="summary-card__sub" style={{ color: '#047857' }}>Based on current stock pricing</div>
-                  </div>
-
-                  {/* StoreFlow AI Executive Button & Capabilities */}
-                  <div className="storeflow-ai-widget">
-                    <ActionButton
-                      variant="secondary"
-                      fullWidth
-                      onClick={() => navigate(user?.role === 'super_admin' ? "/admin/ai" : "/ai")}
-                      title="Open StoreFlow AI Copilot"
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{
-                            background: 'var(--brand-primary, #f15a24)',
-                            padding: 8,
-                            borderRadius: 10,
-                            boxShadow: '0 0 12px var(--brand-primary, #f15a24)'
-                          }}>
-                            <BrainCircuit size={17} style={{ color: '#fff' }} />
-                          </div>
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <span style={{ fontWeight: 700, fontSize: 14 }}>StoreFlow AI</span>
-                              <span style={{
-                                background: 'var(--brand-primary, #f15a24)',
-                                color: '#fff',
-                                fontSize: 10,
-                                fontWeight: 700,
-                                padding: '2px 8px',
-                                borderRadius: 999
-                              }}>
-                                Copilot
-                              </span>
-                            </div>
-                            <span style={{ fontSize: 12, color: '#6b7280' }}>
-                              Stockout forecasts & retail copilot
-                            </span>
-                          </div>
-                        </div>
-                        <div style={{
-                          background: 'var(--brand-primary, #f15a24)',
-                          padding: 8,
-                          borderRadius: 8,
-                          color: '#fff'
-                        }}>
-                          <ArrowRight size={14} />
-                        </div>
-                      </div>
-                    </ActionButton>
-
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <ActionButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(user?.role === 'super_admin' ? "/admin/ai" : "/ai", { state: { tab: 'reorder' } })}
-                      >
-                        Restock Forecast
-                      </ActionButton>
-                      <ActionButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(user?.role === 'super_admin' ? "/admin/ai" : "/ai", { state: { tab: 'deadstock' } })}
-                      >
-                        Dead Stock
-                      </ActionButton>
-                      <ActionButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => navigate(user?.role === 'super_admin' ? "/admin/ai" : "/ai", { state: { tab: 'copilot' } })}
-                      >
-                        Ask Copilot
-                      </ActionButton>
-                    </div>
+                  <div className="summary-card">
+                    <div className="summary-card__label">Gross Margin <InfoTip text="Profit retained after product inventory cost." /></div>
+                    <div className="summary-card__value">{actualGrossMargin}%</div>
+                    <div className="summary-card__sub">Based on current stock pricing</div>
                   </div>
                 </div>
               </>
@@ -596,14 +543,14 @@ export default function Dashboard() {
                     <td>{p.selling_uom}</td>
                     <td>
                       {p.stock_quantity <= 0 ? (
-                        <span className="status-pill" style={{ background: '#000', color: '#fff', fontSize: '10px' }}>DEPLETED</span>
+                        <span style={{ color: '#ef4444', fontSize: '12px', fontWeight: 600 }}>Out of Stock</span>
                       ) : p.stock_quantity < (p.low_stock_threshold || 10) ? (
-                        <span className={`status-pill status-pill--low`} style={{ fontSize: '10px' }}>
-                          Low Stock
+                        <span style={{ color: '#d97706', fontSize: '12px', fontWeight: 600 }}>
+                          Low Stock ({p.stock_quantity})
                         </span>
                       ) : (
-                        <span className={`status-pill status-pill--ok`} style={{ fontSize: '10px' }}>
-                          OK
+                        <span style={{ color: '#059669', fontSize: '12px', fontWeight: 500 }}>
+                          In Stock
                         </span>
                       )}
                     </td>
@@ -627,7 +574,7 @@ export default function Dashboard() {
                   {logs.slice(0, 20).map(l => (
                     <tr key={l.id}>
                       <td style={{ fontWeight: 600 }}>{l.user_email}</td>
-                      <td><span className="status-pill status-pill--ok" style={{ fontSize: 10 }}>{l.action}</span></td>
+                      <td><span style={{ fontSize: 12, fontWeight: 600, color: '#334155', fontFamily: 'monospace' }}>{l.action}</span></td>
                       <td>{l.details}</td>
                       <td style={{ color: '#9ca3af' }}>{new Date(l.created_at).toLocaleTimeString()}</td>
                     </tr>
@@ -642,7 +589,7 @@ export default function Dashboard() {
       {showDepositModal && (
         <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3000, backdropFilter: 'blur(4px)' }}>
           <div style={{ background: '#fff', padding: 32, borderRadius: 20, width: 420, boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)' }}>
-            <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8, color: '#111827' }}>📥 Record Customer Deposit</h2>
+            <h2 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8, color: '#111827' }}>Record Customer Deposit</h2>
             <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 24 }}>Add a prepayment to a customer's account balance. This does not affect stock.</p>
 
             <form onSubmit={handlePureDeposit}>

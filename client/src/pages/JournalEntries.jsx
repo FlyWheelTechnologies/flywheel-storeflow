@@ -4,21 +4,13 @@ import { useAuth } from "../context/AuthContext";
 import "./Dashboard.css";
 import { formatCurrency } from "../services/formatters";
 
+import { ActionButton } from "../components/ui/FormFields";
+
 const InfoTip = ({ text }) => (
   <span className="info-tip" title={text}>ⓘ
     <span className="info-tip__content">{text}</span>
   </span>
 );
-
-const getAccountColor = (type) => {
-  const t = type?.toUpperCase();
-  if (t === 'REVENUE' || t === 'CASH_IN' || t === 'CASH') return { bg: '#ecfdf5', text: '#059669' }; // Green
-  if (t === 'EXPENSE' || t === 'TAX_PAYABLE') return { bg: '#fef2f2', text: '#ef4444' }; // Red
-  if (t === 'ACCOUNTS_RECEIVABLE' || t === 'DEBT') return { bg: '#fff7ed', text: '#f97316' }; // Orange
-  if (t === 'MOMO' || t === 'BANK' || t === 'CHECKING') return { bg: '#eff6ff', text: '#2563eb' }; // Blue
-  if (t === 'CUSTOMER_DEPOSIT' || t === 'INTEREST') return { bg: '#f5f3ff', text: '#7c3aed' }; // Purple
-  return { bg: '#f3f4f6', text: '#6b7280' }; // Gray
-};
 
 export default function JournalEntries() {
   const { user, activeOrgId } = useAuth();
@@ -223,32 +215,32 @@ export default function JournalEntries() {
               <option key={type} value={type}>{type}</option>
             ))}
           </select>
-          <button onClick={handleExportCSV} className="action-btn" style={{ background: '#059669', color: '#fff' }}>
+          <ActionButton onClick={handleExportCSV} variant="secondary">
             {viewMode === 'Daily' ? 'Audit Export' : 'Export All'}
-          </button>
-          <button onClick={() => window.print()} className="action-btn" style={{ background: '#333', color: '#fff' }}>
+          </ActionButton>
+          <ActionButton onClick={() => window.print()} variant="secondary">
             Print PDF
-          </button>
+          </ActionButton>
         </div>
       </div>
 
       <div className="kpi-row" style={{ marginBottom:24 }}>
         <div className="stat-card">
           <div className="stat-card__header"><span className="stat-card__label">Expected Revenue <InfoTip text="Total sales recorded including tax. This is what you should have collected if all sales were paid." /></span></div>
-          <div className="stat-card__value">GHS {formatCurrency(report.totalsales)}</div>
-          <div style={{fontSize:11, color:'#6b7280', marginTop:4}}>Includes GHS {formatCurrency(report.totaltax)} Tax</div>
+          <div className="stat-card__value">{formatCurrency(report.totalsales)}</div>
+          <div style={{fontSize:11, color:'#6b7280', marginTop:4}}>Includes {formatCurrency(report.totaltax)} Tax</div>
         </div>
         <div className="stat-card">
           <div className="stat-card__header"><span className="stat-card__label">Actual Cash In <InfoTip text="Money actually received from customers via cash, momo, or bank deposits." /></span></div>
-          <div className="stat-card__value" style={{color:'#059669'}}>GHS {formatCurrency(report.totalpaid)}</div>
+          <div className="stat-card__value" style={{color:'#059669'}}>{formatCurrency(report.totalpaid)}</div>
         </div>
         <div className="stat-card">
           <div className="stat-card__header"><span className="stat-card__label">Total Expenses <InfoTip text="All operational costs recorded: utilities, staff, supplies, rent, etc." /></span></div>
-          <div className="stat-card__value" style={{color:'#ef4444'}}>GHS {formatCurrency(report.totalexpenses)}</div>
+          <div className="stat-card__value" style={{color:'#ef4444'}}>{formatCurrency(report.totalexpenses)}</div>
         </div>
         <div className="stat-card" style={{borderLeft:'3px solid var(--brand-primary)'}}>
           <div className="stat-card__header"><span className="stat-card__label">Net Cash Balance <InfoTip text="What you have left after expenses. Calculated as: Actual Cash In - Total Expenses." /></span></div>
-          <div className="stat-card__value" style={{color: report.netcash >= 0 ? '#059669' : '#ef4444'}}>GHS {formatCurrency(report.netcash)}</div>
+          <div className="stat-card__value" style={{color: report.netcash >= 0 ? '#059669' : '#ef4444'}}>{formatCurrency(report.netcash)}</div>
         </div>
       </div>
 
@@ -259,8 +251,8 @@ export default function JournalEntries() {
           </h3>
           <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
             <div style={{fontSize:12, display:'flex', gap:10}} className="no-print">
-              <span style={{color:'#059669', fontWeight:700}}>Total Debits: GHS {formatCurrency(totalDebits)}</span>
-              <span style={{color:'#ef4444', fontWeight:700}}>Total Credits: GHS {formatCurrency(totalCredits)}</span>
+              <span style={{color:'#059669', fontWeight:700}}>Total Debits: {formatCurrency(totalDebits)}</span>
+              <span style={{color:'#ef4444', fontWeight:700}}>Total Credits: {formatCurrency(totalCredits)}</span>
             </div>
           </div>
         </div>
@@ -280,26 +272,19 @@ export default function JournalEntries() {
                 <tr key={j.id}>
                   <td style={{fontSize:11, color:'#6b7280'}}>{new Date(j.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
                   <td>
-                    <span style={{
-                      background: getAccountColor(j.account_type).bg, 
-                      padding: '2px 8px', 
-                      borderRadius: 4, 
-                      fontSize: 11, 
-                      fontWeight: 600, 
-                      color: getAccountColor(j.account_type).text
-                    }}>
+                    <span style={{ fontSize: 12, fontWeight: 500, color: '#334155' }}>
                       {j.account_type}
                     </span>
                   </td>
-                  <td style={{fontWeight:600, color: j.debit > 0 ? '#059669' : '#ccc'}}>{j.debit > 0 ? `GHS ${formatCurrency(j.debit)}` : '—'}</td>
-                  <td style={{fontWeight:600, color: j.credit > 0 ? '#ef4444' : '#ccc'}}>{j.credit > 0 ? `GHS ${formatCurrency(j.credit)}` : '—'}</td>
+                  <td style={{fontWeight:600, color: j.debit > 0 ? '#059669' : '#94a3b8'}}>{j.debit > 0 ? formatCurrency(j.debit) : '—'}</td>
+                  <td style={{fontWeight:600, color: j.credit > 0 ? '#b91c1c' : '#94a3b8'}}>{j.credit > 0 ? formatCurrency(j.credit) : '—'}</td>
                   <td style={{fontSize:13}}>{j.description}</td>
                 </tr>
               ) : (
                 <tr key={j.date} style={{ cursor: 'pointer' }} onClick={() => { setSelectedDate(j.date); setViewMode('Daily'); }}>
                   <td style={{ fontWeight: 700 }}>{new Date(j.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</td>
-                  <td style={{ color: '#059669', fontWeight: 600 }}>GHS {formatCurrency(j.debit)}</td>
-                  <td style={{ color: '#ef4444', fontWeight: 600 }}>GHS {formatCurrency(j.credit)}</td>
+                  <td style={{ color: '#059669', fontWeight: 600 }}>{formatCurrency(j.debit)}</td>
+                  <td style={{ color: '#ef4444', fontWeight: 600 }}>{formatCurrency(j.credit)}</td>
                   <td style={{ fontSize: 12 }}>{j.count} entries recorded</td>
                   <td><button className="action-btn" style={{ fontSize: 10, padding: '4px 8px' }}>View Day</button></td>
                 </tr>

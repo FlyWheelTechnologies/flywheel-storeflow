@@ -159,14 +159,10 @@ export default function Logs() {
                     </td>
                     <td>
                       <span style={{ 
-                        fontWeight: 700, 
-                        fontSize: '10px', 
-                        color: getActionColor(log.action),
-                        backgroundColor: `${getActionColor(log.action)}15`,
-                        border: `1px solid ${getActionColor(log.action)}30`,
-                        padding: '3px 8px',
-                        borderRadius: '12px',
-                        display: 'inline-block'
+                        fontWeight: 600, 
+                        fontSize: '12px', 
+                        color: log.action?.includes('DELETE') || log.action?.includes('REMOVE') ? '#dc2626' : '#334155',
+                        fontFamily: 'monospace'
                       }}>
                         {log.action}
                       </span>

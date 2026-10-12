@@ -381,13 +381,13 @@ export default function Deposits() {
           <ActionButton variant="info" onClick={() => setShowDepositModal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <HandCoins size={16} weight="duotone" /> Record Deposit
           </ActionButton>
-          <div className="summary-card" style={{ padding: '10px 20px', width: 'auto', background: '#ecfdf5', borderColor: '#10b981' }}>
-            <span style={{ fontSize: 10, color: '#065f46', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Total Credit:</span>
-            <span style={{ fontSize: 18, fontWeight: 700, color: '#059669' }}>{formatCurrency(totalHeld, currency)}</span>
+          <div className="summary-card" style={{ padding: '10px 18px', width: 'auto' }}>
+            <span style={{ fontSize: 11, color: '#64748b', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Total Credit</span>
+            <span style={{ fontSize: 18, fontWeight: 700, color: '#0f172a' }}>{formatCurrency(totalHeld, currency)}</span>
           </div>
-          <div className="summary-card" style={{ padding: '10px 20px', width: 'auto', background: '#fef2f2', borderColor: '#ef4444' }}>
-            <span style={{ fontSize: 10, color: '#991b1b', display: 'block', textTransform: 'uppercase', fontWeight: 700 }}>Total Owed:</span>
-            <span style={{ fontSize: 18, fontWeight: 700, color: '#b91c1c' }}>{formatCurrency(totalOwed, currency)}</span>
+          <div className="summary-card" style={{ padding: '10px 18px', width: 'auto' }}>
+            <span style={{ fontSize: 11, color: '#64748b', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Total Owed</span>
+            <span style={{ fontSize: 18, fontWeight: 700, color: '#0f172a' }}>{formatCurrency(totalOwed, currency)}</span>
           </div>
         </div>
       </div>
@@ -474,11 +474,11 @@ export default function Deposits() {
                     <td>{d.phone || '—'}</td>
                     <td>
                       {d.pending_sales_count > 0 ? (
-                        <span style={{ background: '#eff6ff', color: '#2563eb', padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700 }}>
-                          {d.pending_sales_count} PENDING ORDERS
+                        <span style={{ color: '#0f172a', fontSize: 12, fontWeight: 600 }}>
+                          {d.pending_sales_count} pending
                         </span>
                       ) : (
-                        <span style={{ color: '#6b7280', fontSize: 11 }}>No Pending Items</span>
+                        <span style={{ color: '#94a3b8', fontSize: 12 }}>None</span>
                       )}
                     </td>
                     <td style={{ fontSize: 12, color: '#6b7280' }}>{d.last_sale_date ? new Date(d.last_sale_date).toLocaleDateString() : '—'}</td>

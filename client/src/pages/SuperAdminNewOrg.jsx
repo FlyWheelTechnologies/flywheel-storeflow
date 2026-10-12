@@ -1,8 +1,22 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import {
+  ArrowLeft,
+  Buildings,
+  CreditCard,
+  UserCheck,
+  CheckCircle,
+  Eye,
+  EyeSlash,
+  Sparkle,
+  ShieldCheck,
+  WarningCircle,
+  Plus
+} from "@phosphor-icons/react";
 import { supabase } from "../services/supabaseClient";
 import { createClient } from "@supabase/supabase-js";
 import { useAuth } from "../context/AuthContext";
+import "./SuperAdmin.css";
 import "./Dashboard.css";
 
 export default function SuperAdminNewOrg() {
@@ -30,9 +44,11 @@ export default function SuperAdminNewOrg() {
     subscription_expires_at: defaultExpiry
   });
   
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [createdOrg, setCreatedOrg] = useState(null);
 
   const handleNameChange = (e) => {
     const val = e.target.value;
@@ -53,13 +69,13 @@ export default function SuperAdminNewOrg() {
       let targetSlug = form.slug || form.name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
       const orgPayload = {
-        name: form.name,
+        name: form.name.trim(),
         slug: targetSlug,
         primary_color: form.primary_color,
         currency: form.currency,
-        admin_email: form.admin_email,
-        phone: form.phone,
-        address: form.address,
+        admin_email: form.admin_email.trim(),
+        phone: form.phone.trim(),
+        address: form.address.trim(),
         setup_fee: parseFloat(form.setup_fee) || 0,
         subscription_amount: parseFloat(form.subscription_amount) || 0,
         billing_cycle: form.billing_cycle,
@@ -92,6 +108,8 @@ export default function SuperAdminNewOrg() {
         throw orgError;
       }
 
+      setCreatedOrg(org);
+
       // Log initial setup payment in subscription_payments ledger
       const initialCollected = (parseFloat(form.setup_fee) || 0) + (form.payment_status === "active" ? (parseFloat(form.subscription_amount) || 0) : 0);
       if (initialCollected > 0) {
@@ -110,10 +128,10 @@ export default function SuperAdminNewOrg() {
       try {
         const { data: inviteData, error: inviteError } = await supabase.functions.invoke("invite-user", {
           body: {
-            email: form.admin_email,
+            email: form.admin_email.trim(),
             password: form.admin_password,
             role: "admin",
-            full_name: form.admin_name,
+            full_name: form.admin_name.trim(),
             organization_id: org.id
           }
         });
@@ -150,7 +168,6 @@ export default function SuperAdminNewOrg() {
         });
 
         if (signUpErr && signUpErr.message.toLowerCase().includes("already registered")) {
-          // Link pre-existing account as admin to this new organization
           const { error: linkErr } = await supabase.from("profiles").update({
             role: "admin",
             organization_id: org.id,
@@ -161,8 +178,6 @@ export default function SuperAdminNewOrg() {
           inviteWarning = " (Linked pre-existing account as Admin)";
         }
 
-        // Detect "fake user": Supabase returns a user with empty identities
-        // array when email is already registered (enumeration protection)
         const isFakeUser = signUpData?.user && 
           (!signUpData.user.identities || signUpData.user.identities.length === 0);
 
@@ -198,9 +213,6 @@ export default function SuperAdminNewOrg() {
       });
 
       setSuccess(true);
-      setTimeout(() => {
-        navigate("/admin/billing");
-      }, 2500);
 
     } catch (err) {
       console.error("Onboarding error:", err);
@@ -211,149 +223,414 @@ export default function SuperAdminNewOrg() {
   };
 
   return (
-    <div style={{ padding: 24, maxWidth: 720, margin: "0 auto" }}>
-      <div style={{ marginBottom: 20 }}>
-        <Link to="/admin" style={{ color: "#f97316", textDecoration: "none", fontSize: 13, fontWeight: 600 }}>
-          ← Back to Super Admin
+    <div className="super-admin-container" style={{ maxWidth: 860 }}>
+      {/* Back button & Title */}
+      <div style={{ marginBottom: 24 }}>
+        <Link
+          to="/admin"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            color: "#f97316",
+            textDecoration: "none",
+            fontSize: 13.5,
+            fontWeight: 700,
+            marginBottom: 12
+          }}
+        >
+          <ArrowLeft size={16} weight="bold" />
+          Back to Admin Console
         </Link>
-        <h2 className="section-title" style={{ marginTop: 8 }}>Onboard New Business</h2>
-        <p style={{ color: "#6b7280", fontSize: 13 }}>Create a new tenant organization with custom Ghanaian commercial billing terms</p>
+        <h1 className="super-header__title" style={{ fontSize: 26, margin: 0 }}>
+          Onboard New Business
+        </h1>
+        <p className="super-header__subtitle">
+          Provision a dedicated multi-tenant business instance with Ghanaian commercial billing and store owner credentials
+        </p>
       </div>
 
       {success ? (
-        <div style={{ background: "#d1fae5", border: "1px solid #a7f3d0", color: "#065f46", padding: 24, borderRadius: 12, textAlign: "center" }}>
-          <h3 style={{ fontSize: 18, marginBottom: 8 }}>🎉 Onboarding Successful!</h3>
-          <p style={{ fontSize: 14 }}>
-            Organization <strong>{form.name}</strong> was created with setup fee GH₵ {form.setup_fee}.
+        <div className="super-card" style={{ padding: 36, textAlign: "center", alignItems: "center" }}>
+          <div style={{
+            width: 64,
+            height: 64,
+            borderRadius: "50%",
+            background: "#ecfdf5",
+            color: "#10b981",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 20
+          }}>
+            <CheckCircle size={36} weight="fill" />
+          </div>
+
+          <h2 style={{ fontSize: 22, fontWeight: 800, color: "#0f172a", marginBottom: 8 }}>
+            🎉 Business Successfully Onboarded!
+          </h2>
+          <p style={{ fontSize: 14.5, color: "#475569", maxWidth: 520, lineHeight: 1.5, marginBottom: 24 }}>
+            <strong>{form.name}</strong> is now live with slug <code>/{form.slug}</code>. The administrator account (<strong>{form.admin_email}</strong>) has been provisioned.
           </p>
-          <p style={{ fontSize: 12, color: "#047857", marginTop: 12 }}>Redirecting you to the Commercial Billing Hub...</p>
+
+          <div style={{
+            background: "#f8fafc",
+            border: "1px solid #e2e8f0",
+            borderRadius: 12,
+            padding: "16px 24px",
+            marginBottom: 28,
+            width: "100%",
+            maxWidth: 480,
+            textAlign: "left"
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: 8 }}>
+              Store Credentials Snapshot
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginBottom: 6 }}>
+              <span style={{ color: "#64748b" }}>Admin Email:</span>
+              <span style={{ fontWeight: 600, color: "#0f172a" }}>{form.admin_email}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5, marginBottom: 6 }}>
+              <span style={{ color: "#64748b" }}>Password:</span>
+              <span style={{ fontWeight: 600, fontFamily: "monospace", color: "#0f172a" }}>{form.admin_password}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13.5 }}>
+              <span style={{ color: "#64748b" }}>Currency:</span>
+              <span style={{ fontWeight: 600, color: "#0f172a" }}>{form.currency}</span>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+            <Link to="/admin" className="super-btn super-btn--secondary">
+              Admin Console
+            </Link>
+            <Link to="/admin/billing" className="super-btn super-btn--primary">
+              View Commercial MRR
+            </Link>
+          </div>
         </div>
       ) : (
-        <form onSubmit={handleSubmit} className="table-card" style={{ padding: 24 }}>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           {error && (
-            <div style={{ background: "#fef2f2", color: "#ef4444", padding: "12px", borderRadius: "8px", marginBottom: "20px", fontSize: "13px", border: "1px solid #fee2e2" }}>
-              ⚠️ {error}
+            <div style={{
+              background: "#fef2f2",
+              color: "#991b1b",
+              padding: "14px 18px",
+              borderRadius: 12,
+              fontSize: 13.5,
+              border: "1px solid #fee2e2",
+              display: "flex",
+              alignItems: "center",
+              gap: 10
+            }}>
+              <WarningCircle size={20} weight="fill" color="#dc2626" />
+              <span>{error}</span>
             </div>
           )}
 
-          <h3 style={{ borderBottom: "1px solid #e5e7eb", paddingBottom: 8, marginBottom: 16, fontSize: 15, fontWeight: 700, color: "#374151" }}>
-            1. Business Information
-          </h3>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
-            <div>
-              <label style={lbl}>Business Name</label>
-              <input style={inp} type="text" value={form.name} onChange={handleNameChange} placeholder="e.g. Acme Retailers" required />
+          {/* Section 1: Business Identity */}
+          <div className="super-card" style={{ padding: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, borderBottom: "1px solid #f1f5f9", paddingBottom: 14 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: "#eff6ff", color: "#2563eb", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Buildings size={18} weight="duotone" />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
+                  1. Business Identity & Branding
+                </h3>
+                <span style={{ fontSize: 12, color: "#64748b" }}>Store name, URL path, currency and brand accent</span>
+              </div>
             </div>
-            <div>
-              <label style={lbl}>Unique URL Slug</label>
-              <input style={inp} type="text" value={form.slug} onChange={e => setForm({ ...form, slug: e.target.value.toLowerCase() })} placeholder="e.g. acme" required />
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, marginBottom: 16 }}>
+              <div>
+                <label className="super-form-label">Business Name *</label>
+                <input
+                  type="text"
+                  className="super-form-input"
+                  value={form.name}
+                  onChange={handleNameChange}
+                  placeholder="e.g. GoldCoast Mart"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="super-form-label">Unique URL Slug *</label>
+                <input
+                  type="text"
+                  className="super-form-input"
+                  value={form.slug}
+                  onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase() })}
+                  placeholder="e.g. goldcoast-mart"
+                  required
+                />
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 16 }}>
+              <div>
+                <label className="super-form-label">Operating Currency *</label>
+                <select
+                  className="super-form-select"
+                  value={form.currency}
+                  onChange={(e) => setForm({ ...form, currency: e.target.value })}
+                >
+                  <option value="GHS">GHS (₵) — Ghanaian Cedi</option>
+                  <option value="USD">USD ($) — US Dollar</option>
+                  <option value="EUR">EUR (€) — Euro</option>
+                  <option value="NGN">NGN (₦) — Nigerian Naira</option>
+                  <option value="KES">KES (KSh) — Kenyan Shilling</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="super-form-label">Brand Accent Color</label>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <input
+                    type="color"
+                    value={form.primary_color}
+                    onChange={(e) => setForm({ ...form, primary_color: e.target.value })}
+                    style={{ width: 44, height: 42, padding: 2, borderRadius: 8, border: "1px solid #cbd5e1", cursor: "pointer" }}
+                  />
+                  <span style={{ fontSize: 13, fontFamily: "monospace", color: "#475569" }}>
+                    {form.primary_color}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+              <div>
+                <label className="super-form-label">Store Phone (WhatsApp / MoMo)</label>
+                <input
+                  type="text"
+                  className="super-form-input"
+                  value={form.phone}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                  placeholder="+233 24 000 0000"
+                />
+              </div>
+
+              <div>
+                <label className="super-form-label">Store Physical Address</label>
+                <input
+                  type="text"
+                  className="super-form-input"
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  placeholder="e.g. Accra Mall, Spintex Rd"
+                />
+              </div>
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 20 }}>
-            <div>
-              <label style={lbl}>Currency Code</label>
-              <select style={inp} value={form.currency} onChange={e => setForm({ ...form, currency: e.target.value })}>
-                <option value="GHS">GHS (₵) — Ghana Cedi</option>
-                <option value="USD">USD ($) — US Dollar</option>
-                <option value="EUR">EUR (€) — Euro</option>
-                <option value="NGN">NGN (₦) — Nigerian Naira</option>
-                <option value="KES">KES (KSh) — Kenyan Shilling</option>
-              </select>
+          {/* Section 2: Commercial Terms */}
+          <div className="super-card" style={{ padding: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, borderBottom: "1px solid #f1f5f9", paddingBottom: 14 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: "#ecfdf5", color: "#059669", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <CreditCard size={18} weight="duotone" />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
+                  2. Ghanaian Commercial Terms & Billing
+                </h3>
+                <span style={{ fontSize: 12, color: "#64748b" }}>Onboarding fee, monthly recurring revenue and renewal cycle</span>
+              </div>
             </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 16 }}>
+              <div>
+                <label className="super-form-label">Setup Fee (GH₵) *</label>
+                <input
+                  type="number"
+                  className="super-form-input"
+                  value={form.setup_fee}
+                  onChange={(e) => setForm({ ...form, setup_fee: e.target.value })}
+                  placeholder="1500"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="super-form-label">Subscription Rate (GH₵) *</label>
+                <input
+                  type="number"
+                  className="super-form-input"
+                  value={form.subscription_amount}
+                  onChange={(e) => setForm({ ...form, subscription_amount: e.target.value })}
+                  placeholder="300"
+                  required
+                />
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 16 }}>
+              <div>
+                <label className="super-form-label">Billing Cadence</label>
+                <select
+                  className="super-form-select"
+                  value={form.billing_cycle}
+                  onChange={(e) => setForm({ ...form, billing_cycle: e.target.value })}
+                >
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly (3 months)</option>
+                  <option value="semi_annual">Semi-Annual (6 months)</option>
+                  <option value="annual">Annual (1 Year)</option>
+                  <option value="one_time">One-Time / Lifetime</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="super-form-label">Payment Status</label>
+                <select
+                  className="super-form-select"
+                  value={form.payment_status}
+                  onChange={(e) => setForm({ ...form, payment_status: e.target.value })}
+                >
+                  <option value="active">Active (Paid)</option>
+                  <option value="pending">Pending Payment</option>
+                  <option value="trial">Trial Period</option>
+                  <option value="overdue">Overdue</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="super-form-label">Initial Expiry Date *</label>
+                <input
+                  type="date"
+                  className="super-form-input"
+                  value={form.subscription_expires_at}
+                  onChange={(e) => setForm({ ...form, subscription_expires_at: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+
             <div>
-              <label style={lbl}>Primary Theme Color</label>
-              <input style={inp} type="color" value={form.primary_color} onChange={e => setForm({ ...form, primary_color: e.target.value })} />
+              <label className="super-form-label">Payment & Contract Notes</label>
+              <input
+                type="text"
+                className="super-form-input"
+                value={form.payment_terms}
+                onChange={(e) => setForm({ ...form, payment_terms: e.target.value })}
+                placeholder="e.g. Paid via Mobile Money to Godwin"
+              />
             </div>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 24 }}>
-            <div>
-              <label style={lbl}>Business Phone (MoMo / WhatsApp)</label>
-              <input style={inp} type="text" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="+233..." />
+          {/* Section 3: Store Owner Credentials */}
+          <div className="super-card" style={{ padding: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, borderBottom: "1px solid #f1f5f9", paddingBottom: 14 }}>
+              <div style={{ width: 34, height: 34, borderRadius: 10, background: "#faf5ff", color: "#9333ea", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <UserCheck size={18} weight="duotone" />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
+                  3. Store Administrator Account
+                </h3>
+                <span style={{ fontSize: 12, color: "#64748b" }}>Initial store owner credentials for tenant login</span>
+              </div>
             </div>
-            <div>
-              <label style={lbl}>Physical Address</label>
-              <input style={inp} type="text" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} placeholder="Store location..." />
+
+            <div style={{ marginBottom: 16 }}>
+              <label className="super-form-label">Admin Full Name *</label>
+              <input
+                type="text"
+                className="super-form-input"
+                value={form.admin_name}
+                onChange={(e) => setForm({ ...form, admin_name: e.target.value })}
+                placeholder="e.g. Kwame Mensah"
+                required
+              />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
+              <div>
+                <label className="super-form-label">Admin Email Address *</label>
+                <input
+                  type="email"
+                  className="super-form-input"
+                  value={form.admin_email}
+                  onChange={(e) => setForm({ ...form, admin_email: e.target.value })}
+                  placeholder="admin@business.com"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="super-form-label">Temporary Initial Password *</label>
+                <div style={{ position: "relative" }}>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    className="super-form-input"
+                    value={form.admin_password}
+                    onChange={(e) => setForm({ ...form, admin_password: e.target.value })}
+                    placeholder="At least 6 characters"
+                    required
+                    style={{ paddingRight: 40 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                      position: "absolute",
+                      right: 12,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      background: "none",
+                      border: "none",
+                      color: "#94a3b8",
+                      cursor: "pointer",
+                      padding: 4
+                    }}
+                  >
+                    {showPassword ? <EyeSlash size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
-          <h3 style={{ borderBottom: "1px solid #e5e7eb", paddingBottom: 8, marginBottom: 16, fontSize: 15, fontWeight: 700, color: "#374151" }}>
-            2. Commercial Terms & Ghanaian Billing Structure
-          </h3>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 16 }}>
-            <div>
-              <label style={lbl}>Setup / Onboarding Fee (GH₵)</label>
-              <input style={inp} type="number" value={form.setup_fee} onChange={e => setForm({ ...form, setup_fee: e.target.value })} placeholder="e.g. 1500" required />
-            </div>
-            <div>
-              <label style={lbl}>Subscription Rate (GH₵)</label>
-              <input style={inp} type="number" value={form.subscription_amount} onChange={e => setForm({ ...form, subscription_amount: e.target.value })} placeholder="e.g. 300" required />
-            </div>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 16 }}>
-            <div>
-              <label style={lbl}>Billing Cadence</label>
-              <select style={inp} value={form.billing_cycle} onChange={e => setForm({ ...form, billing_cycle: e.target.value })}>
-                <option value="monthly">Monthly</option>
-                <option value="quarterly">Quarterly (3 mos)</option>
-                <option value="semi_annual">Semi-Annual (6 mos)</option>
-                <option value="annual">Annual (Yearly)</option>
-                <option value="one_time">One-time / Lifetime</option>
-                <option value="custom">Custom Upfront</option>
-              </select>
-            </div>
-            <div>
-              <label style={lbl}>Payment Status</label>
-              <select style={inp} value={form.payment_status} onChange={e => setForm({ ...form, payment_status: e.target.value })}>
-                <option value="active">Active (Paid)</option>
-                <option value="pending">Pending Payment</option>
-                <option value="trial">Trial Period</option>
-                <option value="overdue">Overdue</option>
-              </select>
-            </div>
-            <div>
-              <label style={lbl}>Subscription Expiry Date</label>
-              <input style={inp} type="date" value={form.subscription_expires_at} onChange={e => setForm({ ...form, subscription_expires_at: e.target.value })} required />
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 24 }}>
-            <label style={lbl}>Custom Payment & Contract Terms</label>
-            <input style={inp} type="text" value={form.payment_terms} onChange={e => setForm({ ...form, payment_terms: e.target.value })} placeholder="e.g. 50% upfront, balance due in 30 days. Paid via MoMo to Godwin." />
-          </div>
-
-          <h3 style={{ borderBottom: "1px solid #e5e7eb", paddingBottom: 8, marginBottom: 16, fontSize: 15, fontWeight: 700, color: "#374151" }}>
-            3. Business Administrator Account
-          </h3>
-
-          <div style={{ marginBottom: 16 }}>
-            <label style={lbl}>Admin Full Name</label>
-            <input style={inp} type="text" value={form.admin_name} onChange={e => setForm({ ...form, admin_name: e.target.value })} placeholder="John Doe" required />
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 24 }}>
-            <div>
-              <label style={lbl}>Admin Email Address</label>
-              <input style={inp} type="email" value={form.admin_email} onChange={e => setForm({ ...form, admin_email: e.target.value })} placeholder="admin@acme.com" required />
-            </div>
-            <div>
-              <label style={lbl}>Temporary Password</label>
-              <input style={inp} type="password" value={form.admin_password} onChange={e => setForm({ ...form, admin_password: e.target.value })} placeholder="At least 6 characters" required />
-            </div>
-          </div>
-
-          <button type="submit" className="quick-action-btn" style={{ width: "100%", height: 42, fontSize: 14 }} disabled={loading}>
-            {loading ? "Onboarding in progress..." : "Complete Setup & Launch Business"}
+          {/* Submit Button */}
+          <button
+            type="submit"
+            className="super-btn super-btn--primary"
+            style={{ width: "100%", padding: 14, fontSize: 15 }}
+            disabled={loading}
+          >
+            {loading ? "Onboarding and Launching Business..." : "Complete Setup & Launch Business"}
           </button>
         </form>
       )}
+
+      {/* Form Utilities Style */}
+      <style>{`
+        .super-form-label {
+          display: block;
+          font-size: 12.5px;
+          font-weight: 700;
+          color: #334155;
+          margin-bottom: 6px;
+        }
+        .super-form-input, .super-form-select {
+          width: 100%;
+          padding: 10px 14px;
+          border-radius: 9px;
+          border: 1px solid #cbd5e1;
+          font-size: 13.5px;
+          color: #0f172a;
+          outline: none;
+          background: #ffffff;
+          box-sizing: border-box;
+          font-family: inherit;
+          transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .super-form-input:focus, .super-form-select:focus {
+          border-color: #f97316;
+          box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+        }
+      `}</style>
     </div>
   );
 }
-
-const lbl = { display: "block", fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 };
-const inp = { width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13, boxSizing: "border-box", transition: "border-color 0.15s ease" };

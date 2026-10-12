@@ -10,11 +10,19 @@ import {
   Users,
   Receipt,
   WarningCircle,
-  ShieldCheck
+  ShieldCheck,
+  CheckCircle,
+  TrendUp,
+  Storefront,
+  EnvelopeSimple,
+  Phone,
+  CurrencyCircleDollar,
+  Sparkle
 } from "@phosphor-icons/react";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import "./SuperAdmin.css";
 import "./Dashboard.css";
 
 export default function SuperAdminDashboard() {
@@ -202,275 +210,415 @@ export default function SuperAdminDashboard() {
 
   if (loading) {
     return (
-      <div style={{ padding: 24 }}>
-        <h2 className="section-title">StoreFlow Super Admin</h2>
-        <div className="skeleton" style={{ height: 100, marginBottom: 20 }} />
-        <div className="skeleton" style={{ height: 400 }} />
+      <div className="super-admin-container">
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="skeleton" style={{ height: 40, width: 280 }} />
+          <div className="skeleton" style={{ height: 120, borderRadius: 16 }} />
+          <div className="skeleton" style={{ height: 420, borderRadius: 16 }} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <div>
-          <h2 className="section-title">Super Admin Dashboard</h2>
-          <p style={{ color: "#6b7280", fontSize: 13 }}>StoreFlow Platform Command Center</p>
+    <div className="super-admin-container">
+      {/* Top Header */}
+      <div className="super-header">
+        <div className="super-header__titles">
+          <div className="super-badge-row">
+            <span className="super-platform-badge super-platform-badge--live">
+              Production Gateway
+            </span>
+            <span className="super-platform-badge">
+              Master Command
+            </span>
+          </div>
+          <h1 className="super-header__title">Super Admin Portal</h1>
+          <p className="super-header__subtitle">
+            Executive Multi-Tenant Control Hub & Business Fleet Management
+          </p>
         </div>
-        <Link to="/admin/organizations/new" className="quick-action-btn" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <Plus size={14} weight="bold" />
-          Onboard New Business
-        </Link>
+
+        <div className="super-header__actions">
+          <Link to="/admin/billing" className="super-btn super-btn--secondary">
+            <CurrencyCircleDollar size={18} weight="duotone" />
+            Commercial MRR
+          </Link>
+          <Link to="/admin/organizations/new" className="super-btn super-btn--primary">
+            <Plus size={18} weight="bold" />
+            Onboard New Business
+          </Link>
+        </div>
       </div>
 
       {error && (
-        <div style={{ background: "#fef2f2", color: "#ef4444", padding: "12px", borderRadius: "8px", marginBottom: "20px", fontSize: "13px", border: "1px solid #fee2e2" }}>
-          ⚠️ {error}
+        <div style={{
+          background: "#fef2f2",
+          color: "#991b1b",
+          padding: "14px 18px",
+          borderRadius: 12,
+          marginBottom: 24,
+          fontSize: 13.5,
+          border: "1px solid #fee2e2",
+          display: "flex",
+          alignItems: "center",
+          gap: 10
+        }}>
+          <WarningCircle size={20} weight="fill" color="#dc2626" />
+          <span>{error}</span>
         </div>
       )}
 
+      {/* Orphaned Staff Accounts Banner */}
       {stats.orphanedUsers > 0 && (
-        <div style={{
-          background: "#fffbeb",
-          color: "#92400e",
-          padding: "14px 18px",
-          borderRadius: "8px",
-          marginBottom: "20px",
-          fontSize: "13px",
-          border: "1px solid #fde68a",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 12
-        }}>
-          <div>
-            <strong>⚠️ {stats.orphanedUsers} Orphaned Staff Account{stats.orphanedUsers > 1 ? "s" : ""} Detected:</strong>{" "}
-            These accounts belonged to deleted businesses and are unassigned.
+        <div className="super-alert-banner">
+          <div className="super-alert-banner__left">
+            <div className="super-alert-banner__icon">
+              <WarningCircle size={22} weight="fill" />
+            </div>
+            <div className="super-alert-banner__text">
+              <strong>{stats.orphanedUsers} Orphaned Staff Account{stats.orphanedUsers > 1 ? "s" : ""} Detected:</strong>{" "}
+              These credentials belonged to purged businesses and have no tenant anchor.
+            </div>
           </div>
           <button
             onClick={handleCleanupOrphanedStaff}
             disabled={isPurgingOrphans}
-            style={{
-              background: "#b45309",
-              color: "#fff",
-              border: "none",
-              padding: "7px 16px",
-              borderRadius: "6px",
-              fontSize: "12px",
-              fontWeight: 600,
-              cursor: isPurgingOrphans ? "not-allowed" : "pointer"
-            }}
+            className="super-alert-banner__btn"
           >
-            {isPurgingOrphans ? "Purging..." : `Purge ${stats.orphanedUsers} Orphaned Account${stats.orphanedUsers > 1 ? "s" : ""}`}
+            {isPurgingOrphans ? "Purging..." : `Purge ${stats.orphanedUsers} Orphaned Accounts`}
           </button>
         </div>
       )}
 
-      {/* Grid Statistics */}
-      <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 20, marginBottom: 24 }}>
-        <div className="stat-card">
-          <div className="stat-card__header">
-            <span className="stat-card__label">Active Businesses</span>
+      {/* Modern KPI Cards Grid */}
+      <div className="super-kpi-grid">
+        <div className="super-kpi-card">
+          <div className="super-kpi-card__top">
+            <span className="super-kpi-card__label">Active Businesses</span>
+            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--blue">
+              <Buildings size={22} weight="duotone" />
+            </div>
           </div>
-          <div className="stat-card__value">{stats.totalOrgs}</div>
-          <span style={{ fontSize: 12, color: "#6b7280" }}>Subscribed to StoreFlow SaaS</span>
+          <div className="super-kpi-card__value">{stats.totalOrgs}</div>
+          <div className="super-kpi-card__footer">
+            <span className="super-kpi-card__subtitle">Subscribed tenant stores</span>
+            <span className="super-kpi-card__badge super-kpi-card__badge--green">Online</span>
+          </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-card__header">
-            <span className="stat-card__label">Total Staff Accounts</span>
+
+        <div className="super-kpi-card">
+          <div className="super-kpi-card__top">
+            <span className="super-kpi-card__label">Staff Accounts</span>
+            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--purple">
+              <Users size={22} weight="duotone" />
+            </div>
           </div>
-          <div className="stat-card__value">{stats.totalUsers}</div>
-          <span style={{ fontSize: 12, color: "#6b7280" }}>Admins & Storekeepers</span>
+          <div className="super-kpi-card__value">{stats.totalUsers}</div>
+          <div className="super-kpi-card__footer">
+            <span className="super-kpi-card__subtitle">Admins & Storekeepers</span>
+            <span className="super-kpi-card__badge">Managed</span>
+          </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-card__header">
-            <span className="stat-card__label">Overall Platform Transactions</span>
+
+        <div className="super-kpi-card">
+          <div className="super-kpi-card__top">
+            <span className="super-kpi-card__label">Transactions Volume</span>
+            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--emerald">
+              <Receipt size={22} weight="duotone" />
+            </div>
           </div>
-          <div className="stat-card__value">{stats.totalSales}</div>
-          <span style={{ fontSize: 12, color: "#6b7280" }}>Sales records processed</span>
+          <div className="super-kpi-card__value">{stats.totalSales}</div>
+          <div className="super-kpi-card__footer">
+            <span className="super-kpi-card__subtitle">Total receipts generated</span>
+            <span className="super-kpi-card__badge super-kpi-card__badge--green">Audited</span>
+          </div>
+        </div>
+
+        <div className="super-kpi-card">
+          <div className="super-kpi-card__top">
+            <span className="super-kpi-card__label">Security & RLS</span>
+            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--orange">
+              <ShieldCheck size={22} weight="duotone" />
+            </div>
+          </div>
+          <div className="super-kpi-card__value" style={{ fontSize: 24, display: "flex", alignItems: "center", gap: 8 }}>
+            <CheckCircle size={26} weight="fill" color="#10b981" />
+            Isolated
+          </div>
+          <div className="super-kpi-card__footer">
+            <span className="super-kpi-card__subtitle">Row-Level Security Active</span>
+            <span className="super-kpi-card__badge super-kpi-card__badge--green">Enforced</span>
+          </div>
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: 24 }}>
-        {/* Organizations Table */}
-        <div className="table-card">
-          <div className="table-card__header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
-            <div>
-              <h3 className="table-card__title" style={{ margin: 0 }}>Registered Businesses</h3>
-              <span style={{ fontSize: 11, color: "#64748b" }}>
-                {filteredOrgs.length} of {orgs.length} total
+      {/* Main Split Grid */}
+      <div className="super-main-grid">
+        {/* Left Column: Registered Businesses Card */}
+        <div className="super-card">
+          <div className="super-card__header">
+            <div className="super-card__title-group">
+              <h2 className="super-card__title">Registered Businesses</h2>
+              <span className="super-card__count-badge">
+                {filteredOrgs.length} of {orgs.length}
               </span>
             </div>
-            <div style={{ position: "relative", minWidth: 200 }}>
-              <MagnifyingGlass size={13} weight="bold" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
+
+            <div className="super-search-wrapper">
+              <MagnifyingGlass size={15} weight="bold" className="super-search-icon" />
               <input
                 type="text"
                 placeholder="Search by name, slug, email..."
                 value={orgSearchQuery}
                 onChange={(e) => setOrgSearchQuery(e.target.value)}
-                style={{
-                  padding: "6px 10px 6px 28px",
-                  border: "1px solid #cbd5e1",
-                  borderRadius: 6,
-                  fontSize: 12,
-                  outline: "none",
-                  width: "100%",
-                  background: "#fff"
-                }}
+                className="super-search-input"
               />
             </div>
           </div>
-          <div className="table-wrapper">
-            <table className="stock-table">
+
+          {/* Desktop Table */}
+          <div className="super-table-container">
+            <table className="super-table">
               <thead>
                 <tr>
-                  <th>Business Name</th>
+                  <th>Business Identity</th>
                   <th>Slug</th>
                   <th>Admin Contact</th>
                   <th>Status</th>
-                  <th>Actions</th>
+                  <th style={{ textAlign: "right" }}>Quick Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredOrgs.map((o) => (
-                  <tr key={o.id}>
-                    <td style={{ fontWeight: 600 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        {o.logo_url && <img src={o.logo_url} alt="Logo" style={{ width: 24, height: 24, borderRadius: "50%", objectFit: "cover" }} />}
-                        <span>{o.name}</span>
-                      </div>
-                    </td>
-                    <td>{o.slug}</td>
-                    <td>{o.admin_email}</td>
-                    <td>
-                      <span
-                        onClick={() => toggleOrgStatus(o.id, o.is_active)}
-                        style={{
-                          background: o.is_active ? "#d1fae5" : "#fef2f2",
-                          color: o.is_active ? "#059669" : "#ef4444",
-                          padding: "3px 10px",
-                          borderRadius: 20,
-                          fontSize: 11,
-                          fontWeight: 600,
-                          cursor: "pointer"
-                        }}
-                      >
-                        {o.is_active ? "Active" : "Suspended"}
-                      </span>
-                    </td>
-                    <td style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <Link
-                        to={`/admin/organizations/${o.id}/edit`}
-                        title={`Edit ${o.name} and staff`}
-                        style={{
-                          background: "#f8fafc",
-                          color: "#334155",
-                          border: "1px solid #cbd5e1",
-                          borderRadius: 6,
-                          padding: "5px 9px",
-                          cursor: "pointer",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 5,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          textDecoration: "none"
-                        }}
-                      >
-                        <PencilSimple size={13} weight="bold" />
-                        Edit
-                      </Link>
-                      <button
-                        onClick={() => handleImpersonate(o)}
-                        className="quick-action-btn"
-                        style={{
-                          background: "#e0f2fe",
-                          color: "#0369a1",
-                          fontSize: 12,
-                          padding: "4px 10px",
-                          minHeight: "auto",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: 5
-                        }}
-                      >
-                        Enter Shop
-                        <ArrowRight size={13} weight="bold" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setOrgToDelete(o);
-                          setDeleteConfirmationInput("");
-                        }}
-                        title={`Delete ${o.name}`}
-                        style={{
-                          background: "#fef2f2",
-                          color: "#dc2626",
-                          border: "1px solid #fecaca",
-                          borderRadius: 6,
-                          padding: "5px 8px",
-                          cursor: "pointer",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          justifyContent: "center"
-                        }}
-                      >
-                        <Trash size={14} weight="bold" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {filteredOrgs.map((o) => {
+                  const initial = (o.name || "B")[0].toUpperCase();
+                  const brandColor = o.primary_color || "#f97316";
+
+                  return (
+                    <tr key={o.id}>
+                      <td>
+                        <div className="super-org-info">
+                          <div className="super-org-avatar" style={{ background: brandColor }}>
+                            {o.logo_url ? (
+                              <img src={o.logo_url} alt={o.name} />
+                            ) : (
+                              initial
+                            )}
+                          </div>
+                          <div className="super-org-names">
+                            <span className="super-org-name">{o.name}</span>
+                            <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                              {o.currency || "GHS"} • Created {new Date(o.created_at || Date.now()).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="super-org-slug">/{o.slug}</span>
+                      </td>
+                      <td>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          <span style={{ fontSize: 12.5, fontWeight: 500, color: "#334155" }}>
+                            {o.admin_email || "No email assigned"}
+                          </span>
+                          {o.phone && (
+                            <span style={{ fontSize: 11, color: "#94a3b8" }}>{o.phone}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <span
+                          onClick={() => toggleOrgStatus(o.id, o.is_active)}
+                          className={`super-status-pill ${o.is_active ? "super-status-pill--active" : "super-status-pill--suspended"}`}
+                          title="Click to toggle status"
+                        >
+                          <span className="super-status-dot" />
+                          {o.is_active ? "Active" : "Suspended"}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="super-action-group" style={{ justifyContent: "flex-end" }}>
+                          <Link
+                            to={`/admin/organizations/${o.id}/edit`}
+                            className="super-action-btn super-action-btn--edit"
+                            title={`Edit ${o.name}`}
+                          >
+                            <PencilSimple size={13} weight="bold" />
+                            Edit
+                          </Link>
+                          <button
+                            onClick={() => handleImpersonate(o)}
+                            className="super-action-btn super-action-btn--enter"
+                            title={`Enter Shop as Super Admin`}
+                          >
+                            Enter Shop
+                            <ArrowRight size={13} weight="bold" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setOrgToDelete(o);
+                              setDeleteConfirmationInput("");
+                            }}
+                            className="super-action-btn super-action-btn--delete"
+                            title={`Permanently delete ${o.name}`}
+                          >
+                            <Trash size={14} weight="bold" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {filteredOrgs.length === 0 && (
                   <tr>
-                    <td colSpan="5" style={{ textAlign: "center", color: "#6b7280", padding: 24 }}>
-                      {orgs.length === 0 ? "No businesses registered yet." : `No businesses found matching "${orgSearchQuery}".`}
+                    <td colSpan="5" style={{ textAlign: "center", color: "#64748b", padding: 36 }}>
+                      {orgs.length === 0 ? "No businesses onboarded yet. Click '+ Onboard New Business' to start." : `No businesses found matching "${orgSearchQuery}".`}
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+
+          {/* Mobile Card Stream (Active on screens <= 768px, vertically scrollable) */}
+          <div className="super-mobile-cards">
+            {filteredOrgs.map((o) => {
+              const initial = (o.name || "B")[0].toUpperCase();
+              const brandColor = o.primary_color || "#f97316";
+
+              return (
+                <div key={o.id} className="super-biz-card">
+                  <div className="super-biz-card__top">
+                    <div className="super-org-info">
+                      <div className="super-org-avatar" style={{ background: brandColor }}>
+                        {o.logo_url ? <img src={o.logo_url} alt={o.name} /> : initial}
+                      </div>
+                      <div className="super-org-names">
+                        <span className="super-org-name">{o.name}</span>
+                        <span className="super-org-slug">/{o.slug}</span>
+                      </div>
+                    </div>
+
+                    <span
+                      onClick={() => toggleOrgStatus(o.id, o.is_active)}
+                      className={`super-status-pill ${o.is_active ? "super-status-pill--active" : "super-status-pill--suspended"}`}
+                    >
+                      <span className="super-status-dot" />
+                      {o.is_active ? "Active" : "Suspended"}
+                    </span>
+                  </div>
+
+                  <div className="super-biz-card__meta">
+                    <div className="super-biz-card__meta-item">
+                      <span className="super-biz-card__meta-label">Admin Contact</span>
+                      <span className="super-biz-card__meta-val">{o.admin_email || "None"}</span>
+                    </div>
+                    <div className="super-biz-card__meta-item">
+                      <span className="super-biz-card__meta-label">Currency & Phone</span>
+                      <span className="super-biz-card__meta-val">
+                        {o.currency || "GHS"} {o.phone ? `• ${o.phone}` : ""}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="super-biz-card__actions">
+                    <Link
+                      to={`/admin/organizations/${o.id}/edit`}
+                      className="super-action-btn super-action-btn--edit"
+                    >
+                      <PencilSimple size={14} weight="bold" />
+                      Edit
+                    </Link>
+                    <button
+                      onClick={() => handleImpersonate(o)}
+                      className="super-action-btn super-action-btn--enter"
+                    >
+                      Enter Shop
+                      <ArrowRight size={14} weight="bold" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setOrgToDelete(o);
+                        setDeleteConfirmationInput("");
+                      }}
+                      className="super-action-btn super-action-btn--delete"
+                    >
+                      <Trash size={15} weight="bold" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {filteredOrgs.length === 0 && (
+              <div style={{ textAlign: "center", color: "#64748b", padding: 24 }}>
+                {orgs.length === 0 ? "No businesses onboarded yet." : `No results found for "${orgSearchQuery}".`}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Platform Logs / Activity Stream */}
-        <div className="table-card" style={{ maxHeight: 500, overflowY: "auto" }}>
-          <div className="table-card__header">
-            <h3 className="table-card__title">Platform Activity Feed</h3>
+        {/* Right Column: Platform Activity Feed */}
+        <div className="super-card">
+          <div className="super-card__header">
+            <h2 className="super-card__title">Platform Activity Feed</h2>
+            <span className="super-platform-badge super-platform-badge--live">Live Audit</span>
           </div>
-          <div style={{ padding: 16 }}>
-            {logs.map((l) => (
-              <div key={l.id} style={{ borderBottom: "1px solid #f3f4f6", paddingBottom: 10, marginBottom: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 2 }}>
-                  <span style={{ fontWeight: 600, fontSize: 12, color: "#1e293b" }}>{l.organization_name || "Platform"}</span>
-                  <span style={{ fontSize: 10, color: "#9ca3af" }}>{(() => {
-                    const d = new Date(l.created_at);
-                    const today = new Date();
-                    const isToday = d.toDateString() === today.toDateString();
-                    const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    return isToday ? `Today, ${time}` : `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
-                  })()}</span>
+
+          <div className="super-feed-container">
+            {logs.map((l) => {
+              const isCreate = (l.action || "").includes("ONBOARD") || (l.action || "").includes("CREATE");
+              const isDelete = (l.action || "").includes("DELETE") || (l.action || "").includes("REMOVE");
+              const isStaff = (l.action || "").includes("STAFF") || (l.action || "").includes("USER");
+
+              const tagClass = isCreate
+                ? "super-feed-tag--create"
+                : isDelete
+                ? "super-feed-tag--delete"
+                : isStaff
+                ? "super-feed-tag--staff"
+                : "";
+
+              const d = new Date(l.created_at);
+              const today = new Date();
+              const isToday = d.toDateString() === today.toDateString();
+              const timeStr = isToday
+                ? `Today, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                : `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+              return (
+                <div key={l.id} className="super-feed-item">
+                  <div className="super-feed-header">
+                    <span className="super-feed-org">{l.organization_name || "Platform"}</span>
+                    <span className="super-feed-time">{timeStr}</span>
+                  </div>
+                  <div className="super-feed-body">
+                    <span className={`super-feed-tag ${tagClass}`}>{l.action}</span>
+                    {l.details}
+                  </div>
+                  {l.user_email && (
+                    <div className="super-feed-user">
+                      Actor: {l.user_email}
+                    </div>
+                  )}
                 </div>
-                <div style={{ fontSize: 12, color: "#374151", fontWeight: 500 }}>
-                  <span style={{ color: "#3b82f6", fontWeight: 600 }}>{l.action}</span> - {l.details}
-                </div>
-                <div style={{ fontSize: 10, color: "#6b7280", marginTop: 2 }}>By: {l.user_email}</div>
-              </div>
-            ))}
+              );
+            })}
             {logs.length === 0 && (
-              <p style={{ textAlign: "center", color: "#6b7280", fontSize: 12 }}>No logs recorded yet.</p>
+              <p style={{ textAlign: "center", color: "#94a3b8", fontSize: 13, padding: 20 }}>
+                No platform activity recorded yet.
+              </p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
+      {/* Modern Delete Confirmation Modal */}
       {orgToDelete && (
         <div style={{
           position: "fixed",
           top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(15, 23, 42, 0.65)",
-          backdropFilter: "blur(4px)",
+          background: "rgba(15, 23, 42, 0.7)",
+          backdropFilter: "blur(6px)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -479,31 +627,49 @@ export default function SuperAdminDashboard() {
         }}>
           <div style={{
             background: "#ffffff",
-            borderRadius: 16,
+            borderRadius: 20,
             maxWidth: 480,
             width: "100%",
-            padding: 24,
-            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+            padding: 28,
+            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
             border: "1px solid #fee2e2"
           }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-              <div style={{ width: 40, height: 40, borderRadius: "50%", background: "#fef2f2", display: "flex", alignItems: "center", justifyContent: "center", color: "#dc2626" }}>
-                <WarningCircle size={22} weight="fill" />
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 18 }}>
+              <div style={{
+                width: 44,
+                height: 44,
+                borderRadius: 12,
+                background: "#fef2f2",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#dc2626",
+                flexShrink: 0
+              }}>
+                <WarningCircle size={26} weight="fill" />
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1e293b" }}>Delete Organization</h3>
-                <span style={{ fontSize: 12, color: "#94a3b8" }}>Irreversible Business Erasure</span>
+                <h3 style={{ margin: 0, fontSize: 19, fontWeight: 800, color: "#0f172a" }}>
+                  Delete Organization
+                </h3>
+                <span style={{ fontSize: 12.5, color: "#64748b" }}>Permanent & Irreversible Fleet Action</span>
               </div>
             </div>
 
-            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: 12, marginBottom: 16 }}>
+            <div style={{
+              background: "#fef2f2",
+              border: "1px solid #fecaca",
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 18
+            }}>
               <p style={{ margin: 0, fontSize: 13, color: "#991b1b", lineHeight: 1.5, fontWeight: 500 }}>
-                <strong>Warning:</strong> Deleting <strong>"{orgToDelete.name}"</strong> will permanently erase all linked products, sales transactions, customer debts, expenses, and staff access.
+                <strong>Critical Warning:</strong> Erasing <strong>"{orgToDelete.name}"</strong> will permanently destroy all its products, accounting ledgers, customers, sales invoices, and staff credentials.
               </p>
             </div>
 
-            <p style={{ fontSize: 13, color: "#475569", marginBottom: 8, lineHeight: 1.4 }}>
-              To confirm permanent deletion, please type the exact business name <strong>"{orgToDelete.name}"</strong> below:
+            <p style={{ fontSize: 13, color: "#475569", marginBottom: 10, lineHeight: 1.4 }}>
+              To confirm this action, please type the business name <strong>"{orgToDelete.name}"</strong> below:
             </p>
 
             <input
@@ -513,9 +679,9 @@ export default function SuperAdminDashboard() {
               placeholder={orgToDelete.name}
               style={{
                 width: "100%",
-                padding: "10px 14px",
-                borderRadius: 8,
-                border: "1px solid #cbd5e1",
+                padding: "12px 14px",
+                borderRadius: 10,
+                border: "1.5px solid #cbd5e1",
                 fontSize: 14,
                 marginBottom: 20,
                 outline: "none",
@@ -533,16 +699,7 @@ export default function SuperAdminDashboard() {
                   setDeleteConfirmationInput("");
                 }}
                 disabled={isDeleting}
-                style={{
-                  background: "#f1f5f9",
-                  color: "#475569",
-                  border: "none",
-                  padding: "10px 16px",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: "pointer"
-                }}
+                className="super-btn super-btn--secondary"
               >
                 Cancel
               </button>
@@ -554,11 +711,12 @@ export default function SuperAdminDashboard() {
                   background: (deleteConfirmationInput.trim() === orgToDelete.name.trim() && !isDeleting) ? "#dc2626" : "#fca5a5",
                   color: "#ffffff",
                   border: "none",
-                  padding: "10px 16px",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: (deleteConfirmationInput.trim() === orgToDelete.name.trim() && !isDeleting) ? "pointer" : "not-allowed"
+                  padding: "10px 18px",
+                  borderRadius: 10,
+                  fontSize: 13.5,
+                  fontWeight: 700,
+                  cursor: (deleteConfirmationInput.trim() === orgToDelete.name.trim() && !isDeleting) ? "pointer" : "not-allowed",
+                  transition: "all 0.2s ease"
                 }}
               >
                 {isDeleting ? "Deleting Business..." : "Permanently Delete Business"}

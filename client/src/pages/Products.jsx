@@ -453,23 +453,23 @@ export default function Products() {
                 <tr key={p.id}>
                   <td className="table-code">{p.item_code || '---'}</td>
                   <td style={{ fontWeight: 500 }}>{p.name}</td>
-                  <td><span style={{ background: '#f3f4f6', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>{p.category}</span></td>
+                  <td style={{ color: '#475569', fontSize: 13 }}>{p.category}</td>
                   <td style={{ fontWeight: 600 }}>{p.stock_quantity} {p.selling_uom}s</td>
                   <td>{p.selling_uom}</td>
                   {user?.role !== 'storekeeper' && <td>{formatCurrency(p.cost_price, currency)}</td>}
                   <td style={{ fontWeight: 600 }}>{formatCurrency(p.selling_price, currency)}</td>
                   {user?.role !== 'storekeeper' && (
-                    <td style={{ color: (p.selling_price - p.cost_price) / p.selling_price > 0.2 ? '#059669' : '#f59e0b', fontWeight: 600 }}>
+                    <td style={{ fontWeight: 600, color: '#0f172a' }}>
                       {formatCurrency(p.selling_price - p.cost_price, currency)}
                     </td>
                   )}
                   <td>
                     {p.stock_quantity <= 0 ? (
-                      <span className="status-pill" style={{ background: '#000', color: '#fff', fontSize: '10px' }}>DEPLETED</span>
+                      <span className="status-pill status-pill--danger">Out of Stock</span>
                     ) : p.stock_quantity < (p.low_stock_threshold || 10) ? (
-                      <span className={`status-pill status-pill--low`} style={{ fontSize: '10px' }}>Low Stock</span>
+                      <span className="status-pill status-pill--low">Low Stock</span>
                     ) : (
-                      <span className={`status-pill status-pill--ok`} style={{ fontSize: '10px' }}>OK</span>
+                      <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>In Stock</span>
                     )}
                   </td>
                   {!isAuditor && (

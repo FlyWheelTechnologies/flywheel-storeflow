@@ -10,6 +10,7 @@ import {
   Label, Input, Select, SectionHeader, CardSection, FieldGroup, ActionButton
 } from "../components/ui/FormFields";
 import { PageSkeleton } from "../components/LoadingStates";
+import { PencilSimple, Trash } from "@phosphor-icons/react";
 
 const emptyForm = { name: '', phone: '+233', email: '', address: '', is_contractor: false };
 
@@ -275,11 +276,11 @@ export default function Customers() {
                           History
                         </ActionButton>
                         <ActionButton variant="ghost" size="sm" onClick={() => startEdit(c)} title="Edit">
-                          ✏️
+                          <PencilSimple size={15} weight="bold" />
                         </ActionButton>
                         {isAdmin && (
                           <ActionButton variant="ghost" size="sm" onClick={() => confirmDelete(c)} title="Delete" style={{ color: '#ef4444' }}>
-                            🗑️
+                            <Trash size={15} weight="bold" />
                           </ActionButton>
                         )}
                       </div>

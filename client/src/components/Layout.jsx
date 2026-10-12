@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabaseClient";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import OfflineBanner from "./OfflineBanner";
 import InstallPWA from "./InstallPWA";
 import ImpersonationBanner from "./ImpersonationBanner";
@@ -182,6 +182,13 @@ export default function Layout({ children }) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     return localStorage.getItem("sidebar_collapsed") === "true";
   });
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const location = useLocation();
+
+  // Close mobile sidebar whenever route or query changes
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [location.pathname, location.search]);
 
   const toggleSidebar = () => {
     setSidebarCollapsed(prev => {
@@ -221,61 +228,164 @@ export default function Layout({ children }) {
   return (
     <>
       <ImpersonationBanner />
+      {mobileSidebarOpen && (
+        <div
+          className="sidebar-backdrop"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
       <div className="app-shell">
         <Sidebar
           collapsed={sidebarCollapsed}
           onToggle={toggleSidebar}
+          mobileOpen={mobileSidebarOpen}
+          onMobileClose={() => setMobileSidebarOpen(false)}
         />
 
         <div className="app-main">
           <header className="topbar">
             <div className="topbar__left">
-              <h1 className="topbar__title">{activeOrg?.name}</h1>
-            </div>
-
-          <div className="topbar__center">
-            <div className="topbar__clock">
-              {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </div>
-          </div>
-
-          <div className="topbar__right">
-            <div className="topbar__user-container" ref={menuRef}>
-              <div className="topbar__user" onClick={() => setShowProfileMenu(!showProfileMenu)}>
-                {user?.avatar_url ? (
-                  <img src={user.avatar_url} className="topbar__avatar" alt="Avatar" />
-                ) : (
-                  <div className="topbar__avatar">{user?.full_name?.[0] || user?.email?.[0].toUpperCase()}</div>
-                )}
-                <div className="topbar__user-info">
-                  <span className="topbar__user-name">{user?.full_name || user?.email?.split('@')[0]}</span>
-                  <span className="topbar__role">{user?.role || "User"}</span>
-                </div>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+              <button
+                type="button"
+                className="topbar__menu-toggle"
+                onClick={() => {
+                  if (window.innerWidth <= 768) {
+                    setMobileSidebarOpen(prev => !prev);
+                  } else {
+                    toggleSidebar();
+                  }
+                }}
+                aria-label="Toggle Navigation Menu"
+                title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+              <div className="topbar__brand-wrap">
+                <span className="topbar__status-dot" title="Store Online" />
+                <h1 className="topbar__title">{activeOrg?.name || 'StoreFlow'}</h1>
               </div>
-
-              {showProfileMenu && (
-                <div className="profile-dropdown">
-                  <button onClick={() => { setShowProfileModal(true); setShowProfileMenu(false); }}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    Edit Profile
-                  </button>
-                  <div className="dropdown-divider"></div>
-                  <button className="logout-item" onClick={handleLogout}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                    Sign Out
-                  </button>
-                </div>
-              )}
             </div>
-          </div>
-        </header>
-        <InstallPWA />
-        <OfflineBanner />
-        <div className="page-content" style={{ overflowY: 'auto', display: 'block' }}>
-          {children}
+
+            <div className="topbar__center">
+              <div className="topbar__clock">
+                {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </div>
+            </div>
+
+            <div className="topbar__right">
+              <div className="topbar__user-container" ref={menuRef}>
+                <div className="topbar__user" onClick={() => setShowProfileMenu(!showProfileMenu)}>
+                  {user?.avatar_url ? (
+                    <img src={user.avatar_url} className="topbar__avatar" alt="Avatar" />
+                  ) : (
+                    <div className="topbar__avatar">{user?.full_name?.[0] || user?.email?.[0].toUpperCase()}</div>
+                  )}
+                  <div className="topbar__user-info">
+                    <span className="topbar__user-name">{user?.full_name || user?.email?.split('@')[0]}</span>
+                    <span className="topbar__role">{user?.role || "User"}</span>
+                  </div>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9" /></svg>
+                </div>
+
+                {showProfileMenu && (
+                  <div className="profile-dropdown">
+                    <button onClick={() => { setShowProfileModal(true); setShowProfileMenu(false); }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                      Edit Profile
+                    </button>
+                    <div className="dropdown-divider"></div>
+                    <button className="logout-item" onClick={handleLogout}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                      Sign Out
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </header>
+          <InstallPWA />
+          <OfflineBanner />
+          <main className="page-content" style={{ overflowY: 'auto', display: 'block' }}>
+            {children}
+          </main>
+
+          {/* Native-grade Mobile Bottom Navigation Bar */}
+          <nav className="mobile-bottom-nav" aria-label="Mobile Navigation">
+            <button
+              type="button"
+              className={`mobile-bottom-nav__item ${location.pathname === '/dashboard' ? 'mobile-bottom-nav__item--active' : ''}`}
+              onClick={() => navigate('/dashboard')}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+              <span>Home</span>
+            </button>
+
+            <button
+              type="button"
+              className={`mobile-bottom-nav__item ${location.pathname.startsWith('/products') ? 'mobile-bottom-nav__item--active' : ''}`}
+              onClick={() => navigate('/products')}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+              </svg>
+              <span>Stock</span>
+            </button>
+
+            {/* Central prominent sale POS trigger */}
+            <button
+              type="button"
+              className="mobile-bottom-nav__pos-btn"
+              onClick={() => navigate('/sales', { state: { showForm: true } })}
+              aria-label="New Sale"
+            >
+              <div className="mobile-bottom-nav__pos-circle">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </div>
+              <span className="mobile-bottom-nav__pos-label">Sale</span>
+            </button>
+
+            <button
+              type="button"
+              className={`mobile-bottom-nav__item ${location.pathname.startsWith('/customers') ? 'mobile-bottom-nav__item--active' : ''}`}
+              onClick={() => navigate('/customers')}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+              <span>Clients</span>
+            </button>
+
+            <button
+              type="button"
+              className="mobile-bottom-nav__item"
+              onClick={() => setMobileSidebarOpen(true)}
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="4" y1="6" x2="20" y2="6"></line>
+                <line x1="4" y1="12" x2="20" y2="12"></line>
+                <line x1="4" y1="18" x2="20" y2="18"></line>
+              </svg>
+              <span>Menu</span>
+            </button>
+          </nav>
         </div>
-      </div>
 
       <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />
       <AIBubble />
@@ -313,6 +423,35 @@ export default function Layout({ children }) {
           display: flex;
           flex-direction: column;
           line-height: 1.2;
+        }
+        .topbar__left {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .topbar__menu-toggle {
+          display: none;
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          color: #334155;
+          padding: 6px;
+          border-radius: 8px;
+          cursor: pointer;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.15s ease;
+        }
+        .topbar__menu-toggle:hover {
+          background: #f1f5f9;
+          color: #0f172a;
+        }
+        @media (max-width: 768px) {
+          .topbar__menu-toggle {
+            display: inline-flex;
+          }
+          .topbar__center {
+            display: none !important;
+          }
         }
         .topbar__title {
           font-size: 17px;

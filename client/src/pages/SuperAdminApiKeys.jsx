@@ -20,6 +20,7 @@ import {
   ChartLineUp,
   ArrowSquareOut
 } from "@phosphor-icons/react";
+import "./SuperAdmin.css";
 import "./Dashboard.css";
 
 export default function SuperAdminApiKeys() {

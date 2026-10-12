@@ -10,7 +10,9 @@ import {
   Plus,
   Database,
   Key,
-  ArrowsClockwise
+  ArrowsClockwise,
+  SidebarSimple,
+  CaretDown
 } from "@phosphor-icons/react";
 import { useAuth } from "../context/AuthContext";
 import "./Sidebar.css";
@@ -80,7 +82,7 @@ const SUPER_ADMIN_NAV_ITEMS = [
   }
 ];
 
-export default function Sidebar({ collapsed, onToggle }) {
+export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
   const { user, activeOrg, impersonatedOrg } = useAuth();
   const [openMenus, setOpenMenus] = useState(() => {
     const cached = localStorage.getItem("sidebar_open_menus");
@@ -96,7 +98,7 @@ export default function Sidebar({ collapsed, onToggle }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const displayCollapsed = isMobile && collapsed;
+  const displayCollapsed = !isMobile && collapsed;
 
   // Save menu state
   useEffect(() => {
@@ -119,10 +121,8 @@ export default function Sidebar({ collapsed, onToggle }) {
   useEffect(() => {
     const handleClickOutside = (event) => {
       const sidebar = document.querySelector('.sidebar');
-      if (sidebar && !sidebar.contains(event.target)) {
-        if (!sidebar.classList.contains('sidebar--collapsed') && window.innerWidth <= 768) {
-          onToggle();
-        }
+      if (sidebar && !sidebar.contains(event.target) && isMobile && mobileOpen) {
+        if (onMobileClose) onMobileClose();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -131,12 +131,12 @@ export default function Sidebar({ collapsed, onToggle }) {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
-  }, [onToggle]);
+  }, [isMobile, mobileOpen, onMobileClose]);
 
   const handleNav = (path) => {
     navigate(path);
-    if (window.innerWidth <= 768 && !collapsed) {
-      onToggle();
+    if (isMobile && onMobileClose) {
+      onMobileClose();
     }
   };
 
@@ -174,12 +174,7 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   return (
     <aside 
-      className={`sidebar ${displayCollapsed ? "sidebar--collapsed" : ""}`}
-      onClick={() => {
-        if (displayCollapsed && window.innerWidth <= 768) {
-          onToggle();
-        }
-      }}
+      className={`sidebar ${displayCollapsed ? "sidebar--collapsed" : ""} ${mobileOpen ? "sidebar--mobile-open" : ""}`}
     >
 
       <div className="sidebar__logo">
@@ -209,16 +204,30 @@ export default function Sidebar({ collapsed, onToggle }) {
         {itemsToRender.map(item =>
           item.children ? (
             <div key={item.id} className="sidebar__group">
-              <div
+              <button
+                type="button"
                 className={`sidebar__item sidebar__item--parent ${isParentActive(item) ? "sidebar__item--active" : ""}`}
+                onClick={() => {
+                  if (displayCollapsed) {
+                    if (onToggle) onToggle();
+                    setOpenMenus(prev => ({ ...prev, [item.id]: true }));
+                  } else {
+                    toggleMenu(item.id);
+                  }
+                }}
                 title={displayCollapsed ? item.label : ""}
               >
                 <span className="sidebar__icon">{item.icon}</span>
                 {!displayCollapsed && (
-                  <span className="sidebar__label">{item.label}</span>
+                  <>
+                    <span className="sidebar__label">{item.label}</span>
+                    <span className={`sidebar__chevron ${openMenus[item.id] ? "sidebar__chevron--open" : ""}`}>
+                      <CaretDown size={12} weight="bold" />
+                    </span>
+                  </>
                 )}
-              </div>
-              {!displayCollapsed && (
+              </button>
+              {!displayCollapsed && openMenus[item.id] && (
                 <div 
                   className="sidebar__children-wrapper sidebar__children-wrapper--open"
                   aria-hidden={false}
@@ -241,13 +250,25 @@ export default function Sidebar({ collapsed, onToggle }) {
           )
         )}
       </nav>
-      {!displayCollapsed && (
-        <div className="sidebar__footer">
+
+      <div className="sidebar__footer">
+        <button
+          type="button"
+          className="sidebar__collapse-btn"
+          onClick={() => {
+            if (onToggle) onToggle();
+          }}
+          title={displayCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          <SidebarSimple size={18} weight="bold" />
+          {!displayCollapsed && <span>Collapse Sidebar</span>}
+        </button>
+        {!displayCollapsed && (
           <button className="sidebar__footer-link" onClick={() => handleNav('/guide')}>
             System guide and Terms
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </aside>
   );
 }

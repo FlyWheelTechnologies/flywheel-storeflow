@@ -164,7 +164,7 @@ export function FieldGroup({
         gap,
         ...style
       }}
-      className={className}
+      className={`form-field-group ${className}`.trim()}
     >
       {children}
     </div>

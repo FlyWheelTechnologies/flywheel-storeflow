@@ -20,6 +20,7 @@ import {
   CheckCircle
 } from "@phosphor-icons/react";
 import { supabase } from "../services/supabaseClient";
+import "./SuperAdmin.css";
 import "./Dashboard.css";
 
 const TABLE_CATEGORIES = {

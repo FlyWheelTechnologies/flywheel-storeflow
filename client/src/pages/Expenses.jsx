@@ -124,8 +124,8 @@ export default function Expenses() {
 
       {showForm && (
         <div className="table-card" style={{ marginBottom: 24 }}>
-          <form onSubmit={handleSubmit} style={{ padding: 20, display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: 14, alignItems: 'end' }}>
-            <FieldGroup columns={1}>
+          <form onSubmit={handleSubmit} style={{ padding: 20 }}>
+            <FieldGroup columns={4} gap={14}>
               <div>
                 <Label required>Description</Label>
                 <Input
@@ -153,9 +153,11 @@ export default function Expenses() {
                   required
                 />
               </div>
-              <ActionButton type="submit" fullWidth disabled={saving} style={{ marginTop: 'auto' }}>
-                {saving ? 'Saving...' : 'Save'}
-              </ActionButton>
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                <ActionButton type="submit" fullWidth disabled={saving} style={{ height: 38 }}>
+                  {saving ? 'Saving...' : 'Save Expense'}
+                </ActionButton>
+              </div>
             </FieldGroup>
           </form>
         </div>
@@ -219,7 +221,7 @@ export default function Expenses() {
                 <tr key={e.id}>
                   <td style={{ fontSize: 12, color: '#6b7280' }}>{new Date(e.created_at).toLocaleDateString()}</td>
                   <td style={{ fontWeight: 500 }}>{e.description}</td>
-                  <td><span style={{ background: '#f3f4f6', padding: '2px 8px', borderRadius: 4, fontSize: 12 }}>{e.category}</span></td>
+                  <td style={{ fontSize: 13, color: '#475569' }}>{e.category}</td>
                   <td style={{ fontWeight: 600 }}>{formatCurrency(e.amount, currency)}</td>
                   <td>{e.recorded_by}</td>
                 </tr>

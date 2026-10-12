@@ -103,14 +103,14 @@
 
 .sidebar__item--parent {
   justify-content: flex-start;
-  cursor: default;
-  pointer-events: none;
-  opacity: 0.85;
+  cursor: pointer;
+  pointer-events: auto;
+  opacity: 0.95;
 }
 
 .sidebar__item--parent:hover {
-  background: transparent;
-  color: rgba(255,255,255,0.7);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 
 .sidebar__icon {
@@ -193,19 +193,32 @@
   font-weight: 700;
 }
 
+.sidebar__chevron {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  transition: transform 0.2s ease;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.sidebar__chevron--open {
+  transform: rotate(180deg);
+}
+
 /* Collapse button */
 .sidebar__collapse-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   width: 100%;
-  padding: 14px 18px;
+  padding: 9px 12px;
   border: none;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-  background: transparent;
-  color: rgba(255,255,255,0.5);
-  font-size: 12.5px;
+  background: rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.65);
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
+  border-radius: 8px;
   transition: all 0.2s;
   text-align: left;
   white-space: nowrap;
@@ -213,14 +226,21 @@
 
 .sidebar__collapse-btn:hover {
   color: #ffffff;
-  background: rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.12);
+}
+
+.sidebar--collapsed .sidebar__collapse-btn {
+  justify-content: center;
+  padding: 10px 0;
 }
 
 /* Footer */
 .sidebar__footer {
-  padding: 12px 14px;
+  padding: 12px 10px;
   border-top: 1px solid rgba(255,255,255,0.05);
   display: flex;
+  flex-direction: column;
+  gap: 8px;
   justify-content: center;
   align-items: center;
 }
@@ -239,17 +259,58 @@
   color: rgba(255,255,255,0.7);
 }
 
+/* Backdrop for mobile drawer */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 2050;
+  animation: fadeInBackdrop 0.2s ease-out forwards;
+}
+
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
   .sidebar {
     position: fixed;
+    top: 0;
+    left: 0;
     height: 100vh;
-    z-index: 1000;
-    width: 60px;
+    height: 100dvh;
+    width: 270px !important;
+    max-width: 85vw;
+    z-index: 2100;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: none;
   }
   
-  .sidebar:not(.sidebar--collapsed) {
-    width: 220px;
-    box-shadow: 10px 0 15px -3px rgba(0, 0, 0, 0.2);
+  .sidebar.sidebar--mobile-open {
+    transform: translateX(0) !important;
+    box-shadow: 12px 0 30px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Don't show collapse toggle on mobile */
+  .sidebar__collapse-btn {
+    display: none;
+  }
+
+  /* Keep full width items inside mobile drawer */
+  .sidebar.sidebar--collapsed {
+    width: 270px !important;
+  }
+  .sidebar.sidebar--collapsed .sidebar__item {
+    justify-content: flex-start;
+    padding: 9px 10px;
+  }
+  .sidebar.sidebar--collapsed .sidebar__logo {
+    justify-content: flex-start;
+    padding: 18px 14px;
   }
 }

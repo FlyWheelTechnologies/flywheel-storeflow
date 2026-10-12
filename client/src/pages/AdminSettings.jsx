@@ -388,9 +388,9 @@ export default function AdminSettings() {
   };
 
   const ROLE_INFO = {
-    storekeeper: { desc: 'Can process sales, add products, manage inventory and add customer deposits.', color: '#10b981', bg: '#ecfdf5' },
-    auditor: { desc: 'Read-only access to sales, receipts, products, customers and journal entries.', color: '#3b82f6', bg: '#eff6ff' },
-    admin: { desc: 'Full access to all modules, financial journals, staff management and store settings.', color: '#f59e0b', bg: '#fffbeb' },
+    storekeeper: { desc: 'Can process sales, add products, manage inventory and add customer deposits.', color: '#475569', bg: '#f8fafc' },
+    auditor: { desc: 'Read-only access to sales, receipts, products, customers and journal entries.', color: '#475569', bg: '#f8fafc' },
+    admin: { desc: 'Full access to all modules, financial journals, staff management and store settings.', color: '#0f172a', bg: '#f1f5f9' },
   };
 
   if (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'super_admin') {
@@ -526,7 +526,7 @@ export default function AdminSettings() {
                 />
                 {orgForm.tin && orgForm.tin.trim().toUpperCase().startsWith('GHA') ? (
                   <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '8px 10px', marginTop: 6, fontSize: 11, color: '#92400e', lineHeight: 1.4 }}>
-                    <strong>🛡️ Security & Privacy Guard:</strong> You entered a Ghana Card PIN. Because this is a personal national ID, StoreFlow will <strong>never</strong> print it on public receipts.
+                    <strong>Security & Privacy Guard:</strong> You entered a Ghana Card PIN. Because this is a personal national ID, StoreFlow will <strong>never</strong> print it on public receipts.
                   </div>
                 ) : (
                   <span style={{ fontSize: 11, color: '#6b7280', marginTop: 3, display: 'block' }}>
@@ -551,7 +551,7 @@ export default function AdminSettings() {
 
             <div style={{ background: '#f8fafc', padding: 18, borderRadius: 12, border: '1px solid #e2e8f0', marginBottom: 20 }}>
               <h4 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>
-                🇬🇭 Ghana Revenue Authority (Act 1151) Tax Configuration
+                Ghana Revenue Authority (Act 1151) Tax Configuration
               </h4>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
                 <div>
@@ -705,7 +705,7 @@ export default function AdminSettings() {
                       <td style={{fontWeight:600}}>{u.email}</td>
                       <td>{u.full_name || '—'}</td>
                       <td>
-                        <span style={{ background:ROLE_INFO[u.role]?.bg || '#f3f4f6', color:ROLE_INFO[u.role]?.color || '#374151', padding:'3px 10px', borderRadius:20, fontSize:12, fontWeight:600 }}>{u.role}</span>
+                        <span style={{ color: '#334155', fontSize: 13, fontWeight: 600, textTransform: 'capitalize' }}>{u.role}</span>
                       </td>
                       <td style={{ display:'flex', gap:10 }}>
                         <button 

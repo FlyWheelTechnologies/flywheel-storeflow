@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import {
   Sparkle,
   PaperPlaneTilt,
-  ArrowsOutSimple,
   Trash,
   X,
   MapPin,
@@ -109,7 +108,6 @@ function formatTime(date) {
 // ═══════════════════════════════════════════════════════════
 export default function AIBubble() {
   const { activeOrg, user, activeOrgId } = useAuth();
-  const navigate = useNavigate();
   const location = useLocation();
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -286,12 +284,7 @@ export default function AIBubble() {
     ]);
   }, []);
 
-  // ── Navigate to full AI page ──
-  const handleExpand = useCallback(() => {
-    const isSuper = user?.role === "super_admin";
-    navigate(isSuper ? "/admin/ai" : "/ai");
-    handleToggle();
-  }, [navigate, user?.role, handleToggle]);
+
 
   // ── Keyboard shortcut: Ctrl+K ──
   useEffect(() => {
@@ -334,10 +327,10 @@ export default function AIBubble() {
               </button>
               <button
                 className="ai-overlay__header-btn"
-                onClick={handleExpand}
-                title="Open full AI page"
+                onClick={handleToggle}
+                title="Close assistant"
               >
-                <ArrowsOutSimple size={14} />
+                <X size={14} weight="bold" />
               </button>
             </div>
           </div>
@@ -462,12 +455,11 @@ export default function AIBubble() {
             </button>
           </form>
 
-          {/* Footer — expand link */}
+          {/* Footer */}
           <div className="ai-overlay__footer">
-            <button className="ai-overlay__expand-link" onClick={handleExpand}>
-              <ArrowsOutSimple size={12} />
-              Open full analytics · Ctrl+K
-            </button>
+            <span style={{ fontSize: 11, color: '#94a3b8' }}>
+              Press Enter to send · Ctrl+K to toggle
+            </span>
           </div>
         </div>
       )}
@@ -479,7 +471,6 @@ export default function AIBubble() {
         aria-label={isOpen ? "Close AI assistant" : "Open AI assistant"}
         title={isOpen ? "Close" : "StoreFlow AI (Ctrl+K)"}
       >
-        <span className="ai-bubble__pulse" />
         <span className="ai-bubble__trigger-icon">
           {isOpen ? <X size={22} weight="bold" /> : <Sparkle size={22} weight="fill" />}
         </span>

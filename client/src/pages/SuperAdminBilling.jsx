@@ -7,11 +7,17 @@ import {
   ClockCountdown,
   PencilSimple,
   WhatsappLogo,
-  X
+  X,
+  Buildings,
+  Money,
+  TrendUp,
+  CheckCircle,
+  CurrencyCircleDollar
 } from "@phosphor-icons/react";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import "./SuperAdmin.css";
 import "./Dashboard.css";
 
 export default function SuperAdminBilling() {
@@ -98,7 +104,7 @@ export default function SuperAdminBilling() {
     setPaymentAmount(org.subscription_amount || "");
     setPaymentMethod("MoMo");
     setPaymentRef("");
-    setPaymentNotes(`Subscription payment for ${org.name}`);
+    setPaymentNotes(`Subscription renewal for ${org.name}`);
     setNewSubRate(org.subscription_amount || 0);
     setNewStatus(org.payment_status || "active");
     
@@ -172,7 +178,7 @@ export default function SuperAdminBilling() {
     try {
       await navigator.clipboard.writeText(text);
     } catch {
-      // Fallback if clipboard API restricted
+      // Fallback
     }
 
     const phoneClean = (org.phone || org.admin_phone || "").replace(/[^0-9]/g, "");
@@ -188,81 +194,141 @@ export default function SuperAdminBilling() {
 
   if (loading) {
     return (
-      <div style={{ padding: 24 }}>
-        <h2 className="section-title">Commercial Billing & Payment Center</h2>
-        <div className="skeleton" style={{ height: 120, marginBottom: 24 }} />
-        <div className="skeleton" style={{ height: 350 }} />
+      <div className="super-admin-container">
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="skeleton" style={{ height: 40, width: 280 }} />
+          <div className="skeleton" style={{ height: 120, borderRadius: 16 }} />
+          <div className="skeleton" style={{ height: 380, borderRadius: 16 }} />
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <div>
-          <h2 className="section-title" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <CreditCard size={24} color="#f97316" weight="duotone" />
-            Ghanaian Business Billing & Revenue Hub
-          </h2>
-          <p style={{ color: "#6b7280", fontSize: 13 }}>Verified MRR, Cash Collected, Setup Fees & Renewal Watchlist</p>
+    <div className="super-admin-container">
+      {/* Header */}
+      <div className="super-header">
+        <div className="super-header__titles">
+          <div className="super-badge-row">
+            <span className="super-platform-badge super-platform-badge--live">Revenue Ledger</span>
+            <span className="super-platform-badge">Ghana Commercial Hub</span>
+          </div>
+          <h1 className="super-header__title">Commercial Billing & MRR</h1>
+          <p className="super-header__subtitle">
+            Verified cash collected, contracted MRR, MoMo payment records and renewal tracking
+          </p>
         </div>
-        <Link to="/admin/organizations/new" className="quick-action-btn" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <Plus size={14} weight="bold" /> Onboard New Business
-        </Link>
+
+        <div className="super-header__actions">
+          <Link to="/admin" className="super-btn super-btn--secondary">
+            Admin Console
+          </Link>
+          <Link to="/admin/organizations/new" className="super-btn super-btn--primary">
+            <Plus size={18} weight="bold" /> Onboard New Business
+          </Link>
+        </div>
       </div>
 
       {error && (
-        <div style={{ background: "#fef2f2", color: "#ef4444", padding: 12, borderRadius: 8, marginBottom: 20, fontSize: 13, border: "1px solid #fee2e2", display: "flex", alignItems: "center", gap: 8 }}>
-          <WarningCircle size={18} weight="fill" /> {error}
+        <div style={{
+          background: "#fef2f2",
+          color: "#991b1b",
+          padding: "14px 18px",
+          borderRadius: 12,
+          marginBottom: 24,
+          fontSize: 13.5,
+          border: "1px solid #fee2e2",
+          display: "flex",
+          alignItems: "center",
+          gap: 10
+        }}>
+          <WarningCircle size={20} weight="fill" color="#dc2626" />
+          <span>{error}</span>
         </div>
       )}
 
-      {/* Verified Revenue Grid */}
-      <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: 20, marginBottom: 24 }}>
-        <div className="stat-card" style={{ borderLeft: "4px solid #10b981" }}>
-          <div className="stat-card__header">
-            <span className="stat-card__label">Realized Cash Collected</span>
+      {/* Verified Revenue KPI Cards */}
+      <div className="super-kpi-grid">
+        <div className="super-kpi-card">
+          <div className="super-kpi-card__top">
+            <span className="super-kpi-card__label">Realized Cash Collected</span>
+            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--emerald">
+              <Money size={22} weight="duotone" />
+            </div>
           </div>
-          <div className="stat-card__value" style={{ color: "#059669" }}>GH₵ {totalCashCollected.toLocaleString()}</div>
-          <span style={{ fontSize: 12, color: "#6b7280" }}>Actual cash in bank (Setup fees + Payments)</span>
+          <div className="super-kpi-card__value" style={{ color: "#059669" }}>
+            GH₵ {totalCashCollected.toLocaleString()}
+          </div>
+          <div className="super-kpi-card__footer">
+            <span className="super-kpi-card__subtitle">Actual cash in bank (Setup + MoMo)</span>
+            <span className="super-kpi-card__badge super-kpi-card__badge--green">Realized</span>
+          </div>
         </div>
 
-        <div className="stat-card" style={{ borderLeft: "4px solid #2563eb" }}>
-          <div className="stat-card__header">
-            <span className="stat-card__label">Verified Contracted MRR</span>
+        <div className="super-kpi-card">
+          <div className="super-kpi-card__top">
+            <span className="super-kpi-card__label">Contracted MRR</span>
+            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--blue">
+              <TrendUp size={22} weight="duotone" />
+            </div>
           </div>
-          <div className="stat-card__value" style={{ color: "#2563eb" }}>GH₵ {Math.round(verifiedMRR).toLocaleString()}<span style={{ fontSize: 14 }}>/mo</span></div>
-          <span style={{ fontSize: 12, color: "#6b7280" }}>Normalized active subscription revenue</span>
+          <div className="super-kpi-card__value" style={{ color: "#2563eb" }}>
+            GH₵ {Math.round(verifiedMRR).toLocaleString()}<span style={{ fontSize: 16 }}>/mo</span>
+          </div>
+          <div className="super-kpi-card__footer">
+            <span className="super-kpi-card__subtitle">Normalized active subscriptions</span>
+            <span className="super-kpi-card__badge">Recurring</span>
+          </div>
         </div>
 
-        <div className="stat-card" style={{ borderLeft: "4px solid #f97316" }}>
-          <div className="stat-card__header">
-            <span className="stat-card__label">Subscribed Businesses</span>
+        <div className="super-kpi-card">
+          <div className="super-kpi-card__top">
+            <span className="super-kpi-card__label">Subscribed Businesses</span>
+            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--orange">
+              <Buildings size={22} weight="duotone" />
+            </div>
           </div>
-          <div className="stat-card__value">{orgs.length}</div>
-          <span style={{ fontSize: 12, color: "#6b7280" }}>Active tenant accounts</span>
+          <div className="super-kpi-card__value">{orgs.length}</div>
+          <div className="super-kpi-card__footer">
+            <span className="super-kpi-card__subtitle">Active tenant accounts</span>
+            <span className="super-kpi-card__badge super-kpi-card__badge--green">Live</span>
+          </div>
         </div>
 
-        <div className="stat-card" style={{ borderLeft: "4px solid #ef4444" }}>
-          <div className="stat-card__header">
-            <span className="stat-card__label">Renewals Watchlist</span>
+        <div className="super-kpi-card">
+          <div className="super-kpi-card__top">
+            <span className="super-kpi-card__label">Renewals Watchlist</span>
+            <div className="super-kpi-card__icon-box" style={{ background: watchlist.length > 0 ? "#fee2e2" : "#f1f5f9", color: watchlist.length > 0 ? "#dc2626" : "#64748b" }}>
+              <ClockCountdown size={22} weight="duotone" />
+            </div>
           </div>
-          <div className="stat-card__value" style={{ color: watchlist.length > 0 ? "#dc2626" : "#059669" }}>{watchlist.length}</div>
-          <span style={{ fontSize: 12, color: "#6b7280" }}>Expiring within 30 days or overdue</span>
+          <div className="super-kpi-card__value" style={{ color: watchlist.length > 0 ? "#dc2626" : "#059669" }}>
+            {watchlist.length}
+          </div>
+          <div className="super-kpi-card__footer">
+            <span className="super-kpi-card__subtitle">Expiring within 30 days or overdue</span>
+            <span className="super-kpi-card__badge">{watchlist.length > 0 ? "Action Required" : "All Clear"}</span>
+          </div>
         </div>
       </div>
 
       {/* Expiring Renewals Watchlist */}
       {watchlist.length > 0 && (
-        <div className="table-card" style={{ marginBottom: 24, border: "1px solid #fecaca" }}>
-          <div className="table-card__header" style={{ background: "#fff5f5" }}>
-            <h3 className="table-card__title" style={{ color: "#991b1b", display: "flex", alignItems: "center", gap: 8 }}>
-              <ClockCountdown size={20} color="#991b1b" weight="duotone" />
-              30-Day Expiration & Renewal Watchlist ({watchlist.length})
-            </h3>
+        <div className="super-card" style={{ marginBottom: 24, border: "1.5px solid #fecaca" }}>
+          <div className="super-card__header" style={{ background: "#fff5f5" }}>
+            <div className="super-card__title-group">
+              <h2 className="super-card__title" style={{ color: "#991b1b", display: "flex", alignItems: "center", gap: 8 }}>
+                <ClockCountdown size={20} color="#dc2626" weight="duotone" />
+                30-Day Expiration & Renewal Watchlist
+              </h2>
+              <span className="super-card__count-badge" style={{ background: "#fee2e2", color: "#b91c1c" }}>
+                {watchlist.length} stores
+              </span>
+            </div>
           </div>
-          <div className="table-wrapper">
-            <table className="stock-table">
+
+          <div className="super-table-container">
+            <table className="super-table">
               <thead>
                 <tr>
                   <th>Business Name</th>
@@ -270,30 +336,41 @@ export default function SuperAdminBilling() {
                   <th>Rate</th>
                   <th>Expiration Date</th>
                   <th>Status</th>
-                  <th>Actions</th>
+                  <th style={{ textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {watchlist.map(o => (
                   <tr key={o.id}>
-                    <td style={{ fontWeight: 600 }}>{o.name}</td>
+                    <td style={{ fontWeight: 700, color: "#0f172a" }}>{o.name}</td>
                     <td>{o.phone || o.admin_email}</td>
                     <td>GH₵ {o.subscription_amount} / {o.billing_cycle}</td>
-                    <td style={{ color: "#dc2626", fontWeight: 600 }}>
+                    <td style={{ color: "#dc2626", fontWeight: 700 }}>
                       {o.subscription_expires_at ? new Date(o.subscription_expires_at).toLocaleDateString() : "Immediate"}
                     </td>
                     <td>
-                      <span style={{ background: "#fef2f2", color: "#dc2626", padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600 }}>
+                      <span className="super-status-pill super-status-pill--suspended">
+                        <span className="super-status-dot" />
                         {o.payment_status || 'due'}
                       </span>
                     </td>
-                    <td style={{ display: "flex", gap: 8 }}>
-                      <button onClick={() => openPaymentModal(o)} className="quick-action-btn" style={{ background: "#d1fae5", color: "#047857", fontSize: 12, padding: "4px 8px", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                        <PencilSimple size={13} weight="bold" /> Record Payment
-                      </button>
-                      <button onClick={() => generateWhatsAppReminder(o)} className="quick-action-btn" style={{ background: "#25d366", color: "#ffffff", fontSize: 12, padding: "4px 8px", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                        <WhatsappLogo size={14} weight="fill" /> WhatsApp Reminder
-                      </button>
+                    <td>
+                      <div className="super-action-group" style={{ justifyContent: "flex-end" }}>
+                        <button
+                          onClick={() => openPaymentModal(o)}
+                          className="super-action-btn super-action-btn--edit"
+                          style={{ background: "#ecfdf5", color: "#047857", borderColor: "#a7f3d0" }}
+                        >
+                          <PencilSimple size={13} weight="bold" /> Record Payment
+                        </button>
+                        <button
+                          onClick={() => generateWhatsAppReminder(o)}
+                          className="super-action-btn"
+                          style={{ background: "#25d366", color: "#ffffff" }}
+                        >
+                          <WhatsappLogo size={14} weight="fill" /> WhatsApp Reminder
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -303,54 +380,96 @@ export default function SuperAdminBilling() {
         </div>
       )}
 
-      {/* Full Business Billing Ledger */}
-      <div className="table-card" style={{ marginBottom: 24 }}>
-        <div className="table-card__header">
-          <h3 className="table-card__title">Business Billing & Subscription Directory</h3>
+      {/* Full Business Billing Directory */}
+      <div className="super-card">
+        <div className="super-card__header">
+          <div className="super-card__title-group">
+            <h2 className="super-card__title">Business Billing & Subscription Directory</h2>
+            <span className="super-card__count-badge">{orgs.length} businesses</span>
+          </div>
         </div>
-        <div className="table-wrapper">
-          <table className="stock-table">
+
+        <div className="super-table-container">
+          <table className="super-table">
             <thead>
               <tr>
                 <th>Business Name</th>
                 <th>Setup Fee</th>
-                <th>Sub Rate</th>
+                <th>Subscription Rate</th>
                 <th>Cadence</th>
                 <th>Status</th>
                 <th>Expiration Date</th>
-                <th>Custom Payment Terms</th>
-                <th>Actions</th>
+                <th>Payment Terms</th>
+                <th style={{ textAlign: "right" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {orgs.map(o => (
                 <tr key={o.id}>
-                  <td style={{ fontWeight: 600 }}>{o.name}</td>
+                  <td style={{ fontWeight: 700, color: "#0f172a" }}>{o.name}</td>
                   <td>GH₵ {o.setup_fee || 0}</td>
-                  <td style={{ fontWeight: 600, color: "#2563eb" }}>GH₵ {o.subscription_amount || 0}</td>
+                  <td style={{ fontWeight: 700, color: "#2563eb" }}>GH₵ {o.subscription_amount || 0}</td>
                   <td style={{ textTransform: "capitalize" }}>{o.billing_cycle || "monthly"}</td>
                   <td>
-                    <span style={{
-                      background: o.payment_status === "active" ? "#d1fae5" : "#fef2f2",
-                      color: o.payment_status === "active" ? "#059669" : "#dc2626",
-                      padding: "3px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600
-                    }}>
+                    <span className={`super-status-pill ${o.payment_status === "active" ? "super-status-pill--active" : "super-status-pill--suspended"}`}>
+                      <span className="super-status-dot" />
                       {o.payment_status || "active"}
                     </span>
                   </td>
                   <td>{o.subscription_expires_at ? new Date(o.subscription_expires_at).toLocaleDateString() : "N/A"}</td>
-                  <td style={{ fontSize: 12, color: "#64748b", maxWidth: 180, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <td style={{ fontSize: 12, color: "#64748b", maxWidth: 200, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {o.payment_terms || "Standard MoMo terms"}
                   </td>
                   <td>
-                    <button onClick={() => openPaymentModal(o)} className="quick-action-btn" style={{ background: "#e0f2fe", color: "#0369a1", fontSize: 12, padding: "4px 10px", display: "inline-flex", alignItems: "center", gap: 5 }}>
-                      <PencilSimple size={13} weight="bold" /> Edit & Record Payment
-                    </button>
+                    <div className="super-action-group" style={{ justifyContent: "flex-end" }}>
+                      <button
+                        onClick={() => openPaymentModal(o)}
+                        className="super-action-btn super-action-btn--enter"
+                      >
+                        <PencilSimple size={13} weight="bold" /> Edit & Record Payment
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile View for Billing */}
+        <div className="super-mobile-cards">
+          {orgs.map(o => (
+            <div key={o.id} className="super-biz-card">
+              <div className="super-biz-card__top">
+                <span style={{ fontWeight: 700, fontSize: 15, color: "#0f172a" }}>{o.name}</span>
+                <span className={`super-status-pill ${o.payment_status === "active" ? "super-status-pill--active" : "super-status-pill--suspended"}`}>
+                  <span className="super-status-dot" />
+                  {o.payment_status || "active"}
+                </span>
+              </div>
+              <div className="super-biz-card__meta">
+                <div className="super-biz-card__meta-item">
+                  <span className="super-biz-card__meta-label">Rate & Cadence</span>
+                  <span className="super-biz-card__meta-val">GH₵ {o.subscription_amount || 0} / {o.billing_cycle || "monthly"}</span>
+                </div>
+                <div className="super-biz-card__meta-item">
+                  <span className="super-biz-card__meta-label">Expiry Date</span>
+                  <span className="super-biz-card__meta-val">
+                    {o.subscription_expires_at ? new Date(o.subscription_expires_at).toLocaleDateString() : "N/A"}
+                  </span>
+                </div>
+              </div>
+              <div className="super-biz-card__actions">
+                <button
+                  onClick={() => openPaymentModal(o)}
+                  className="super-action-btn super-action-btn--enter"
+                  style={{ width: "100%", padding: 10 }}
+                >
+                  <PencilSimple size={14} weight="bold" /> Record Payment
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -358,30 +477,47 @@ export default function SuperAdminBilling() {
       {selectedOrg && (
         <div style={{
           position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(15, 23, 42, 0.65)", backdropFilter: "blur(4px)",
+          background: "rgba(15, 23, 42, 0.7)", backdropFilter: "blur(6px)",
           display: "flex", alignItems: "center", justifyContent: "center", zIndex: 9999, padding: 20
         }}>
           <form onSubmit={handleRecordPaymentSubmit} style={{
-            background: "#ffffff", borderRadius: 16, maxWidth: 540, width: "100%", padding: 24,
-            boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)", border: "1px solid #e2e8f0"
+            background: "#ffffff", borderRadius: 20, maxWidth: 540, width: "100%", padding: 28,
+            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)", border: "1px solid #e2e8f0"
           }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1e293b" }}>
-                Record Payment & Update Terms — {selectedOrg.name}
-              </h3>
-              <button type="button" onClick={() => setSelectedOrg(null)} style={{ background: "none", border: "none", display: "flex", alignItems: "center", color: "#64748b", cursor: "pointer", padding: 4 }}>
-                <X size={18} weight="bold" />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#0f172a" }}>
+                  Record Payment & Terms
+                </h3>
+                <span style={{ fontSize: 13, color: "#64748b" }}>{selectedOrg.name}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedOrg(null)}
+                style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", padding: 4 }}
+              >
+                <X size={20} weight="bold" />
               </button>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
               <div>
-                <label style={lbl}>Payment Amount (GH₵)</label>
-                <input style={inp} type="number" value={paymentAmount} onChange={e => setPaymentAmount(e.target.value)} required />
+                <label className="super-form-label">Payment Amount (GH₵) *</label>
+                <input
+                  className="super-form-input"
+                  type="number"
+                  value={paymentAmount}
+                  onChange={e => setPaymentAmount(e.target.value)}
+                  required
+                />
               </div>
               <div>
-                <label style={lbl}>Payment Method</label>
-                <select style={inp} value={paymentMethod} onChange={e => setPaymentMethod(e.target.value)}>
+                <label className="super-form-label">Payment Method *</label>
+                <select
+                  className="super-form-select"
+                  value={paymentMethod}
+                  onChange={e => setPaymentMethod(e.target.value)}
+                >
                   <option value="MoMo">Mobile Money (MoMo)</option>
                   <option value="Bank Transfer">Bank Transfer</option>
                   <option value="Cash">Cash Handover</option>
@@ -393,23 +529,45 @@ export default function SuperAdminBilling() {
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
               <div>
-                <label style={lbl}>Payment Ref / Transaction ID</label>
-                <input style={inp} type="text" value={paymentRef} onChange={e => setPaymentRef(e.target.value)} placeholder="e.g. 1928374612" />
+                <label className="super-form-label">Payment Ref / TxID</label>
+                <input
+                  className="super-form-input"
+                  type="text"
+                  value={paymentRef}
+                  onChange={e => setPaymentRef(e.target.value)}
+                  placeholder="e.g. 1928374612"
+                />
               </div>
               <div>
-                <label style={lbl}>Extend Subscription Expiry To</label>
-                <input style={inp} type="date" value={newExpiry} onChange={e => setNewExpiry(e.target.value)} required />
+                <label className="super-form-label">Extend Expiry Date *</label>
+                <input
+                  className="super-form-input"
+                  type="date"
+                  value={newExpiry}
+                  onChange={e => setNewExpiry(e.target.value)}
+                  required
+                />
               </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
               <div>
-                <label style={lbl}>Subscription Rate (GH₵)</label>
-                <input style={inp} type="number" value={newSubRate} onChange={e => setNewSubRate(e.target.value)} required />
+                <label className="super-form-label">Subscription Rate (GH₵)</label>
+                <input
+                  className="super-form-input"
+                  type="number"
+                  value={newSubRate}
+                  onChange={e => setNewSubRate(e.target.value)}
+                  required
+                />
               </div>
               <div>
-                <label style={lbl}>Subscription Status</label>
-                <select style={inp} value={newStatus} onChange={e => setNewStatus(e.target.value)}>
+                <label className="super-form-label">Subscription Status</label>
+                <select
+                  className="super-form-select"
+                  value={newStatus}
+                  onChange={e => setNewStatus(e.target.value)}
+                >
                   <option value="active">Active (Paid)</option>
                   <option value="pending">Pending Payment</option>
                   <option value="overdue">Overdue</option>
@@ -418,32 +576,30 @@ export default function SuperAdminBilling() {
               </div>
             </div>
 
-            <div style={{ marginBottom: 20 }}>
-              <label style={lbl}>Payment Notes / Ledger Comment</label>
-              <input style={inp} type="text" value={paymentNotes} onChange={e => setPaymentNotes(e.target.value)} placeholder="Notes..." />
+            <div style={{ marginBottom: 24 }}>
+              <label className="super-form-label">Payment Notes / Ledger Comment</label>
+              <input
+                className="super-form-input"
+                type="text"
+                value={paymentNotes}
+                onChange={e => setPaymentNotes(e.target.value)}
+                placeholder="Payment notes..."
+              />
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-              <button type="button" onClick={() => setSelectedOrg(null)} style={{ background: "#f1f5f9", color: "#475569", border: "none", padding: "10px 16px", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              <button
+                type="button"
+                onClick={() => setSelectedOrg(null)}
+                className="super-btn super-btn--secondary"
+              >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={savingPayment}
-                style={{
-                  background: "#059669",
-                  color: "#ffffff",
-                  border: "none",
-                  padding: "10px 18px",
-                  borderRadius: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: savingPayment ? "not-allowed" : "pointer",
-                  opacity: savingPayment ? 0.7 : 1,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6
-                }}
+                className="super-btn super-btn--primary"
+                style={{ background: "#059669" }}
               >
                 {savingPayment ? "Saving Payment..." : "Save Payment & Update Expiry"}
               </button>
@@ -454,6 +610,3 @@ export default function SuperAdminBilling() {
     </div>
   );
 }
-
-const lbl = { display: "block", fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 4 };
-const inp = { width: "100%", padding: "8px 12px", borderRadius: 8, border: "1px solid #cbd5e1", fontSize: 13, boxSizing: "border-box", transition: "border-color 0.15s ease" };
