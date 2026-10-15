@@ -7,7 +7,6 @@ import {
   X,
   MapPin,
   Lightning,
-  Cpu,
 } from "@phosphor-icons/react";
 import { useAuth } from "../../context/AuthContext";
 import { supabase } from "../../services/supabaseClient";
@@ -19,8 +18,6 @@ import {
 import {
   queryStoreLLM,
   getCurrentModel,
-  setCurrentModel,
-  CURATED_MODELS,
 } from "../../services/llmService";
 import AIMessageContent from "./AIMessageContent";
 import "./AIBubble.css";
@@ -125,8 +122,7 @@ export default function AIBubble() {
     },
   ]);
 
-  const [selectedModel, setSelectedModel] = useState(() => getCurrentModel());
-  const [showModelPicker, setShowModelPicker] = useState(false);
+  const [selectedModel] = useState(() => getCurrentModel());
 
   // ── Data for AI context ──
   const [storeData, setStoreData] = useState(null);
@@ -345,51 +341,7 @@ export default function AIBubble() {
               <Lightning size={12} weight="bold" />
               {activeOrg?.name || "Store"}
             </span>
-            <button
-              className="ai-overlay__context-badge"
-              onClick={() => setShowModelPicker(!showModelPicker)}
-              style={{ background: "#f5f3ff", color: "#6d28d9", border: "none", cursor: "pointer" }}
-              title="Click to change AI model"
-            >
-              <Cpu size={12} weight="bold" />
-              {CURATED_MODELS.find((m) => m.id === selectedModel)?.name.split(" ")[0] || "AI"}
-            </button>
           </div>
-
-          {/* Model picker dropdown */}
-          {showModelPicker && (
-            <div style={{ padding: "8px 12px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", display: "flex", flexDirection: "column", gap: 6 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#64748b" }}>PLUGGED MODEL (RAG GROUNDED):</span>
-                <span style={{ fontSize: 10, color: "#059669", fontWeight: 600 }}>Zero stars / Clean layout</span>
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-                {CURATED_MODELS.map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => {
-                      setSelectedModel(m.id);
-                      setCurrentModel(m.id);
-                      setShowModelPicker(false);
-                    }}
-                    style={{
-                      fontSize: 11,
-                      padding: "4px 8px",
-                      borderRadius: 6,
-                      border: "1px solid",
-                      borderColor: selectedModel === m.id ? "var(--brand-primary)" : "#cbd5e1",
-                      background: selectedModel === m.id ? "var(--brand-bg-light)" : "#fff",
-                      color: selectedModel === m.id ? "var(--brand-primary)" : "#334155",
-                      cursor: "pointer",
-                      fontWeight: selectedModel === m.id ? 700 : 500,
-                    }}
-                  >
-                    {m.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Messages */}
           <div className="ai-overlay__messages">
