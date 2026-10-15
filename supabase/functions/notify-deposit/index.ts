@@ -89,6 +89,8 @@ Deno.serve(async (req: Request) => {
         `).join('')
       : '<tr><td colspan="4" style="padding: 12px; text-align: center; color: #9ca3af;">No items listed</td></tr>';
 
+    const appUrl = Deno.env.get('APP_URL') || 'https://storeflow.bookflywheel.com';
+
     const html = `
       <div style="font-family: 'Helvetica Neue', sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb;">
 
@@ -96,7 +98,7 @@ Deno.serve(async (req: Request) => {
         <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 28px; text-align: center;">
           <p style="color: #bfdbfe; font-size: 28px; margin: 0;">📥</p>
           <h1 style="color: #fff; margin: 8px 0 0; font-size: 20px;">New Deposit Order</h1>
-          <p style="color: #bfdbfe; margin: 4px 0 0; font-size: 13px;">Flywheel IMS — Action Required</p>
+          <p style="color: #bfdbfe; margin: 4px 0 0; font-size: 13px;">StoreFlow by Flywheel — Action Required</p>
         </div>
 
         <!-- Body -->
@@ -152,7 +154,7 @@ Deno.serve(async (req: Request) => {
           ` : ''}
 
           <div style="text-align: center; margin-top: 24px;">
-            <a href="${Deno.env.get('APP_URL') ?? '#'}/debtors"
+            <a href="${appUrl}/deposits"
                style="display: inline-block; background: #3b82f6; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
               View Deposits →
             </a>
@@ -161,7 +163,7 @@ Deno.serve(async (req: Request) => {
 
         <!-- Footer -->
         <div style="background: #f9fafb; padding: 16px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
-          <p style="font-size: 12px; color: #9ca3af; margin: 0;">Automated notification from Flywheel IMS</p>
+          <p style="font-size: 12px; color: #9ca3af; margin: 0;">Automated notification from StoreFlow by Flywheel</p>
         </div>
       </div>
     `;

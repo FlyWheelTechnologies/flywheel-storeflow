@@ -8,7 +8,7 @@ Welcome to the **StoreFlow by Flywheel** knowledge base. This project is a multi
 
 The platform is designed around a zero-maintenance, serverless architecture using Supabase and a single decoupled React frontend.
 
-- **Frontend**: React (Vite, SPA) built for deployment on `ims.bookflywheel.com` or static hosting.
+- **Frontend**: React (Vite, SPA) built for deployment on `storeflow.bookflywheel.com` or static hosting.
 - **Backend & Database**: Supabase PostgreSQL with strict multi-tenant Row-Level Security (RLS). 
 - **Serverless API**: Custom Deno Edge Functions for system actions (user invites, receipt sending, alerts).
 - **Authentication**: Supabase Auth with profiles mapping users to roles and specific organizations.
@@ -101,7 +101,7 @@ Set up secrets in your Deno Edge Function environment:
 supabase secrets set RESEND_API_KEY="your-resend-key"
 supabase secrets set SUPABASE_URL="your-supabase-project-url"
 supabase secrets set SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
-supabase secrets set APP_URL="https://ims.bookflywheel.com"
+supabase secrets set APP_URL="https://storeflow.bookflywheel.com"
 ```
 Deploy the functions:
 ```bash

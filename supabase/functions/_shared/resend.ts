@@ -23,7 +23,7 @@ export async function sendEmail(payload: EmailPayload): Promise<void> {
       Authorization: `Bearer ${RESEND_API_KEY}`,
     },
     body: JSON.stringify({
-      from: `${senderName} <team@ims.bookflywheel.com>`,
+      from: `${senderName} <${Deno.env.get('RESEND_FROM_EMAIL') || 'team@ims.bookflywheel.com'}>`,
       to: payload.to,
       subject: payload.subject,
       html: payload.html,

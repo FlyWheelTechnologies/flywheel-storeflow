@@ -139,7 +139,7 @@ Deno.serve(async (req: Request) => {
     // 4. Send Welcome Email (non-blocking fallback)
     try {
       console.log("Sending email via Resend...");
-      const appUrl = Deno.env.get('APP_URL') || 'https://ims.bookflywheel.com';
+      const appUrl = Deno.env.get('APP_URL') || 'https://storeflow.bookflywheel.com';
       await sendEmail({
         to: email,
         fromName: orgName,

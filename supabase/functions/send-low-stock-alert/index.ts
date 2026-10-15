@@ -64,6 +64,7 @@ Deno.serve(async (req: Request) => {
     const percentRemaining = Math.round((record.stock_quantity / record.low_stock_threshold) * 100);
     const urgency = record.stock_quantity === 0 ? 'OUT OF STOCK' : 'LOW STOCK';
     const urgencyColor = record.stock_quantity === 0 ? '#dc2626' : '#f59e0b';
+    const appUrl = Deno.env.get('APP_URL') || 'https://storeflow.bookflywheel.com';
 
     const html = `
       <div style="font-family: 'Helvetica Neue', sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb;">
@@ -111,7 +112,7 @@ Deno.serve(async (req: Request) => {
           </div>
 
           <div style="text-align: center; margin-top: 24px;">
-            <a href="${Deno.env.get('APP_URL') ?? '#'}/products" 
+            <a href="${appUrl}/products" 
                style="display: inline-block; background: #1e293b; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
               View Inventory →
             </a>
@@ -127,7 +128,6 @@ Deno.serve(async (req: Request) => {
     `;
 
     // Send to all admins
-    const appUrl = Deno.env.get('APP_URL') || 'https://ims.bookflywheel.com';
     for (const admin of admins) {
       if (admin.email) {
         await sendEmail({

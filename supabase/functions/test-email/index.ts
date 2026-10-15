@@ -118,6 +118,44 @@ Deno.serve(async (req: Request) => {
           </div>
         </div>
       `;
+    } else if (scenario === 'invite') {
+      const appUrl = Deno.env.get('APP_URL') || 'https://storeflow.bookflywheel.com';
+      subject = `Welcome to ${businessName}`;
+      html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb;">
+          <div style="background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 32px 28px; text-align: center;">
+            <h1 style="color: ${primaryColor}; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">${businessName}</h1>
+            <p style="color: #94a3b8; margin: 6px 0 0; font-size: 13px;">Team Invitation</p>
+          </div>
+          <div style="padding: 28px;">
+            <p style="font-size: 15px; color: #334155; margin-top: 0;">Hi <strong>there</strong>,</p>
+            <p style="font-size: 14px; color: #64748b; line-height: 1.5;">An account has been created for you on the <strong>${businessName}</strong> Stock Management System.</p>
+            <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0; font-size: 14px; color: #334155;"><strong>Role:</strong> Staff Member</p>
+              <p style="margin: 8px 0 0; font-size: 14px; color: #334155;"><strong>Login Email:</strong> ${to}</p>
+            </div>
+            <p style="font-size: 14px; color: #64748b;">You can now log in using your email and password.</p>
+            <div style="text-align: center; margin: 24px 0;">
+              <a href="${appUrl}" style="display: inline-block; background: #374151; color: #fff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">Log In Now</a>
+            </div>
+          </div>
+          <div style="background: #f8fafc; padding: 16px 24px; text-align: center; border-top: 1px solid #e2e8f0;">
+            <p style="font-size: 11px; color: #94a3b8; margin: 0;">Powered by StoreFlow by Flywheel</p>
+          </div>
+        </div>
+      `;
+    } else {
+      const appUrl = Deno.env.get('APP_URL') || 'https://storeflow.bookflywheel.com';
+      subject = `Notification from ${businessName}`;
+      html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; padding: 24px;">
+          <h2 style="color: ${primaryColor};">${businessName}</h2>
+          <p style="font-size: 14px; color: #334155;">This is a test notification from ${businessName}.</p>
+          <div style="margin-top: 20px;">
+            <a href="${appUrl}" style="display: inline-block; background: #374151; color: #fff; padding: 10px 20px; border-radius: 6px; text-decoration: none;">Visit StoreFlow</a>
+          </div>
+        </div>
+      `;
     }
 
     console.log(`Sending [${scenario}] email to: ${to} for business: ${businessName}`);
