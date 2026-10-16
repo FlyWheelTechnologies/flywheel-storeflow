@@ -9,11 +9,16 @@ import {
   PencilSimple,
   Trash,
   CheckCircle,
-  WarningCircle
+  WarningCircle,
+  Printer,
+  Usb,
+  Bluetooth,
+  Lightning
 } from "@phosphor-icons/react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabaseClient";
 import { createClient } from "@supabase/supabase-js";
+import { PrinterService } from "../services/PrinterService";
 import "./Dashboard.css";
 
 export default function AdminSettings() {
@@ -39,6 +44,8 @@ export default function AdminSettings() {
   useEffect(() => {
     if (tabParam === 'staff' || tabParam === 'users') {
       setActiveTab('staff');
+    } else if (tabParam === 'hardware' || tabParam === 'printer' || tabParam === 'printing') {
+      setActiveTab('hardware');
     } else if (tabParam === 'organization' || tabParam === 'store') {
       setActiveTab('organization');
     }
@@ -49,7 +56,7 @@ export default function AdminSettings() {
     setSearchParams({ tab });
   };
 
-  // Store & Tax Settings State
+  // Store, Tax & Hardware Settings State
   const [orgForm, setOrgForm] = useState({
     name: '',
     phone: '',
@@ -58,10 +65,19 @@ export default function AdminSettings() {
     print_tin_on_receipts: false,
     is_vat_registered: false,
     default_tax_rate: 20.0,
-    default_tax_inclusive: true
+    default_tax_inclusive: true,
+    receipt_paper_width: '80mm',
+    receipt_mode: 'browser',
+    auto_print_receipt: true,
+    kick_cash_drawer: false,
+    receipt_footer_note: 'Thank you for your business!'
   });
   const [orgSaving, setOrgSaving] = useState(false);
   const [orgLoaded, setOrgLoaded] = useState(false);
+  const [hardwareTesting, setHardwareTesting] = useState(false);
+  const [pairedDevice, setPairedDevice] = useState(() => {
+    return PrinterService.getLocalHardwareConfig()?.deviceName || null;
+  });
 
   useEffect(() => {
     if (currentUser?.role === 'admin' || currentUser?.role === 'super_admin') {
@@ -105,7 +121,12 @@ export default function AdminSettings() {
           print_tin_on_receipts: data.print_tin_on_receipts !== undefined ? !!data.print_tin_on_receipts : false,
           is_vat_registered: !!data.is_vat_registered,
           default_tax_rate: data.default_tax_rate !== undefined ? data.default_tax_rate : 20.0,
-          default_tax_inclusive: data.default_tax_inclusive !== undefined ? data.default_tax_inclusive : true
+          default_tax_inclusive: data.default_tax_inclusive !== undefined ? data.default_tax_inclusive : true,
+          receipt_paper_width: data.receipt_paper_width || '80mm',
+          receipt_mode: data.receipt_mode || 'browser',
+          auto_print_receipt: data.auto_print_receipt !== undefined ? !!data.auto_print_receipt : true,
+          kick_cash_drawer: data.kick_cash_drawer !== undefined ? !!data.kick_cash_drawer : false,
+          receipt_footer_note: data.receipt_footer_note || 'Thank you for your business!'
         });
         setOrgLoaded(true);
       }
@@ -115,7 +136,7 @@ export default function AdminSettings() {
   };
 
   const handleOrgSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (orgSaving) return;
     setOrgSaving(true);
 
@@ -123,7 +144,6 @@ export default function AdminSettings() {
       await supabase.auth.getSession();
       const orgId = targetOrgId;
       if (!orgId) throw new Error("No organization associated with this account.");
-
 
       const { error: updateErr } = await supabase
         .from('organizations')
@@ -136,6 +156,11 @@ export default function AdminSettings() {
           is_vat_registered: orgForm.is_vat_registered,
           default_tax_rate: parseFloat(orgForm.default_tax_rate) || 0,
           default_tax_inclusive: !!orgForm.default_tax_inclusive,
+          receipt_paper_width: orgForm.receipt_paper_width || '80mm',
+          receipt_mode: orgForm.receipt_mode || 'browser',
+          auto_print_receipt: !!orgForm.auto_print_receipt,
+          kick_cash_drawer: !!orgForm.kick_cash_drawer,
+          receipt_footer_note: orgForm.receipt_footer_note || 'Thank you for your business!',
           updated_at: new Date().toISOString()
         })
         .eq('id', orgId);
@@ -488,6 +513,26 @@ export default function AdminSettings() {
         >
           <UsersThree size={16} weight="duotone" /> Staff & Roles ({users.length})
         </button>
+        <button
+          onClick={() => handleTabChange('hardware')}
+          style={{
+            background: activeTab === 'hardware' ? 'var(--brand-primary, #f15a24)' : '#f3f4f6',
+            color: activeTab === 'hardware' ? '#fff' : '#4b5563',
+            border: 'none',
+            padding: '8px 18px',
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            boxShadow: activeTab === 'hardware' ? '0 2px 4px rgba(241, 90, 36, 0.2)' : 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8
+          }}
+        >
+          <Printer size={16} weight="duotone" /> Hardware & Printing
+        </button>
       </div>
 
       {/* TAB 1: Store & Tax Profile */}
@@ -613,6 +658,279 @@ export default function AdminSettings() {
               {orgSaving ? 'Saving Store Settings...' : 'Save Store & Tax Profile'}
             </button>
           </form>
+        </div>
+      )}
+
+      {/* TAB 3: Hardware & Printing */}
+      {activeTab === 'hardware' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginBottom: 24 }}>
+          {/* Main Hardware Configuration */}
+          <div className="table-card">
+            <div className="table-card__header">
+              <h3 className="table-card__title">Receipt Printer & POS Hardware Setup</h3>
+            </div>
+            <form onSubmit={handleOrgSubmit} style={{ padding: 24 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20, marginBottom: 24 }}>
+                
+                {/* Paper Roll Width */}
+                <div>
+                  <label style={lbl}>Receipt Paper Roll Size</label>
+                  <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+                    {[
+                      { id: '80mm', title: '80mm (Standard POS)', desc: 'Standard counter thermal printers (Epson, Xprinter, Rongta)' },
+                      { id: '58mm', title: '58mm (Compact Mobile)', desc: 'Handheld Bluetooth and portable register printers' }
+                    ].map(opt => (
+                      <div
+                        key={opt.id}
+                        onClick={() => setOrgForm({ ...orgForm, receipt_paper_width: opt.id })}
+                        style={{
+                          flex: 1,
+                          padding: '14px 16px',
+                          borderRadius: 10,
+                          border: orgForm.receipt_paper_width === opt.id ? '2px solid var(--brand-primary, #f15a24)' : '1px solid #e2e8f0',
+                          background: orgForm.receipt_paper_width === opt.id ? '#fff7ed' : '#ffffff',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ fontWeight: 700, fontSize: 13, color: '#1e293b' }}>{opt.title}</div>
+                        <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{opt.desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Print Communication Strategy */}
+                <div>
+                  <label style={lbl}>Printing Strategy / Hardware Protocol</label>
+                  <select
+                    style={{ ...inp, height: 42, background: '#fff' }}
+                    value={orgForm.receipt_mode}
+                    onChange={e => setOrgForm({ ...orgForm, receipt_mode: e.target.value })}
+                  >
+                    <option value="browser">Browser Silent / Thermal Spooler (Universal PC / Mac / Kiosk)</option>
+                    <option value="webusb">Direct WebUSB ESC/POS (Zero-driver, instant cut, cash drawer pulse)</option>
+                    <option value="bluetooth">Direct Web Bluetooth (Wireless Mobile / Tablet Registers)</option>
+                  </select>
+                  <span style={{ fontSize: 11, color: '#64748b', marginTop: 6, display: 'block' }}>
+                    {orgForm.receipt_mode === 'browser' && 'Formats receipts directly for thermal roll width and prints via Chrome Kiosk or OS print driver.'}
+                    {orgForm.receipt_mode === 'webusb' && 'Direct binary ESC/POS communication over USB. Supports auto-cutting paper and opening cash drawers.'}
+                    {orgForm.receipt_mode === 'bluetooth' && 'Wireless Bluetooth Low Energy (BLE) connection for mobile phone and tablet cashiers.'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Automation Toggles */}
+              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 20, marginBottom: 20 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 12 }}>POS Checkout Automation</h4>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+                  
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <input
+                      type="checkbox"
+                      id="auto_print"
+                      checked={orgForm.auto_print_receipt}
+                      onChange={e => setOrgForm({ ...orgForm, auto_print_receipt: e.target.checked })}
+                      style={{ width: 18, height: 18, marginTop: 2, cursor: 'pointer' }}
+                    />
+                    <div>
+                      <label htmlFor="auto_print" style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', cursor: 'pointer' }}>
+                        Auto-Print Receipt Upon Sale Completion
+                      </label>
+                      <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginTop: 2 }}>
+                        Immediately triggers printing when cashier clicks "Complete Sale" without extra clicks.
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                    <input
+                      type="checkbox"
+                      id="kick_drawer"
+                      checked={orgForm.kick_cash_drawer}
+                      onChange={e => setOrgForm({ ...orgForm, kick_cash_drawer: e.target.checked })}
+                      style={{ width: 18, height: 18, marginTop: 2, cursor: 'pointer' }}
+                    />
+                    <div>
+                      <label htmlFor="kick_drawer" style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', cursor: 'pointer' }}>
+                        Kick Cash Drawer Open on Cash Sales
+                      </label>
+                      <span style={{ fontSize: 11, color: '#64748b', display: 'block', marginTop: 2 }}>
+                        Sends the 24V drawer trigger pulse (ESC p) to connected RJ11/RJ12 cash drawers.
+                      </span>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Customer Receipt Footer Note */}
+              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: 20, marginBottom: 24 }}>
+                <label style={lbl}>Custom Receipt Footer Greeting / Return Policy</label>
+                <input
+                  style={inp}
+                  type="text"
+                  value={orgForm.receipt_footer_note}
+                  onChange={e => setOrgForm({ ...orgForm, receipt_footer_note: e.target.value })}
+                  placeholder="e.g. Thank you for your business! Goods sold in good condition are not returnable."
+                />
+              </div>
+
+              <button type="submit" className="quick-action-btn" style={{ height: 40, width: 'auto' }} disabled={orgSaving}>
+                {orgSaving ? 'Saving Hardware Settings...' : 'Save Hardware & Printing Settings'}
+              </button>
+            </form>
+          </div>
+
+          {/* Interactive Hardware Diagnostics & Pairing Station */}
+          <div className="table-card" style={{ background: '#f8fafc' }}>
+            <div className="table-card__header" style={{ background: '#f1f5f9' }}>
+              <h3 className="table-card__title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Lightning size={18} color="#f59e0b" weight="fill" />
+                Live Terminal Hardware & Diagnostic Station
+              </h3>
+            </div>
+            <div style={{ padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16, marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b' }}>Connected Register Device</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                    {pairedDevice ? (
+                      <>
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+                        {pairedDevice}
+                      </>
+                    ) : (
+                      <>
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#94a3b8', display: 'inline-block' }}></span>
+                        {orgForm.receipt_mode === 'browser' ? 'Universal Browser Spooler (Ready)' : 'No Hardware Printer Paired'}
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  {orgForm.receipt_mode === 'webusb' && (
+                    <button
+                      type="button"
+                      className="quick-action-btn"
+                      style={{ background: '#0284c7', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      onClick={async () => {
+                        try {
+                          const res = await PrinterService.pairUsbPrinter();
+                          setPairedDevice(res.deviceName);
+                          setToast({ message: `Successfully connected ${res.deviceName}!`, type: 'success' });
+                        } catch (err) {
+                          setToast({ message: err.message, type: 'error' });
+                        }
+                      }}
+                    >
+                      <Usb size={16} weight="bold" /> Pair USB Thermal Printer
+                    </button>
+                  )}
+
+                  {orgForm.receipt_mode === 'bluetooth' && (
+                    <button
+                      type="button"
+                      className="quick-action-btn"
+                      style={{ background: '#4f46e5', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                      onClick={async () => {
+                        try {
+                          const res = await PrinterService.pairBluetoothPrinter();
+                          setPairedDevice(res.deviceName);
+                          setToast({ message: `Paired Bluetooth Printer: ${res.deviceName}`, type: 'success' });
+                        } catch (err) {
+                          setToast({ message: err.message, type: 'error' });
+                        }
+                      }}
+                    >
+                      <Bluetooth size={16} weight="bold" /> Pair Bluetooth Printer
+                    </button>
+                  )}
+
+                  {pairedDevice && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        PrinterService.forgetPrinter();
+                        setPairedDevice(null);
+                        setToast({ message: "Hardware printer disconnected.", type: 'success' });
+                      }}
+                      style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', padding: '8px 14px', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#475569', cursor: 'pointer' }}
+                    >
+                      Disconnect Device
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons for Testing */}
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', borderTop: '1px solid #e2e8f0', paddingTop: 16 }}>
+                <button
+                  type="button"
+                  disabled={hardwareTesting}
+                  onClick={async () => {
+                    setHardwareTesting(true);
+                    try {
+                      await PrinterService.testPrint(orgForm, orgForm.receipt_mode, orgForm.receipt_paper_width);
+                      setToast({ message: "Test ticket sent to printer!", type: 'success' });
+                    } catch (err) {
+                      setToast({ message: `Print Test Failed: ${err.message}`, type: 'error' });
+                    } finally {
+                      setHardwareTesting(false);
+                    }
+                  }}
+                  style={{
+                    background: '#10b981',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '10px 18px',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)'
+                  }}
+                >
+                  <Printer size={16} weight="bold" /> Print Test Ticket ({orgForm.receipt_paper_width})
+                </button>
+
+                <button
+                  type="button"
+                  disabled={hardwareTesting}
+                  onClick={async () => {
+                    setHardwareTesting(true);
+                    try {
+                      await PrinterService.kickCashDrawer('webusb');
+                      setToast({ message: "Cash drawer trigger pulse sent!", type: 'success' });
+                    } catch (err) {
+                      setToast({ message: err.message, type: 'error' });
+                    } finally {
+                      setHardwareTesting(false);
+                    }
+                  }}
+                  style={{
+                    background: '#f8fafc',
+                    color: '#334155',
+                    border: '1px solid #cbd5e1',
+                    padding: '10px 18px',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 8
+                  }}
+                >
+                  <Lightning size={16} weight="bold" /> Test Cash Drawer Kick Pulse
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

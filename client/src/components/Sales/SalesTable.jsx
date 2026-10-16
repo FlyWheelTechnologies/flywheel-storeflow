@@ -1,7 +1,7 @@
 import React from "react";
 import { formatCurrency } from "../../services/formatters";
 import { ActionButton, Input, Select } from "../ui/FormFields";
-import { DownloadSimple, UploadSimple, FilePdf, WhatsappLogo } from "@phosphor-icons/react";
+import { DownloadSimple, UploadSimple, FilePdf, WhatsappLogo, Printer } from "@phosphor-icons/react";
 
 const SalesTable = ({
   filteredSales,
@@ -17,6 +17,7 @@ const SalesTable = ({
   onExportCSV,
   onImportCSV,
   onGenerateReceipt,
+  onPrintThermalReceipt,
   onShareViaWhatsApp
 }) => {
   return (
@@ -108,6 +109,14 @@ const SalesTable = ({
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <ActionButton
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onPrintThermalReceipt && onPrintThermalReceipt(s)}
+                        title="Print Thermal POS Receipt"
+                      >
+                        <Printer size={16} weight="duotone" color="var(--brand-primary, #f15a24)" />
+                      </ActionButton>
                       <ActionButton
                         variant="ghost"
                         size="sm"

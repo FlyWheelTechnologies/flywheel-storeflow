@@ -8,6 +8,8 @@ import { useSales } from "../hooks/useSales";
 import { useToast } from "../context/ToastContext";
 import { useConfirmation } from "../hooks/useConfirmation";
 import { SalesService } from "../services/SalesService";
+import { PrinterService } from "../services/PrinterService";
+import { Printer, Usb, Bluetooth, Lightning, X } from "@phosphor-icons/react";
 import SalesForm from "../components/Sales/SalesForm";
 import SalesTable from "../components/Sales/SalesTable";
 import "./Dashboard.css";
@@ -30,6 +32,9 @@ export default function Sales() {
   const [showForm, setShowForm] = useState(false);
   const [pendingSaleData, setPendingSaleData] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [showPrinterModal, setShowPrinterModal] = useState(false);
+  const [hardwareConfig, setHardwareConfig] = useState(() => PrinterService.getLocalHardwareConfig());
+  const [hardwareTesting, setHardwareTesting] = useState(false);
 
   // State for filtering and pagination
   const [statusFilter, setStatusFilter] = useState('All');
@@ -245,6 +250,28 @@ export default function Sales() {
       refetchCustomers();
       refetchSales();
 
+      // Trigger automatic receipt printing if enabled
+      const shouldAutoPrint = user?.organizations?.auto_print_receipt !== false;
+      if (shouldAutoPrint && !data.isDeposit) {
+        const completedSale = {
+          id: newSaleId,
+          invoice_no: `INV-${String(newSaleId || '000').slice(-6).padStart(3, '0')}`,
+          customer_name: data.customerName,
+          total_amount: data.grandTotal,
+          amount_paid: (parseFloat(data.amountPaid) || 0) + (parseFloat(data.useCredit) || 0),
+          balance_due: data.balance,
+          payment_method: data.paymentMethod,
+          payment_status: status,
+          tax_amount: data.taxAmount || 0,
+          tax_percentage: data.taxPercentage || 0,
+          created_at: new Date().toISOString()
+        };
+
+        PrinterService.printSale(completedSale, user?.organizations || {}, validItems).catch(printErr => {
+          console.warn("Auto-print thermal ticket notice:", printErr);
+        });
+      }
+
       success("Sale recorded successfully!", {
         action: async () => {
           try {
@@ -304,6 +331,19 @@ export default function Sales() {
           <p style={{ fontSize: '12.5px', color: '#6b7280' }}>Record transactions and track Momo/Cash payments</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <ActionButton
+            variant="secondary"
+            onClick={() => {
+              setHardwareConfig(PrinterService.getLocalHardwareConfig());
+              setShowPrinterModal(true);
+            }}
+            title="Terminal Hardware & Thermal Printer"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <Printer size={16} weight="duotone" />
+            <span>POS Printer</span>
+          </ActionButton>
+
           {showForm && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ Draft Auto-saved</span>
@@ -348,6 +388,11 @@ export default function Sales() {
         onExportCSV={handleExportCSV}
         onImportCSV={handleImportCSV}
         onGenerateReceipt={(s) => SalesService.generateReceipt(s)}
+        onPrintThermalReceipt={(s) => {
+          PrinterService.printSale(s, user?.organizations || {}).catch(err => {
+            showError(`Thermal Print Error: ${err.message}`);
+          });
+        }}
         onShareViaWhatsApp={async (s) => {
           try {
             await SalesService.shareViaWhatsApp(s, { customers });
@@ -356,6 +401,251 @@ export default function Sales() {
           }
         }}
       />
+
+      {/* Storekeeper Register Hardware Modal */}
+      {showPrinterModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: 20
+        }}>
+          <div style={{
+            background: '#ffffff',
+            borderRadius: 14,
+            width: '100%',
+            maxWidth: 480,
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+            overflow: 'hidden',
+            animation: 'fadeIn 0.2s ease-out'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '16px 20px',
+              borderBottom: '1px solid #e2e8f0',
+              background: '#f8fafc'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Printer size={20} color="var(--brand-primary, #f15a24)" weight="duotone" />
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a' }}>
+                  Register Printer & Hardware
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowPrinterModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: 20 }}>
+              {/* Active Mode Banner */}
+              <div style={{
+                background: '#fff7ed',
+                border: '1px solid #fed7aa',
+                borderRadius: 8,
+                padding: '12px 14px',
+                marginBottom: 16
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#9a3412', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Active Store Configuration
+                </div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#431407', marginTop: 3 }}>
+                  Roll: {user?.organizations?.receipt_paper_width || '80mm'} • Protocol: {user?.organizations?.receipt_mode?.toUpperCase() || 'BROWSER'}
+                </div>
+                <div style={{ fontSize: 11.5, color: '#7c2d12', marginTop: 2 }}>
+                  Auto-print on sale: {user?.organizations?.auto_print_receipt !== false ? 'Enabled' : 'Disabled'} • Drawer kick: {user?.organizations?.kick_cash_drawer ? 'Enabled' : 'Disabled'}
+                </div>
+              </div>
+
+              {/* Terminal Connection Status */}
+              <div style={{ marginBottom: 18 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>
+                  Terminal Device Status
+                </div>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 14px',
+                  background: '#f1f5f9',
+                  borderRadius: 8
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: hardwareConfig?.deviceName ? '#10b981' : '#f59e0b',
+                      display: 'inline-block'
+                    }}></span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>
+                      {hardwareConfig?.deviceName || 'Universal Browser Spooler (Default)'}
+                    </span>
+                  </div>
+                  {hardwareConfig?.deviceName && (
+                    <button
+                      onClick={() => {
+                        PrinterService.forgetPrinter();
+                        setHardwareConfig(PrinterService.getLocalHardwareConfig());
+                        success("Device disconnected.");
+                      }}
+                      style={{ background: 'none', border: 'none', fontSize: 11.5, color: '#ef4444', fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      Disconnect
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Hardware Pairing Buttons (WebUSB / Bluetooth) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 18 }}>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await PrinterService.pairUsbPrinter();
+                      setHardwareConfig(PrinterService.getLocalHardwareConfig());
+                      success(`Connected ${res.deviceName}!`);
+                    } catch (err) {
+                      showError(err.message);
+                    }
+                  }}
+                  style={{
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 8,
+                    padding: '10px 12px',
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: '#1e293b',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6
+                  }}
+                >
+                  <Usb size={16} weight="bold" color="#0284c7" /> Connect USB
+                </button>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await PrinterService.pairBluetoothPrinter();
+                      setHardwareConfig(PrinterService.getLocalHardwareConfig());
+                      success(`Paired ${res.deviceName}!`);
+                    } catch (err) {
+                      showError(err.message);
+                    }
+                  }}
+                  style={{
+                    background: '#f8fafc',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 8,
+                    padding: '10px 12px',
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: '#1e293b',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6
+                  }}
+                >
+                  <Bluetooth size={16} weight="bold" color="#4f46e5" /> Pair Bluetooth
+                </button>
+              </div>
+
+              {/* Quick Diagnostic Actions */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <button
+                  type="button"
+                  disabled={hardwareTesting}
+                  onClick={async () => {
+                    setHardwareTesting(true);
+                    try {
+                      await PrinterService.testPrint(
+                        user?.organizations || {},
+                        user?.organizations?.receipt_mode || 'browser',
+                        user?.organizations?.receipt_paper_width || '80mm'
+                      );
+                      success("Test receipt sent to printer!");
+                    } catch (err) {
+                      showError(`Print Failed: ${err.message}`);
+                    } finally {
+                      setHardwareTesting(false);
+                    }
+                  }}
+                  style={{
+                    background: 'var(--brand-primary, #f15a24)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: 8,
+                    padding: '11px 16px',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8
+                  }}
+                >
+                  <Printer size={16} weight="bold" />
+                  {hardwareTesting ? 'Printing...' : 'Print Test Receipt Ticket'}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={hardwareTesting}
+                  onClick={async () => {
+                    setHardwareTesting(true);
+                    try {
+                      await PrinterService.kickCashDrawer('webusb');
+                      success("Drawer trigger pulse sent!");
+                    } catch (err) {
+                      showError(err.message);
+                    } finally {
+                      setHardwareTesting(false);
+                    }
+                  }}
+                  style={{
+                    background: '#f1f5f9',
+                    color: '#334155',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 8,
+                    padding: '9px 16px',
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8
+                  }}
+                >
+                  <Lightning size={16} weight="bold" color="#f59e0b" />
+                  Test Cash Drawer Kick
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmationModal
         show={modalState.show}
