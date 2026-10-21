@@ -1,5 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { useLocation } from "react-router-dom";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useProducts } from "../hooks/useProducts";
 import { useToast } from "../context/ToastContext";
@@ -50,11 +49,10 @@ const emptyForm = {
 
 export default function Products() {
   const { user } = useAuth();
-  const location = useLocation();
   const isAuditor = user?.role === 'auditor';
   const { success, error: showError } = useToast();
   const { modalState, confirm, handleConfirm, handleCancel, ConfirmationModal } = useConfirmation();
-  const { products, loading, refetch, createProduct, updateProduct, deleteProduct } = useProducts();
+  const { products, loading, createProduct, updateProduct, deleteProduct } = useProducts();
 
   // Local state
   const [form, setForm] = useState({ ...emptyForm });
@@ -210,9 +208,20 @@ export default function Products() {
   };
 
   const filtered = useMemo(() => {
+    // Bolt Optimization: Single-pass filtering with pre-lowercased search query to eliminate redundant string allocations & lowercasing on every item
+    const query = search.trim().toLowerCase();
+
     return products
-      .filter(p => p.name.toLowerCase().includes(search.toLowerCase()) || p.item_code?.toLowerCase().includes(search.toLowerCase()))
-      .filter(p => categoryFilter === 'All' || p.category === categoryFilter)
+      .filter(p => {
+        if (categoryFilter !== 'All' && p.category !== categoryFilter) {
+          return false;
+        }
+        if (!query) return true;
+        return (
+          p.name.toLowerCase().includes(query) ||
+          (p.item_code && p.item_code.toLowerCase().includes(query))
+        );
+      })
       .sort((a, b) => {
         if (sortBy === 'stock_low') return a.stock_quantity - b.stock_quantity;
         if (sortBy === 'stock_high') return b.stock_quantity - a.stock_quantity;
