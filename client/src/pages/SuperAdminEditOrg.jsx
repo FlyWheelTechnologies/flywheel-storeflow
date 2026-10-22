@@ -1321,6 +1321,7 @@ export default function SuperAdminEditOrg() {
                 type="button"
                 onClick={() => setShowAddStaffModal(false)}
                 style={{ background: "none", border: "none", fontSize: 18, color: "#94a3b8", cursor: "pointer" }}
+                aria-label="Close"
               >
                 ✕
               </button>
@@ -1447,6 +1448,7 @@ export default function SuperAdminEditOrg() {
                 type="button"
                 onClick={() => setStaffToEdit(null)}
                 style={{ background: "none", border: "none", fontSize: 18, color: "#94a3b8", cursor: "pointer" }}
+                aria-label="Close"
               >
                 ✕
               </button>

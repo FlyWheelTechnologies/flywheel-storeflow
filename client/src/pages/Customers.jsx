@@ -275,11 +275,11 @@ export default function Customers() {
                         <ActionButton variant="secondary" size="sm" onClick={() => viewHistory(c)}>
                           History
                         </ActionButton>
-                        <ActionButton variant="ghost" size="sm" onClick={() => startEdit(c)} title="Edit">
+                        <ActionButton variant="ghost" size="sm" onClick={() => startEdit(c)} title="Edit" aria-label="Edit customer">
                           <PencilSimple size={15} weight="bold" />
                         </ActionButton>
                         {isAdmin && (
-                          <ActionButton variant="ghost" size="sm" onClick={() => confirmDelete(c)} title="Delete" style={{ color: '#ef4444' }}>
+                          <ActionButton variant="ghost" size="sm" onClick={() => confirmDelete(c)} title="Delete" style={{ color: '#ef4444' }} aria-label="Delete customer">
                             <Trash size={15} weight="bold" />
                           </ActionButton>
                         )}
@@ -307,7 +307,7 @@ export default function Customers() {
               <div style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>
                 Lifetime Spent: {currency} {history.reduce((a, s) => a + parseFloat(s.total_amount || 0), 0).toFixed(1)}
               </div>
-              <ActionButton variant="ghost" size="sm" onClick={() => setSelectedCustomer(null)}>✕</ActionButton>
+              <ActionButton variant="ghost" size="sm" onClick={() => setSelectedCustomer(null)} aria-label="Close">✕</ActionButton>
             </div>
             <div className="table-wrapper">
               <table className="stock-table" style={{ fontSize: 12 }}>
