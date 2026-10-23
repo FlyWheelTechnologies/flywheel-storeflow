@@ -67,20 +67,37 @@ export default function Expenses() {
     link.click();
   };
 
+  // Optimization (Bolt): Extract reference dates outside array iterations and single-pass filter
+  // to avoid creating new Date objects on every row evaluation during filtering.
   const filtered = useMemo(() => {
+    const searchLower = search.trim().toLowerCase();
+
+    // Pre-calculate date boundaries outside the filter loop while preserving exact timestamp semantics
+    const today = new Date();
+    const todayStr = today.toDateString();
+    const lastWeek = timeframe === 'Week' ? new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000) : null;
+    const todayMonth = today.getMonth();
+    const todayYear = today.getFullYear();
+
     return expenses
-      .filter(e => e.description.toLowerCase().includes(search.toLowerCase()))
       .filter(e => {
-        if (timeframe === 'All') return true;
-        const date = new Date(e.created_at);
-        const today = new Date();
-        if (timeframe === 'Today') return date.toDateString() === today.toDateString();
-        if (timeframe === 'Week') {
-          const lastWeek = new Date();
-          lastWeek.setDate(today.getDate() - 7);
-          return date >= lastWeek;
+        if (searchLower && !e.description.toLowerCase().includes(searchLower)) {
+          return false;
         }
-        if (timeframe === 'Month') return date.getMonth() === today.getMonth() && date.getFullYear() === today.getFullYear();
+
+        if (timeframe !== 'All') {
+          const date = new Date(e.created_at);
+          if (timeframe === 'Today' && date.toDateString() !== todayStr) {
+            return false;
+          }
+          if (timeframe === 'Week' && date < lastWeek) {
+            return false;
+          }
+          if (timeframe === 'Month' && (date.getMonth() !== todayMonth || date.getFullYear() !== todayYear)) {
+            return false;
+          }
+        }
+
         return true;
       })
       .sort((a, b) => {
