@@ -54,11 +54,25 @@ export default function Sales() {
     }
   }, [location]);
 
+  // Optimization (Bolt): Pre-compute search string & date targets outside iteration loops
+  // and combine filter predicates to prevent creating multiple intermediate arrays and repeated Date/string allocations.
   const filtered = useMemo(() => {
+    const searchLower = search.trim().toLowerCase();
+    const targetDateStr = dateFilter ? new Date(dateFilter).toDateString() : null;
+
     return sales
-      .filter(s => s.customer_name?.toLowerCase().includes(search.toLowerCase()))
-      .filter(s => statusFilter === 'All' || s.payment_status === statusFilter)
-      .filter(s => !dateFilter || new Date(s.created_at).toDateString() === new Date(dateFilter).toDateString())
+      .filter(s => {
+        if (searchLower && !s.customer_name?.toLowerCase().includes(searchLower)) {
+          return false;
+        }
+        if (statusFilter !== 'All' && s.payment_status !== statusFilter) {
+          return false;
+        }
+        if (targetDateStr && new Date(s.created_at).toDateString() !== targetDateStr) {
+          return false;
+        }
+        return true;
+      })
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }, [sales, search, statusFilter, dateFilter]);
 
