@@ -167,13 +167,24 @@ export default function Dashboard() {
     return "Evening";
   };
 
+  // Single-pass optimization: aggregate today's sales metrics in a single pass to eliminate intermediate arrays and multi-pass traversal overhead
   const { todaySales, todayCashIn, todayRevenue } = useMemo(() => {
     const todayDate = new Date().toDateString();
-    const tSales = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
-    const tCashIn = tSales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0);
-    const tRevenue = tSales
-      .filter(s => s.payment_status !== 'DEPOSIT')
-      .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
+    const tSales = [];
+    let tCashIn = 0;
+    let tRevenue = 0;
+
+    for (let i = 0; i < sales.length; i++) {
+      const s = sales[i];
+      if (new Date(s.created_at).toDateString() === todayDate) {
+        tSales.push(s);
+        tCashIn += parseFloat(s.amount_paid || 0);
+        if (s.payment_status !== 'DEPOSIT') {
+          tRevenue += parseFloat(s.total_amount || 0);
+        }
+      }
+    }
+
     return { todaySales: tSales, todayCashIn: tCashIn, todayRevenue: tRevenue };
   }, [sales]);
 
