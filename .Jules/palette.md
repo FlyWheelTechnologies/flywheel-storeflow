@@ -1,0 +1,3 @@
+## 2024-05-24 - [Add ARIA labels to close buttons]
+**Learning:** Found multiple instances of close buttons (✕) lacking `aria-label` attributes. This is a common accessibility issue where screen readers wouldn't announce the purpose of the button to visually impaired users, as the content is just a visual multiplication sign (✕) or similar symbol.
+**Action:** Adding `aria-label="Close"` to these buttons improves accessibility by providing explicit meaning for screen readers. I will update `ConfirmationModal.jsx`, `Layout.jsx` (Profile Settings modal), and `Dashboard.jsx` (System Activity Audit modal) to include `aria-label="Close"`.
