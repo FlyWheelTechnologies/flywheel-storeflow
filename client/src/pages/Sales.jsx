@@ -444,6 +444,7 @@ export default function Sales() {
               <button
                 onClick={() => setShowPrinterModal(false)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
+                aria-label="Close"
               >
                 <X size={20} />
               </button>
