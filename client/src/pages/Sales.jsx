@@ -55,11 +55,24 @@ export default function Sales() {
   }, [location]);
 
   const filtered = useMemo(() => {
+    // Bolt Optimization: Single-pass filtering with pre-calculated query & date strings to eliminate redundant string allocations & Date object creations in filter & sort
+    const query = search.trim().toLowerCase();
+    const targetDateStr = dateFilter ? new Date(dateFilter).toDateString() : null;
+
     return sales
-      .filter(s => s.customer_name?.toLowerCase().includes(search.toLowerCase()))
-      .filter(s => statusFilter === 'All' || s.payment_status === statusFilter)
-      .filter(s => !dateFilter || new Date(s.created_at).toDateString() === new Date(dateFilter).toDateString())
-      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      .filter(s => {
+        if (statusFilter !== 'All' && s.payment_status !== statusFilter) {
+          return false;
+        }
+        if (targetDateStr && new Date(s.created_at).toDateString() !== targetDateStr) {
+          return false;
+        }
+        if (query && !s.customer_name?.toLowerCase().includes(query)) {
+          return false;
+        }
+        return true;
+      })
+      .sort((a, b) => Date.parse(b.created_at || 0) - Date.parse(a.created_at || 0));
   }, [sales, search, statusFilter, dateFilter]);
 
   const paginated = useMemo(() => filtered.slice(0, itemsToShow), [filtered, itemsToShow]);

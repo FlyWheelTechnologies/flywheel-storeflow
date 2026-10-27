@@ -1,0 +1,3 @@
+## 2025-05-10 - Single-Pass Filter & Date.parse Optimization in React Lists
+**Learning:** Chained `.filter()` calls and `new Date()` allocations inside array `.sort()` callbacks lead to redundant string/object creations during search and list rendering. Combining filter predicates into a single pass and using `Date.parse()` avoids wrapper object instantiations while retaining full ISO timestamp correctness.
+**Action:** When filtering and sorting lists in React components, hoist search string normalization and target dates outside the filter loop, combine predicates into a single pass, and use `Date.parse(b.created_at || 0) - Date.parse(a.created_at || 0)` for sorting.
