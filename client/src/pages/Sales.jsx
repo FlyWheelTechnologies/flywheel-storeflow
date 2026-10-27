@@ -442,6 +442,7 @@ export default function Sales() {
                 </h3>
               </div>
               <button
+                aria-label="Close"
                 onClick={() => setShowPrinterModal(false)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
               >
