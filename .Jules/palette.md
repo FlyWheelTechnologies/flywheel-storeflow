@@ -1,0 +1,3 @@
+## 2024-10-27 - [Recurring Accessibility Pattern: Missing ARIA Labels on Close Buttons]
+**Learning:** Found a recurring pattern in the codebase where icon-only "close" buttons inside modals (e.g., `ConfirmationModal.jsx`, `Layout.jsx`, `Dashboard.jsx`, and `Sales.jsx`) lack `aria-label` attributes. This makes them inaccessible to screen readers, as the "✕" character or an icon alone is not always announced correctly or meaningfully.
+**Action:** When working on UX improvements, explicitly search for icon-only buttons, especially those using "✕" or similar icons to close modals/dialogs, and ensure they have a descriptive `aria-label` like "Close".
