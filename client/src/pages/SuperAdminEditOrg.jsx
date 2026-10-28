@@ -18,6 +18,7 @@ import {
 import { supabase } from "../services/supabaseClient";
 import { createClient } from "@supabase/supabase-js";
 import { useAuth } from "../context/AuthContext";
+import { BUSINESS_INDUSTRIES, getIndustryCategories, getIndustryInfo } from "../constants/industries";
 import "./Dashboard.css";
 
 const COLOR_PRESETS = [
@@ -50,6 +51,7 @@ export default function SuperAdminEditOrg() {
   const [form, setForm] = useState({
     name: "",
     slug: "",
+    industry: "auto_parts",
     primary_color: "#f97316",
     currency: "GHS",
     phone: "",
@@ -120,9 +122,11 @@ export default function SuperAdminEditOrg() {
 
       setOrg(orgData);
       const chosenColor = orgData.primary_color || "#f97316";
+      const storedIndustry = localStorage.getItem(`storeflow_org_industry_${orgData.id}`);
       setForm({
         name: orgData.name || "",
         slug: orgData.slug || "",
+        industry: orgData.industry || storedIndustry || "auto_parts",
         primary_color: chosenColor,
         currency: orgData.currency || "GHS",
         phone: orgData.phone || "",
@@ -203,6 +207,7 @@ export default function SuperAdminEditOrg() {
       const updatePayload = {
         name: form.name.trim(),
         slug: form.slug.trim().toLowerCase(),
+        industry: form.industry,
         primary_color: form.primary_color,
         currency: form.currency,
         phone: form.phone.trim(),
@@ -221,12 +226,31 @@ export default function SuperAdminEditOrg() {
         updated_at: new Date().toISOString()
       };
 
-      const { error: updateErr } = await supabase
+      let { error: updateErr } = await supabase
         .from("organizations")
         .update(updatePayload)
         .eq("id", id);
 
+      // Resilient fallback if remote table doesn't have industry column yet
+      if (updateErr && (updateErr.code === "42703" || updateErr.message?.includes("industry"))) {
+        console.warn("organizations.industry column not yet created in remote database, retrying without it:", updateErr.message);
+        const fallbackPayload = { ...updatePayload };
+        delete fallbackPayload.industry;
+        const resWithoutIndustry = await supabase
+          .from("organizations")
+          .update(fallbackPayload)
+          .eq("id", id);
+        updateErr = resWithoutIndustry.error;
+      }
+
       if (updateErr) throw updateErr;
+
+      // Always persist industry choice in localStorage as immediate cache
+      if (id && form.industry) {
+        try {
+          localStorage.setItem(`storeflow_org_industry_${id}`, form.industry);
+        } catch (_) {}
+      }
 
       // Apply the theme color globally
       applyThemeColor(form.primary_color);
@@ -806,6 +830,87 @@ export default function SuperAdminEditOrg() {
                 <option value="active">Active (Full Store Access)</option>
                 <option value="suspended">Suspended (Access Blocked)</option>
               </select>
+            </div>
+
+            {/* Industry Selector & Live Category Taxonomy Preview */}
+            <div style={{ gridColumn: "1 / -1", background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 12, padding: 18 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 8 }}>
+                <div>
+                  <label className="form-label" style={{ margin: 0, fontWeight: 700, color: "#1e293b", fontSize: 14 }}>
+                    Industry / Business Category
+                  </label>
+                  <span style={{ fontSize: 12, color: "#64748b" }}>
+                    Select this merchant's primary trade so StoreFlow automatically populates tailored categories during product creation.
+                  </span>
+                </div>
+                {(() => {
+                  const info = getIndustryInfo(form.industry);
+                  return (
+                    <span style={{
+                      padding: "4px 10px",
+                      borderRadius: 20,
+                      background: "#e0f2fe",
+                      color: "#0369a1",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6
+                    }}>
+                      <span>{info?.icon}</span>
+                      <span>{info?.badge}</span>
+                    </span>
+                  );
+                })()}
+              </div>
+
+              <select
+                value={form.industry}
+                onChange={(e) => setForm({ ...form, industry: e.target.value })}
+                className="form-select"
+                style={{ marginBottom: 12, fontWeight: 600 }}
+              >
+                {BUSINESS_INDUSTRIES.map((ind) => (
+                  <option key={ind.id} value={ind.id}>
+                    {ind.icon} {ind.name}
+                  </option>
+                ))}
+              </select>
+
+              {(() => {
+                const info = getIndustryInfo(form.industry);
+                const cats = getIndustryCategories(form.industry);
+                return (
+                  <div style={{
+                    padding: "12px 14px",
+                    background: "#ffffff",
+                    border: "1px solid #cbd5e1",
+                    borderRadius: 10
+                  }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 6 }}>
+                      Predetermined Categories for {info?.name}:
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {cats.map((cat) => (
+                        <span key={cat} style={{
+                          fontSize: 11,
+                          padding: "3px 8px",
+                          background: "#f1f5f9",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 6,
+                          color: "#334155",
+                          fontWeight: 500
+                        }}>
+                          {cat}
+                        </span>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "#64748b", marginTop: 8, fontStyle: "italic" }}>
+                      💡 The merchant can also add custom categories anytime when creating products.
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Brand Theme Color with Real-Time Preview */}

@@ -3,6 +3,80 @@ import { formatCurrency, formatPhone } from "../../services/formatters";
 import { supabase } from "../../services/supabaseClient";
 import { Label, Input, Select, ActionButton, SectionHeader, CardSection, FieldGroup } from "../ui/FormFields";
 
+const ProductSearchField = ({ item, idx, items, setItems, products, inputStyle }) => {
+  return (
+    <div style={{ position: 'relative', width: '100%' }}>
+      <Input
+        placeholder="Search code or name..."
+        value={item.product_id ? (products.find(p => p.id === parseInt(item.product_id) || p.id === item.product_id)?.name || '') : item.searchQuery || ''}
+        onChange={(e) => {
+          const newItems = [...items];
+          newItems[idx].searchQuery = e.target.value;
+          newItems[idx].product_id = '';
+          setItems(newItems);
+        }}
+        onFocus={() => {
+          const newItems = [...items];
+          newItems[idx].showDropdown = true;
+          setItems(newItems);
+        }}
+        style={inputStyle || { width: '100%' }}
+      />
+      {item.showDropdown && (
+        <div className="search-dropdown" style={{
+          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+          background: 'white', border: '1px solid #e5e7eb', borderRadius: 8,
+          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', marginTop: 4,
+          maxHeight: 240, overflowY: 'auto'
+        }}>
+          {products.filter(p =>
+            !item.searchQuery ||
+            (p.name?.toLowerCase() || '').includes(item.searchQuery.toLowerCase()) ||
+            (p.item_code?.toLowerCase() || '').includes(item.searchQuery.toLowerCase())
+          ).length === 0 ? (
+            <div style={{ padding: '12px 16px', color: '#9ca3af', fontSize: 13, textAlign: 'center' }}>
+              ⚠️ Product not found
+            </div>
+          ) : (
+            products.filter(p =>
+              !item.searchQuery ||
+              (p.name?.toLowerCase() || '').includes(item.searchQuery.toLowerCase()) ||
+              (p.item_code?.toLowerCase() || '').includes(item.searchQuery.toLowerCase())
+            ).map(p => (
+              <div
+                key={p.id}
+                style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', transition: 'background 0.2s' }}
+                className="search-item"
+                onClick={() => {
+                  const newItems = [...items];
+                  newItems[idx].product_id = p.id;
+                  newItems[idx].product_name = p.name;
+                  newItems[idx].unit_price = p.selling_price;
+                  newItems[idx].showDropdown = false;
+                  newItems[idx].searchQuery = p.name;
+                  setItems(newItems);
+                }}
+              >
+                <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{p.name}</div>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>
+                  {p.item_code} • {p.stock_quantity} {p.selling_uom} available
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+      {item.showDropdown && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={() => {
+          const newItems = [...items];
+          newItems[idx].showDropdown = false;
+          setItems(newItems);
+        }} />
+      )}
+    </div>
+  );
+};
+
 const SalesForm = ({
   products,
   customers,
@@ -135,9 +209,9 @@ const SalesForm = ({
       {/* SECTION 1: CUSTOMER & NOTES */}
       <CardSection>
         <SectionHeader number="01">Customer Information</SectionHeader>
-        <div className="sales-form-grid-3">
-          <div style={{ position: 'relative' }}>
-            <Label required>Select Customer</Label>
+        <div className="sales-customer-grid">
+          <div className="sales-customer-field" style={{ position: 'relative' }}>
+            <Label required>Customer Name</Label>
             <div style={{ display: 'flex', gap: 8 }}>
               <div style={{ position: 'relative', flex: 1 }}>
                 <Input
@@ -146,7 +220,7 @@ const SalesForm = ({
                   onFocus={() => setShowCustomerSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowCustomerSuggestions(false), 200)}
                   placeholder="Search existing or type new name..."
-                  style={{ border: customerId ? '1.5px solid #3b82f6' : '1px solid #ddd' }}
+                  style={{ border: customerId ? '1.5px solid #3b82f6' : '1px solid #ddd', width: '100%' }}
                 />
                 {showCustomerSuggestions && (
                   <div style={{
@@ -186,7 +260,7 @@ const SalesForm = ({
               </ActionButton>
             </div>
           </div>
-          <div>
+          <div className="sales-customer-field">
             <Label>Customer Phone</Label>
             <Input
               value={customerPhone}
@@ -194,7 +268,7 @@ const SalesForm = ({
               placeholder="+233XXXXXXXXX"
             />
           </div>
-          <div>
+          <div className="sales-customer-field">
             <Label>Customer Email</Label>
             <Input
               type="email"
@@ -203,7 +277,7 @@ const SalesForm = ({
               placeholder="customer@email.com"
             />
           </div>
-          <div style={{ gridColumn: '1 / span 3' }}>
+          <div className="sales-customer-field sales-customer-notes">
             <Label>Internal Sale Notes</Label>
             <Input value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. For delivery / special packaging..." />
             <div style={{ marginTop: 6, fontSize: 11, fontWeight: 600, color: customerId ? '#3b82f6' : '#6b7280' }}>
@@ -216,7 +290,9 @@ const SalesForm = ({
       {/* SECTION 2: ITEMS */}
       <CardSection>
         <SectionHeader number="02">Items Selection</SectionHeader>
-        <div className="table-wrapper">
+        
+        {/* Desktop Table View */}
+        <div className="table-wrapper desktop-only">
           <table className="stock-table" style={{ marginBottom: 16 }}>
             <thead>
               <tr>
@@ -231,73 +307,7 @@ const SalesForm = ({
               {items.map((item, idx) => (
                 <tr key={idx}>
                   <td style={{ position: 'relative' }}>
-                    <div style={{ position: 'relative' }}>
-                      <Input
-                        placeholder="Search code or name..."
-                        value={item.product_id ? (products.find(p => p.id === parseInt(item.product_id) || p.id === item.product_id)?.name || '') : item.searchQuery || ''}
-                        onChange={(e) => {
-                          const newItems = [...items];
-                          newItems[idx].searchQuery = e.target.value;
-                          newItems[idx].product_id = '';
-                          setItems(newItems);
-                        }}
-                        onFocus={() => {
-                          const newItems = [...items];
-                          newItems[idx].showDropdown = true;
-                          setItems(newItems);
-                        }}
-                        style={{ minWidth: 250 }}
-                      />
-                      {item.showDropdown && (
-                        <div className="search-dropdown" style={{
-                          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-                          background: 'white', border: '1px solid #e5e7eb', borderRadius: 8,
-                          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', marginTop: 4,
-                          maxHeight: 250, overflowY: 'auto'
-                        }}>
-                          {products.filter(p =>
-                            !item.searchQuery ||
-                            (p.name?.toLowerCase() || '').includes(item.searchQuery.toLowerCase()) ||
-                            (p.item_code?.toLowerCase() || '').includes(item.searchQuery.toLowerCase())
-                          ).length === 0 ? (
-                            <div style={{ padding: '12px 16px', color: '#9ca3af', fontSize: 13, textAlign: 'center' }}>
-                              ⚠️ Product not found
-                            </div>
-                          ) : (
-                            products.filter(p =>
-                              !item.searchQuery ||
-                              (p.name?.toLowerCase() || '').includes(item.searchQuery.toLowerCase()) ||
-                              (p.item_code?.toLowerCase() || '').includes(item.searchQuery.toLowerCase())
-                            ).map(p => (
-                              <div
-                                key={p.id}
-                                style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', transition: 'background 0.2s' }}
-                                className="search-item"
-                                onClick={() => {
-                                  const newItems = [...items];
-                                  newItems[idx].product_id = p.id;
-                                  newItems[idx].product_name = p.name;
-                                  newItems[idx].unit_price = p.selling_price;
-                                  newItems[idx].showDropdown = false;
-                                  newItems[idx].searchQuery = p.name;
-                                  setItems(newItems);
-                                }}
-                              >
-                                <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{p.name}</div>
-                                <div style={{ fontSize: 11, color: '#6b7280' }}>
-                                  {p.item_code} • {p.stock_quantity} {p.selling_uom} available
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      )}
-                      {item.showDropdown && <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={() => {
-                        const newItems = [...items];
-                        newItems[idx].showDropdown = false;
-                        setItems(newItems);
-                      }} />}
-                    </div>
+                    <ProductSearchField item={item} idx={idx} items={items} setItems={setItems} products={products} inputStyle={{ minWidth: 250 }} />
                   </td>
                   <td>
                     <Input type="number" min="1" value={item.quantity} onChange={e => {
@@ -324,6 +334,55 @@ const SalesForm = ({
             </tbody>
           </table>
         </div>
+
+        {/* Mobile Vertical Item Cards View */}
+        <div className="mobile-only sales-item-cards">
+          {items.map((item, idx) => (
+            <div key={idx} className="sales-item-card">
+              <div className="sales-item-card__header">
+                <span className="sales-item-card__title">Item #{idx + 1}</span>
+                {items.length > 1 && (
+                  <button
+                    type="button"
+                    className="sales-item-card__remove"
+                    onClick={() => setItems(items.filter((_, i) => i !== idx))}
+                  >
+                    ✕ Remove
+                  </button>
+                )}
+              </div>
+              <div style={{ marginBottom: 8 }}>
+                <Label>Product</Label>
+                <ProductSearchField item={item} idx={idx} items={items} setItems={setItems} products={products} inputStyle={{ width: '100%' }} />
+              </div>
+              <div className="sales-item-card__row">
+                <div style={{ flex: 1 }}>
+                  <Label>Qty</Label>
+                  <Input type="number" min="1" value={item.quantity} onChange={e => {
+                    const newItems = [...items];
+                    newItems[idx].quantity = parseFloat(e.target.value) || 0;
+                    setItems(newItems);
+                  }} style={{ width: '100%' }} />
+                </div>
+                <div style={{ flex: 1.2 }}>
+                  <Label>Unit Price</Label>
+                  <Input type="number" step="0.01" value={item.unit_price} onChange={e => {
+                    const newItems = [...items];
+                    newItems[idx].unit_price = parseFloat(e.target.value) || 0;
+                    setItems(newItems);
+                  }} style={{ width: '100%' }} />
+                </div>
+                <div style={{ flex: 1.2 }}>
+                  <Label>Subtotal</Label>
+                  <div className="sales-item-subtotal">
+                    {formatCurrency(item.quantity * item.unit_price)}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
         <ActionButton variant="secondary" size="sm" onClick={() => setItems([...items, { product_id: '', product_name: '', quantity: 1, unit_price: 0 }])}>
           + Add Item Row
         </ActionButton>

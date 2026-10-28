@@ -5,18 +5,22 @@ export default function InstallPWA() {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
+    // Check if previously dismissed in this session
+    if (sessionStorage.getItem('storeflow_pwa_dismissed') === 'true') {
+      return;
+    }
+
     const handler = (e) => {
-      // Prevent the mini-infobar from appearing on mobile
+      // Prevent mini-infobar on mobile
       e.preventDefault();
-      // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
       setIsVisible(true);
     };
 
     window.addEventListener('beforeinstallprompt', handler);
 
-    // Check if app is already installed
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    // Check if app is already running in standalone mode
+    if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
       setIsVisible(false);
     }
 
@@ -25,73 +29,111 @@ export default function InstallPWA() {
     };
   }, []);
 
+  const handleDismiss = () => {
+    setIsVisible(false);
+    sessionStorage.setItem('storeflow_pwa_dismissed', 'true');
+  };
+
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
 
-    // Show the install prompt
     deferredPrompt.prompt();
-
-    // Wait for the user to respond to the prompt
     const { outcome } = await deferredPrompt.userChoice;
-    console.log(`User response to the install prompt: ${outcome}`);
+    console.log(`PWA install prompt response: ${outcome}`);
 
-    // We've used the prompt, and can't use it again, throw it away
     setDeferredPrompt(null);
     setIsVisible(false);
+    sessionStorage.setItem('storeflow_pwa_dismissed', 'true');
   };
 
   if (!isVisible) return null;
 
   return (
     <div style={{
-      background: '#2563eb',
-      color: 'white',
-      padding: '12px 24px',
+      background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+      borderBottom: '1px solid rgba(241, 90, 36, 0.25)',
+      color: '#f8fafc',
+      padding: '12px 20px',
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
-      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+      gap: '16px',
+      boxShadow: '0 4px 20px -2px rgba(0, 0, 0, 0.4)',
       position: 'relative',
-      zIndex: 50
+      zIndex: 60,
+      flexWrap: 'wrap'
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <span style={{ fontSize: '20px' }}>📱</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: '260px', flex: '1 1 auto' }}>
+        <img 
+          src="/pwa-192x192.png" 
+          alt="StoreFlow" 
+          style={{ 
+            width: '40px', 
+            height: '40px', 
+            borderRadius: '10px', 
+            boxShadow: '0 2px 8px rgba(241, 90, 36, 0.3)',
+            flexShrink: 0
+          }} 
+        />
         <div>
-          <div style={{ fontWeight: '700', fontSize: '14px' }}>Install Flywheel StockSystem for the best experience</div>
-          <div style={{ fontSize: '12px', opacity: 0.9 }}>Install as an app to use it offline and access it faster from your home screen.</div>
+          <div style={{ fontWeight: '700', fontSize: '14px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>Install StoreFlow App</span>
+            <span style={{ 
+              fontSize: '10px', 
+              background: 'rgba(241, 90, 36, 0.2)', 
+              color: '#f15a24', 
+              padding: '1px 6px', 
+              borderRadius: '999px',
+              fontWeight: '600'
+            }}>
+              OFFLINE READY
+            </span>
+          </div>
+          <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
+            Faster access from home screen, offline stock sync, and instant sales receipts.
+          </div>
         </div>
       </div>
-      <div style={{ display: 'flex', gap: '8px' }}>
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexShrink: 0 }}>
         <button 
-          onClick={() => setIsVisible(false)}
+          onClick={handleDismiss}
           style={{
             background: 'transparent',
-            border: '1px solid rgba(255,255,255,0.3)',
-            color: 'white',
-            padding: '6px 12px',
-            borderRadius: '6px',
+            border: '1px solid rgba(148, 163, 184, 0.3)',
+            color: '#cbd5e1',
+            padding: '7px 14px',
+            borderRadius: '8px',
             fontSize: '12px',
-            cursor: 'pointer'
+            fontWeight: '500',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease'
           }}
+          onMouseEnter={(e) => e.currentTarget.style.color = '#ffffff'}
+          onMouseLeave={(e) => e.currentTarget.style.color = '#cbd5e1'}
         >
           Later
         </button>
         <button 
           onClick={handleInstallClick}
           style={{
-            background: 'white',
+            background: 'linear-gradient(135deg, #f15a24 0%, #ea580c 100%)',
             border: 'none',
-            color: '#2563eb',
-            padding: '6px 16px',
-            borderRadius: '6px',
+            color: '#ffffff',
+            padding: '7px 18px',
+            borderRadius: '8px',
             fontSize: '12px',
             fontWeight: '700',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            boxShadow: '0 2px 10px rgba(241, 90, 36, 0.4)',
+            transition: 'transform 0.15s ease'
           }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
         >
-          Install Now
+          Install App
         </button>
       </div>
     </div>
   );
 }
+

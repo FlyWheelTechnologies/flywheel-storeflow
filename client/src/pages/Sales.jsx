@@ -325,27 +325,14 @@ export default function Sales() {
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div className="page-header-row">
         <div>
           <h2 className="section-title">Sales & Orders</h2>
           <p style={{ fontSize: '12.5px', color: '#6b7280' }}>Record transactions and track Momo/Cash payments</p>
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <ActionButton
-            variant="secondary"
-            onClick={() => {
-              setHardwareConfig(PrinterService.getLocalHardwareConfig());
-              setShowPrinterModal(true);
-            }}
-            title="Terminal Hardware & Thermal Printer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <Printer size={16} weight="duotone" />
-            <span>POS Printer</span>
-          </ActionButton>
-
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
           {showForm && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ Draft Auto-saved</span>
               <ActionButton variant="danger" size="sm" onClick={() => { localStorage.removeItem("sales_draft"); window.location.reload(); }}>
                 Clear Form

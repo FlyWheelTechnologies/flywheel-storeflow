@@ -87,3 +87,133 @@ button {
   to { transform: translateX(-50%) translateY(0); opacity: 1; }
 }
 
+/* Responsive visibility utilities */
+@media (max-width: 768px) {
+  .desktop-only {
+    display: none !important;
+  }
+}
+@media (min-width: 769px) {
+  .mobile-only {
+    display: none !important;
+  }
+}
+
+/* Mobile-first page header row */
+.page-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 12px;
+}
+@media (max-width: 768px) {
+  .page-header-row {
+    margin-bottom: 16px;
+    align-items: flex-start;
+  }
+  .page-header-row .section-title {
+    font-size: 18px !important;
+    line-height: 1.25;
+  }
+  .page-header-row p {
+    font-size: 11.5px !important;
+    margin-top: 2px;
+  }
+}
+
+/* Sales customer form grid - Mobile 1-per-line stack */
+.sales-customer-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+.sales-customer-field {
+  width: 100%;
+}
+@media (min-width: 769px) {
+  .sales-customer-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 16px;
+  }
+  .sales-customer-notes {
+    grid-column: 1 / span 3;
+  }
+}
+
+/* Sales item vertical cards for mobile */
+.sales-item-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.sales-item-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+  transition: all 0.2s ease;
+}
+.sales-item-card:hover {
+  border-color: #cbd5e1;
+}
+.sales-item-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.sales-item-card__title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+}
+.sales-item-card__remove {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.sales-item-card__row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  margin-top: 8px;
+}
+.sales-item-subtotal {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  padding: 8px 10px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  text-align: right;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justifyContent: flex-end;
+}
+
+/* Deposits summary cards grid on mobile */
+.deposits-summary-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+@media (min-width: 769px) {
+  .deposits-summary-row {
+    display: none;
+  }
+}
+

@@ -372,23 +372,35 @@ export default function Deposits() {
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div className="page-header-row">
         <div>
           <h2 className="section-title">Advance Deposits & Credit</h2>
           <p style={{ fontSize: '12.5px', color: '#6b7280' }}>Track customer prepayments (Credit) and outstanding balances (Debt)</p>
         </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexShrink: 0 }}>
           <ActionButton variant="info" onClick={() => setShowDepositModal(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <HandCoins size={16} weight="duotone" /> Record Deposit
           </ActionButton>
-          <div className="summary-card" style={{ padding: '10px 18px', width: 'auto' }}>
+          <div className="summary-card desktop-only" style={{ padding: '10px 18px', width: 'auto' }}>
             <span style={{ fontSize: 11, color: '#64748b', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Total Credit</span>
             <span style={{ fontSize: 18, fontWeight: 700, color: '#0f172a' }}>{formatCurrency(totalHeld, currency)}</span>
           </div>
-          <div className="summary-card" style={{ padding: '10px 18px', width: 'auto' }}>
+          <div className="summary-card desktop-only" style={{ padding: '10px 18px', width: 'auto' }}>
             <span style={{ fontSize: 11, color: '#64748b', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Total Owed</span>
             <span style={{ fontSize: 18, fontWeight: 700, color: '#0f172a' }}>{formatCurrency(totalOwed, currency)}</span>
           </div>
+        </div>
+      </div>
+
+      {/* Mobile-Only Summary KPI Cards */}
+      <div className="deposits-summary-row mobile-only">
+        <div className="summary-card" style={{ padding: '12px 14px', borderRadius: 12 }}>
+          <span style={{ fontSize: 11, color: '#64748b', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Total Credit</span>
+          <span style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>{formatCurrency(totalHeld, currency)}</span>
+        </div>
+        <div className="summary-card" style={{ padding: '12px 14px', borderRadius: 12 }}>
+          <span style={{ fontSize: 11, color: '#64748b', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Total Owed</span>
+          <span style={{ fontSize: 17, fontWeight: 700, color: '#0f172a' }}>{formatCurrency(totalOwed, currency)}</span>
         </div>
       </div>
 

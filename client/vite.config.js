@@ -7,14 +7,18 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.png', 'logo.png', 'avatars/*.png'],
+      includeAssets: ['favicon.png', 'logo.png', 'og-image.png', 'orange_receipt_machine.jpg', 'avatars/*.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
-        name: 'Flywheel StockSystem',
-        short_name: 'Flywheel StockSystem',
-        description: 'Offline-first inventory management system',
+        name: 'StoreFlow by Flywheel',
+        short_name: 'StoreFlow',
+        description: 'Advanced stock management, sales tracking & double-entry accounting suite by Flywheel',
         theme_color: '#f15a24',
         background_color: '#ffffff',
         display: 'standalone',
+        orientation: 'portrait-primary',
+        start_url: '/',
+        scope: '/',
+        categories: ['business', 'finance', 'productivity'],
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -32,10 +36,63 @@ export default defineConfig({
             type: 'image/png',
             purpose: 'any maskable'
           }
+        ],
+        shortcuts: [
+          {
+            name: 'New Sale',
+            short_name: 'Sale',
+            description: 'Record a new sale or checkout',
+            url: '/sales',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192' }]
+          },
+          {
+            name: 'Inventory & Stock',
+            short_name: 'Stock',
+            description: 'View and manage inventory products',
+            url: '/products',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192' }]
+          },
+          {
+            name: 'Store Dashboard',
+            short_name: 'Dashboard',
+            description: 'View real-time store performance and analytics',
+            url: '/dashboard',
+            icons: [{ src: 'pwa-192x192.png', sizes: '192x192' }]
+          }
         ]
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024 // 5 MiB
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MiB
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,webp,woff,woff2}'],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'google-fonts-stylesheets',
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-webfonts',
+              expiration: {
+                maxEntries: 20,
+                maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          }
+        ]
       }
     })
   ],

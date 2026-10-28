@@ -16,6 +16,7 @@ import {
 import { supabase } from "../services/supabaseClient";
 import { createClient } from "@supabase/supabase-js";
 import { useAuth } from "../context/AuthContext";
+import { BUSINESS_INDUSTRIES, getIndustryCategories, getIndustryInfo } from "../constants/industries";
 import "./SuperAdmin.css";
 import "./Dashboard.css";
 
@@ -29,6 +30,7 @@ export default function SuperAdminNewOrg() {
   const [form, setForm] = useState({
     name: "",
     slug: "",
+    industry: "auto_parts",
     primary_color: "#f97316",
     currency: "GHS",
     phone: "",
@@ -71,6 +73,7 @@ export default function SuperAdminNewOrg() {
       const orgPayload = {
         name: form.name.trim(),
         slug: targetSlug,
+        industry: form.industry || "auto_parts",
         primary_color: form.primary_color,
         currency: form.currency,
         admin_email: form.admin_email.trim(),
@@ -85,12 +88,24 @@ export default function SuperAdminNewOrg() {
         last_payment_date: new Date().toISOString()
       };
 
-      // 1. Insert Organization with automatic slug collision retry
+      // 1. Insert Organization with automatic slug collision retry and column safety
       let { data: org, error: orgError } = await supabase
         .from("organizations")
         .insert(orgPayload)
         .select()
         .single();
+
+      // Graceful fallback if industry column does not exist yet in DB schema
+      if (orgError && orgError.code === "42703") {
+        delete orgPayload.industry;
+        const resWithoutIndustry = await supabase
+          .from("organizations")
+          .insert(orgPayload)
+          .select()
+          .single();
+        org = resWithoutIndustry.data;
+        orgError = resWithoutIndustry.error;
+      }
 
       if (orgError && (orgError.code === "23505" || orgError.message.includes("organizations_slug_key"))) {
         targetSlug = `${targetSlug}-${Math.floor(Math.random() * 899 + 100)}`;
@@ -106,6 +121,13 @@ export default function SuperAdminNewOrg() {
         org = retryResult.data;
       } else if (orgError) {
         throw orgError;
+      }
+
+      // Store industry locally as backup for instant category synchronization
+      if (org?.id && form.industry) {
+        try {
+          localStorage.setItem(`storeflow_org_industry_${org.id}`, form.industry);
+        } catch (_) {}
       }
 
       setCreatedOrg(org);
@@ -366,6 +388,73 @@ export default function SuperAdminNewOrg() {
                   required
                 />
               </div>
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label className="super-form-label">Industry / Business Category *</label>
+              <select
+                className="super-form-select"
+                value={form.industry}
+                onChange={(e) => setForm({ ...form, industry: e.target.value })}
+                required
+              >
+                {BUSINESS_INDUSTRIES.map((ind) => (
+                  <option key={ind.id} value={ind.id}>
+                    {ind.icon} {ind.name}
+                  </option>
+                ))}
+              </select>
+
+              {/* Dynamic Category Preview */}
+              {(() => {
+                const selectedInfo = getIndustryInfo(form.industry);
+                const cats = getIndustryCategories(form.industry);
+                return (
+                  <div style={{
+                    marginTop: 10,
+                    padding: "12px 14px",
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 10
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#475569", display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>{selectedInfo?.icon}</span>
+                        <span>{selectedInfo?.name}</span>
+                        <span style={{ fontSize: 10, padding: "2px 6px", background: "#e0f2fe", color: "#0369a1", borderRadius: 4, fontWeight: 700 }}>
+                          {selectedInfo?.badge}
+                        </span>
+                      </span>
+                      <span style={{ fontSize: 11, color: "#64748b" }}>
+                        {cats.length} tailored categories
+                      </span>
+                    </div>
+                    <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 8px 0" }}>
+                      {selectedInfo?.description}. When adding products, the store owner will see these preset categories automatically, plus the ability to add new ones.
+                    </p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {cats.slice(0, 8).map((cat) => (
+                        <span key={cat} style={{
+                          fontSize: 11,
+                          padding: "3px 8px",
+                          background: "#ffffff",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: 6,
+                          color: "#334155",
+                          fontWeight: 500
+                        }}>
+                          {cat}
+                        </span>
+                      ))}
+                      {cats.length > 8 && (
+                        <span style={{ fontSize: 11, padding: "3px 8px", color: "#64748b", fontStyle: "italic" }}>
+                          +{cats.length - 8} more...
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 16 }}>

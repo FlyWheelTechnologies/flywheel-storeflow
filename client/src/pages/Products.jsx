@@ -9,31 +9,8 @@ import {
   Label, Input, Select, SectionHeader, CardSection, FieldGroup, ActionButton
 } from "../components/ui/FormFields";
 import { PageSkeleton } from "../components/LoadingStates";
+import { getIndustryCategories, getIndustryInfo } from "../constants/industries";
 
-const DEFAULT_CATEGORIES = [
-  'General',
-  'Groceries & Provisions',
-  'Food & Beverages',
-  'Snacks & Confectionery',
-  'Health & Pharmaceuticals',
-  'Beauty, Cosmetics & Personal Care',
-  'Household & Cleaning',
-  'Mobile Phones & Accessories',
-  'Electronics & Home Appliances',
-  'Clothing & Fashion Apparel',
-  'Footwear & Bags',
-  'Stationery & Office Supplies',
-  'Baby & Kids Products',
-  'Plastics & Kitchenware',
-  'Hardware & Tools',
-  'Building Materials',
-  'Electrical & Lighting',
-  'Plumbing',
-  'Roofing',
-  'Paint & Finishes',
-  'Automotive & Spare Parts',
-  'Agro-Chemicals & Animal Feed'
-];
 
 const emptyForm = {
   name: '',
@@ -48,14 +25,30 @@ const emptyForm = {
 };
 
 export default function Products() {
-  const { user } = useAuth();
+  const { user, activeOrg, activeOrgId } = useAuth();
   const isAuditor = user?.role === 'auditor';
   const { success, error: showError } = useToast();
   const { modalState, confirm, handleConfirm, handleCancel, ConfirmationModal } = useConfirmation();
   const { products, loading, createProduct, updateProduct, deleteProduct } = useProducts();
 
+  // Active business industry resolution (from activeOrg, profile org, or local cache)
+  const orgIndustry = useMemo(() => {
+    return (
+      activeOrg?.industry ||
+      user?.organizations?.industry ||
+      (activeOrgId ? localStorage.getItem(`storeflow_org_industry_${activeOrgId}`) : null) ||
+      "auto_parts"
+    );
+  }, [activeOrg, user, activeOrgId]);
+
+  const industryInfo = useMemo(() => getIndustryInfo(orgIndustry), [orgIndustry]);
+  const industryPresetCategories = useMemo(() => getIndustryCategories(orgIndustry), [orgIndustry]);
+
   // Local state
-  const [form, setForm] = useState({ ...emptyForm });
+  const [form, setForm] = useState(() => ({
+    ...emptyForm,
+    category: industryPresetCategories[0] || 'General'
+  }));
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [nameError, setNameError] = useState('');
@@ -63,12 +56,12 @@ export default function Products() {
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [sortBy, setSortBy] = useState('name');
 
-  // Merge default categories with any existing product categories dynamically
+  // Merge industry predetermined categories with any existing custom product categories dynamically
   const availableCategories = useMemo(() => {
     const existing = (products || []).map(p => p.category).filter(Boolean);
-    const combined = Array.from(new Set([...DEFAULT_CATEGORIES, ...existing]));
+    const combined = Array.from(new Set([...industryPresetCategories, ...existing]));
     return combined;
-  }, [products]);
+  }, [industryPresetCategories, products]);
 
   // Load draft on mount
   useEffect(() => {
@@ -91,7 +84,7 @@ export default function Products() {
 
   const clearDraft = () => {
     localStorage.removeItem("product_draft");
-    setForm({ ...emptyForm });
+    setForm({ ...emptyForm, category: industryPresetCategories[0] || 'General' });
     setEditingId(null);
     setNameError('');
   };
@@ -247,14 +240,25 @@ export default function Products() {
 
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div className="page-header-row">
         <h2 className="section-title">Product Inventory ({products.length} items)</h2>
-        <div style={{ display: 'flex', gap: 10 }}>
-          <ActionButton onClick={() => { setShowForm(!showForm); if (showForm) { setForm({ ...emptyForm }); setEditingId(null); setNameError(''); } }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
+          <ActionButton onClick={() => { 
+            const willShow = !showForm;
+            setShowForm(willShow); 
+            if (willShow && !editingId) {
+              setForm({ ...emptyForm, category: industryPresetCategories[0] || 'General' });
+              setNameError('');
+            } else if (!willShow) {
+              setForm({ ...emptyForm }); 
+              setEditingId(null); 
+              setNameError(''); 
+            }
+          }}>
             {showForm ? 'Cancel' : '+ Add Product'}
           </ActionButton>
-          <ActionButton variant="secondary" onClick={handleExport}>Export CSV</ActionButton>
-          <label style={{ ...ActionButton({ variant: "success", children: "Import CSV" }).props, cursor: 'pointer' }}>
+          <ActionButton variant="secondary" onClick={handleExport} className="desktop-only">Export CSV</ActionButton>
+          <label className="desktop-only" style={{ ...ActionButton({ variant: "success", children: "Import CSV" }).props, cursor: 'pointer' }}>
             Import CSV <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleImport} />
           </label>
         </div>
@@ -267,7 +271,7 @@ export default function Products() {
             {!editingId && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ Draft Auto-saved</span>
-                <ActionButton variant="danger" size="sm" onClick={clearDraft}>Clear Form</ActionButton>
+                <ActionButton variant="danger" size="sm" onClick={clearDraft} className="desktop-only">Clear Form</ActionButton>
               </div>
             )}
           </div>
@@ -298,7 +302,15 @@ export default function Products() {
                   </datalist>
                 </div>
                 <div>
-                  <Label>Category</Label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                    <Label>Category</Label>
+                    {industryInfo && (
+                      <span style={{ fontSize: 11, color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <span>{industryInfo.icon}</span>
+                        <span>{industryInfo.name}</span>
+                      </span>
+                    )}
+                  </div>
                   <Select
                     value={availableCategories.includes(form.category) ? form.category : '__custom__'}
                     onChange={e => {

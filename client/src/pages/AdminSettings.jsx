@@ -19,6 +19,7 @@ import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabaseClient";
 import { createClient } from "@supabase/supabase-js";
 import { PrinterService } from "../services/PrinterService";
+import { BUSINESS_INDUSTRIES, getIndustryCategories, getIndustryInfo } from "../constants/industries";
 import "./Dashboard.css";
 
 export default function AdminSettings() {
@@ -59,6 +60,7 @@ export default function AdminSettings() {
   // Store, Tax & Hardware Settings State
   const [orgForm, setOrgForm] = useState({
     name: '',
+    industry: 'auto_parts',
     phone: '',
     address: '',
     tin: '',
@@ -113,8 +115,10 @@ export default function AdminSettings() {
         .single();
       if (fetchErr) throw fetchErr;
       if (data) {
+        const storedIndustry = localStorage.getItem(`storeflow_org_industry_${orgId}`);
         setOrgForm({
           name: data.name || '',
+          industry: data.industry || storedIndustry || 'auto_parts',
           phone: data.phone || '',
           address: data.address || '',
           tin: data.tin || '',
@@ -145,27 +149,49 @@ export default function AdminSettings() {
       const orgId = targetOrgId;
       if (!orgId) throw new Error("No organization associated with this account.");
 
-      const { error: updateErr } = await supabase
+      const updatePayload = {
+        name: orgForm.name,
+        industry: orgForm.industry,
+        phone: orgForm.phone,
+        address: orgForm.address,
+        tin: orgForm.tin,
+        print_tin_on_receipts: !!orgForm.print_tin_on_receipts,
+        is_vat_registered: orgForm.is_vat_registered,
+        default_tax_rate: parseFloat(orgForm.default_tax_rate) || 0,
+        default_tax_inclusive: !!orgForm.default_tax_inclusive,
+        receipt_paper_width: orgForm.receipt_paper_width || '80mm',
+        receipt_mode: orgForm.receipt_mode || 'browser',
+        auto_print_receipt: !!orgForm.auto_print_receipt,
+        kick_cash_drawer: !!orgForm.kick_cash_drawer,
+        receipt_footer_note: orgForm.receipt_footer_note || 'Thank you for your business!',
+        updated_at: new Date().toISOString()
+      };
+
+      let { error: updateErr } = await supabase
         .from('organizations')
-        .update({
-          name: orgForm.name,
-          phone: orgForm.phone,
-          address: orgForm.address,
-          tin: orgForm.tin,
-          print_tin_on_receipts: !!orgForm.print_tin_on_receipts,
-          is_vat_registered: orgForm.is_vat_registered,
-          default_tax_rate: parseFloat(orgForm.default_tax_rate) || 0,
-          default_tax_inclusive: !!orgForm.default_tax_inclusive,
-          receipt_paper_width: orgForm.receipt_paper_width || '80mm',
-          receipt_mode: orgForm.receipt_mode || 'browser',
-          auto_print_receipt: !!orgForm.auto_print_receipt,
-          kick_cash_drawer: !!orgForm.kick_cash_drawer,
-          receipt_footer_note: orgForm.receipt_footer_note || 'Thank you for your business!',
-          updated_at: new Date().toISOString()
-        })
+        .update(updatePayload)
         .eq('id', orgId);
 
+      // Resilient fallback if organizations.industry is not yet migrated in remote DB
+      if (updateErr && (updateErr.code === "42703" || updateErr.message?.includes("industry"))) {
+        console.warn("industry column not yet present in organizations table, retrying update without it:", updateErr.message);
+        const fallbackPayload = { ...updatePayload };
+        delete fallbackPayload.industry;
+        const res2 = await supabase
+          .from('organizations')
+          .update(fallbackPayload)
+          .eq('id', orgId);
+        updateErr = res2.error;
+      }
+
       if (updateErr) throw updateErr;
+
+      // Always save to localStorage as instant sync backup
+      if (orgId && orgForm.industry) {
+        try {
+          localStorage.setItem(`storeflow_org_industry_${orgId}`, orgForm.industry);
+        } catch (_) {}
+      }
 
       // Audit log store profile update
       try {
@@ -546,6 +572,20 @@ export default function AdminSettings() {
               <div>
                 <label style={lbl}>Business / Store Name *</label>
                 <input style={inp} type="text" value={orgForm.name} onChange={e => setOrgForm({...orgForm, name: e.target.value})} required />
+              </div>
+              <div>
+                <label style={lbl}>Industry / Trade Line</label>
+                <select
+                  style={inp}
+                  value={orgForm.industry}
+                  onChange={e => setOrgForm({ ...orgForm, industry: e.target.value })}
+                >
+                  {BUSINESS_INDUSTRIES.map(ind => (
+                    <option key={ind.id} value={ind.id}>
+                      {ind.icon} {ind.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label style={lbl}>Contact Phone</label>
