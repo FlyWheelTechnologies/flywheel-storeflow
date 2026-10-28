@@ -4,6 +4,16 @@ import { supabase } from "../../services/supabaseClient";
 import { Label, Input, Select, ActionButton, SectionHeader, CardSection, FieldGroup } from "../ui/FormFields";
 
 const ProductSearchField = ({ item, idx, items, setItems, products, inputStyle }) => {
+  // Single pass filtering memoized to prevent redundant catalog searches and duplicate filter passes
+  const filteredProducts = useMemo(() => {
+    if (!item.searchQuery) return products;
+    const query = item.searchQuery.toLowerCase();
+    return products.filter(p =>
+      (p.name?.toLowerCase() || '').includes(query) ||
+      (p.item_code?.toLowerCase() || '').includes(query)
+    );
+  }, [products, item.searchQuery]);
+
   return (
     <div style={{ position: 'relative', width: '100%' }}>
       <Input
@@ -29,20 +39,12 @@ const ProductSearchField = ({ item, idx, items, setItems, products, inputStyle }
           boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', marginTop: 4,
           maxHeight: 240, overflowY: 'auto'
         }}>
-          {products.filter(p =>
-            !item.searchQuery ||
-            (p.name?.toLowerCase() || '').includes(item.searchQuery.toLowerCase()) ||
-            (p.item_code?.toLowerCase() || '').includes(item.searchQuery.toLowerCase())
-          ).length === 0 ? (
+          {filteredProducts.length === 0 ? (
             <div style={{ padding: '12px 16px', color: '#9ca3af', fontSize: 13, textAlign: 'center' }}>
               ⚠️ Product not found
             </div>
           ) : (
-            products.filter(p =>
-              !item.searchQuery ||
-              (p.name?.toLowerCase() || '').includes(item.searchQuery.toLowerCase()) ||
-              (p.item_code?.toLowerCase() || '').includes(item.searchQuery.toLowerCase())
-            ).map(p => (
+            filteredProducts.map(p => (
               <div
                 key={p.id}
                 style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', transition: 'background 0.2s' }}

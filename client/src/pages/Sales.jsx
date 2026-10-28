@@ -55,10 +55,23 @@ export default function Sales() {
   }, [location]);
 
   const filtered = useMemo(() => {
+    // Single pass filtering with pre-calculated lowercased search query and target date string
+    const searchLower = search ? search.toLowerCase() : '';
+    const targetDateStr = dateFilter ? new Date(dateFilter).toDateString() : null;
+
     return sales
-      .filter(s => s.customer_name?.toLowerCase().includes(search.toLowerCase()))
-      .filter(s => statusFilter === 'All' || s.payment_status === statusFilter)
-      .filter(s => !dateFilter || new Date(s.created_at).toDateString() === new Date(dateFilter).toDateString())
+      .filter(s => {
+        if (searchLower && !(s.customer_name?.toLowerCase() || '').includes(searchLower)) {
+          return false;
+        }
+        if (statusFilter !== 'All' && s.payment_status !== statusFilter) {
+          return false;
+        }
+        if (targetDateStr && new Date(s.created_at).toDateString() !== targetDateStr) {
+          return false;
+        }
+        return true;
+      })
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }, [sales, search, statusFilter, dateFilter]);
 
