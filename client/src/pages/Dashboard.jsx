@@ -40,7 +40,7 @@ const InfoTip = ({ text }) => (
 );
 
 /* ─── Stat Card ────────────────────────────────── */
-function StatCard({ icon, label, value, trend, accent, children }) {
+function StatCard({ icon, label, value, accent, children }) {
   return (
     <div className={`stat-card ${accent ? `stat-card--${accent}` : ""}`}>
       <div className="stat-card__header">
@@ -56,7 +56,6 @@ function StatCard({ icon, label, value, trend, accent, children }) {
 /* ─── MAIN DASHBOARD ───────────────────────────── */
 export default function Dashboard() {
   const { user, activeOrg, activeOrgId, impersonatedOrg } = useAuth();
-  const businessName = activeOrg?.name || user?.organizations?.name || (user?.role === 'super_admin' ? 'StoreFlow Admin' : 'StoreFlow');
   const navigate = useNavigate();
   const { success, error: showError } = useToast();
 
@@ -69,7 +68,7 @@ export default function Dashboard() {
 
   const { products, loading: productsLoading, refetch: refetchProducts } = useProducts();
   const { sales, loading: salesLoading, refetch: refetchSales } = useSales();
-  const { expenses, loading: expensesLoading, refetch: refetchExpenses } = useExpenses();
+  const { expenses, loading: expensesLoading } = useExpenses();
 
   const [logs, setLogs] = useState([]);
   const [showDepositModal, setShowDepositModal] = useState(false);
@@ -103,7 +102,7 @@ export default function Dashboard() {
     if (!depCustName || !depCustPhone || !depAmount) return showError("Please fill all fields");
     setDepSaving(true);
     try {
-      const { data, error } = await supabase.rpc('record_pure_deposit', {
+      const { error } = await supabase.rpc('record_pure_deposit', {
         p_customer_name: depCustName,
         p_customer_phone: depCustPhone,
         p_amount: parseFloat(depAmount),
@@ -167,14 +166,23 @@ export default function Dashboard() {
     return "Evening";
   };
 
-  const { todaySales, todayCashIn, todayRevenue } = useMemo(() => {
+  // Bolt Optimization: Single-pass metric calculations to prevent redundant Date allocations & repeated array filtering
+  const { todayCashIn, todayRevenue } = useMemo(() => {
     const todayDate = new Date().toDateString();
-    const tSales = sales.filter(s => new Date(s.created_at).toDateString() === todayDate);
-    const tCashIn = tSales.reduce((a, s) => a + parseFloat(s.amount_paid || 0), 0);
-    const tRevenue = tSales
-      .filter(s => s.payment_status !== 'DEPOSIT')
-      .reduce((a, s) => a + parseFloat(s.total_amount || 0), 0);
-    return { todaySales: tSales, todayCashIn: tCashIn, todayRevenue: tRevenue };
+    let cashIn = 0;
+    let revenue = 0;
+
+    for (let i = 0; i < sales.length; i++) {
+      const s = sales[i];
+      if (s.created_at && new Date(s.created_at).toDateString() === todayDate) {
+        cashIn += parseFloat(s.amount_paid || 0);
+        if (s.payment_status !== 'DEPOSIT') {
+          revenue += parseFloat(s.total_amount || 0);
+        }
+      }
+    }
+
+    return { todayCashIn: cashIn, todayRevenue: revenue };
   }, [sales]);
 
   const {
@@ -215,34 +223,44 @@ export default function Dashboard() {
 
   const userName = user?.full_name || user?.email?.split('@')[0];
 
-  const todayExpenses = useMemo(() => {
-    const todayDate = new Date().toDateString();
-    return expenses
-      .filter(e => new Date(e.created_at).toDateString() === todayDate)
-      .reduce((acc, e) => acc + parseFloat(e.amount || 0), 0);
-  }, [expenses]);
-
   const pendingOrdersCount = useMemo(() => {
     return sales.filter(s => s.payment_status === 'DEPOSIT' || (s.payment_status === 'PARTIAL' && s.balance_due > 0)).length;
   }, [sales]);
 
+  // Bolt Optimization: Single-pass map indexing turns O(N * D) nested filtering into O(N + D) chart aggregation
   const chartData = useMemo(() => {
     if (timeframe === '7d' || timeframe === '30d') {
       const days = timeframe === '7d' ? 7 : 30;
-      return Array.from({ length: days }, (_, i) => {
-        const d = new Date();
+      const salesByDate = new Map();
+      const expensesByDate = new Map();
+
+      for (let i = 0; i < sales.length; i++) {
+        const s = sales[i];
+        if (!s.created_at) continue;
+        const dStr = new Date(s.created_at).toDateString();
+        salesByDate.set(dStr, (salesByDate.get(dStr) || 0) + parseFloat(s.amount_paid || 0));
+      }
+
+      for (let i = 0; i < expenses.length; i++) {
+        const e = expenses[i];
+        if (!e.created_at) continue;
+        const dStr = new Date(e.created_at).toDateString();
+        expensesByDate.set(dStr, (expensesByDate.get(dStr) || 0) + parseFloat(e.amount || 0));
+      }
+
+      const result = new Array(days);
+      const now = new Date();
+      for (let i = 0; i < days; i++) {
+        const d = new Date(now);
         d.setDate(d.getDate() - (days - 1 - i));
         const dateStr = d.toDateString();
-        const daySales = sales.filter(s => new Date(s.created_at).toDateString() === dateStr)
-                             .reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
-        const dayExpenses = expenses.filter(e => new Date(e.created_at).toDateString() === dateStr)
-                                     .reduce((acc, e) => acc + parseFloat(e.amount || 0), 0);
-        return {
+        result[i] = {
           name: days === 7 ? d.toLocaleDateString([], { weekday: 'short' }) : d.toLocaleDateString([], { month: 'short', day: 'numeric' }),
-          Revenue: daySales,
-          Expenses: dayExpenses
+          Revenue: salesByDate.get(dateStr) || 0,
+          Expenses: expensesByDate.get(dateStr) || 0
         };
-      });
+      }
+      return result;
     }
 
     if (timeframe === 'YoY') {
@@ -250,23 +268,26 @@ export default function Dashboard() {
       const thisYear = new Date().getFullYear();
       const lastYear = thisYear - 1;
 
-      return months.map((m, i) => {
-        const thisYearSales = sales.filter(s => {
-          const d = new Date(s.created_at);
-          return d.getFullYear() === thisYear && d.getMonth() === i;
-        }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
+      const thisYearSales = new Array(12).fill(0);
+      const lastYearSales = new Array(12).fill(0);
 
-        const lastYearSales = sales.filter(s => {
-          const d = new Date(s.created_at);
-          return d.getFullYear() === lastYear && d.getMonth() === i;
-        }).reduce((acc, s) => acc + parseFloat(s.amount_paid || 0), 0);
+      for (let i = 0; i < sales.length; i++) {
+        const s = sales[i];
+        if (!s.created_at) continue;
+        const d = new Date(s.created_at);
+        const y = d.getFullYear();
+        if (y === thisYear) {
+          thisYearSales[d.getMonth()] += parseFloat(s.amount_paid || 0);
+        } else if (y === lastYear) {
+          lastYearSales[d.getMonth()] += parseFloat(s.amount_paid || 0);
+        }
+      }
 
-        return {
-          name: m,
-          'This Year': thisYearSales,
-          'Last Year': lastYearSales
-        };
-      });
+      return months.map((m, i) => ({
+        name: m,
+        'This Year': thisYearSales[i],
+        'Last Year': lastYearSales[i]
+      }));
     }
     return [];
   }, [timeframe, sales, expenses]);
