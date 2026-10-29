@@ -1,0 +1,3 @@
+## 2024-05-18 - Missing ARIA Labels on Icon-Only Close Buttons
+**Learning:** This application has a recurring pattern of missing `aria-label` attributes on icon-only close buttons in various modal components (like `ConfirmationModal.jsx`, `Layout.jsx`, `Dashboard.jsx`, and `Sales.jsx`), which creates significant accessibility issues for screen reader users as these crucial interactive elements are read as blank or unlabelled.
+**Action:** When adding new modals or icon-only buttons to the UI, explicitly check for and require descriptive `aria-label` attributes to ensure keyboard and screen reader accessibility.
