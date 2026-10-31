@@ -429,7 +429,7 @@ export default function Sales() {
                 </h3>
               </div>
               <button
-                onClick={() => setShowPrinterModal(false)}
+                onClick={() => setShowPrinterModal(false)} aria-label="Close printer modal"
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
               >
                 <X size={20} />
