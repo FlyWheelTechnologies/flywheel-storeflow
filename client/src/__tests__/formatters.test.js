@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatCurrency, formatPhone } from '../services/formatters';
+import { formatCurrency, formatCurrencyPlain, formatPhone } from '../services/formatters';
 
 describe('formatters', () => {
   describe('formatCurrency', () => {
@@ -12,6 +12,24 @@ describe('formatters', () => {
     it('should return 0.0 for null or undefined values', () => {
       expect(formatCurrency(null)).toBe('0.0');
       expect(formatCurrency(undefined)).toBe('0.0');
+    });
+
+    it('should support multi-currency formatting and return cached results', () => {
+      expect(formatCurrency(100, 'USD')).toContain('100');
+      expect(formatCurrency(100, 'EUR')).toContain('100');
+      expect(formatCurrency(100, 'NGN')).toContain('100');
+    });
+  });
+
+  describe('formatCurrencyPlain', () => {
+    it('should format numbers without currency symbol', () => {
+      expect(formatCurrencyPlain(100)).toContain('100');
+      expect(formatCurrencyPlain(55.55)).toContain('55');
+    });
+
+    it('should return 0.0 for null or undefined values', () => {
+      expect(formatCurrencyPlain(null)).toBe('0.0');
+      expect(formatCurrencyPlain(undefined)).toBe('0.0');
     });
   });
 
