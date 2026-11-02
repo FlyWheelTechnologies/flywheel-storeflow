@@ -428,7 +428,7 @@ export default function Sales() {
                   Register Printer & Hardware
                 </h3>
               </div>
-              <button
+              <button aria-label="Close"
                 onClick={() => setShowPrinterModal(false)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}
               >
