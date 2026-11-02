@@ -116,7 +116,7 @@ export default function Expenses() {
           <ActionButton variant="secondary" onClick={handleExport} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <Export size={15} weight="bold" /> Export
           </ActionButton>
-          <ActionButton onClick={() => setShowForm(!showForm)} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <ActionButton disabled={saving} onClick={() => { if (!saving) setShowForm(!showForm); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             {showForm ? 'Cancel' : <><Plus size={15} weight="bold" /> Record Expense</>}
           </ActionButton>
         </div>
@@ -154,8 +154,8 @@ export default function Expenses() {
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
-                <ActionButton type="submit" fullWidth disabled={saving} style={{ height: 38 }}>
-                  {saving ? 'Saving...' : 'Save Expense'}
+                <ActionButton type="submit" fullWidth disabled={saving} loading={saving} style={{ height: 38 }}>
+                  {saving ? 'Recording Expense...' : 'Save Expense'}
                 </ActionButton>
               </div>
             </FieldGroup>

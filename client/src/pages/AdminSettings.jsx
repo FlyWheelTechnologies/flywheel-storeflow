@@ -13,7 +13,8 @@ import {
   Printer,
   Usb,
   Bluetooth,
-  Lightning
+  Lightning,
+  CircleNotch
 } from "@phosphor-icons/react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabaseClient";
@@ -23,7 +24,7 @@ import { BUSINESS_INDUSTRIES, getIndustryCategories, getIndustryInfo } from "../
 import "./Dashboard.css";
 
 export default function AdminSettings() {
-  const { user: currentUser, activeOrgId } = useAuth();
+  const { user: currentUser, activeOrgId, updateUser, impersonatedOrg, impersonateOrg } = useAuth();
   const targetOrgId = activeOrgId || currentUser?.organization_id;
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
@@ -185,6 +186,18 @@ export default function AdminSettings() {
       }
 
       if (updateErr) throw updateErr;
+
+      // Update in-memory user and localStorage so all components immediately see the new settings
+      if (currentUser && updateUser) {
+        const updatedOrg = { ...(currentUser.organizations || {}), ...updatePayload };
+        updateUser({ organizations: updatedOrg });
+      }
+      if (impersonatedOrg && impersonateOrg) {
+        impersonateOrg({ ...impersonatedOrg, ...updatePayload });
+      }
+      PrinterService.saveLocalHardwareConfig({
+        autoPrint: !!orgForm.auto_print_receipt
+      });
 
       // Always save to localStorage as instant sync backup
       if (orgId && orgForm.industry) {
@@ -694,7 +707,8 @@ export default function AdminSettings() {
               </div>
             </div>
 
-            <button type="submit" className="quick-action-btn" style={{ height: 40, width: 'auto' }} disabled={orgSaving}>
+            <button type="submit" className="quick-action-btn" style={{ height: 40, width: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={orgSaving}>
+              {orgSaving && <CircleNotch size={14} className="spin" weight="bold" />}
               {orgSaving ? 'Saving Store Settings...' : 'Save Store & Tax Profile'}
             </button>
           </form>
@@ -816,7 +830,8 @@ export default function AdminSettings() {
                 />
               </div>
 
-              <button type="submit" className="quick-action-btn" style={{ height: 40, width: 'auto' }} disabled={orgSaving}>
+              <button type="submit" className="quick-action-btn" style={{ height: 40, width: 'auto', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={orgSaving}>
+                {orgSaving && <CircleNotch size={14} className="spin" weight="bold" />}
                 {orgSaving ? 'Saving Hardware Settings...' : 'Save Hardware & Printing Settings'}
               </button>
             </form>
@@ -1036,8 +1051,9 @@ export default function AdminSettings() {
                     <option value="admin">Admin</option>
                   </select>
                 </div>
-                <button type="submit" className="quick-action-btn" style={{ marginTop: 'auto', height: 38 }} disabled={saving}>
-                  {saving ? 'Creating User...' : (editUserId ? 'Save Changes' : 'Create User')}
+                <button type="submit" className="quick-action-btn" style={{ marginTop: 'auto', height: 38, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }} disabled={saving}>
+                  {saving && <CircleNotch size={14} className="spin" weight="bold" />}
+                  {saving ? (editUserId ? 'Saving Changes...' : 'Creating User...') : (editUserId ? 'Save Changes' : 'Create User')}
                 </button>
               </form>
             </div>

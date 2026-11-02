@@ -88,16 +88,20 @@ Deno.serve(async (req: Request) => {
 
     const isDeposit = record.payment_status === 'DEPOSIT';
     
-    let amountPaidDisplay = Number(record.amount_paid);
-    let balanceDueDisplay = Number(record.balance_due);
+    const totalAmt = Number(record.total_amount || 0);
+    let amountPaidDisplay = record.amount_paid !== undefined && record.amount_paid !== null && !isNaN(Number(record.amount_paid))
+      ? Number(record.amount_paid)
+      : (record.payment_status === 'PAID' ? totalAmt : 0);
+    let balanceDueDisplay = record.balance_due !== undefined && record.balance_due !== null && !isNaN(Number(record.balance_due))
+      ? Math.max(0, Number(record.balance_due))
+      : Math.max(0, totalAmt - amountPaidDisplay);
     let changeDisplay = 0;
 
-    const changeString = `Change given: ${currency}`;
-    if (record.notes && record.notes.includes(changeString)) {
-      const match = record.notes.match(new RegExp(`Change given: ${currency} ([\\d.]+)`));
+    if (record.notes) {
+      const match = record.notes.match(/Change given:\s*(?:[A-Z]{3}|[^\d\s]+)?\s*([\d.]+)/i);
       if (match) {
         changeDisplay = parseFloat(match[1]);
-        amountPaidDisplay = Number(record.total_amount) + changeDisplay;
+        amountPaidDisplay = totalAmt + changeDisplay;
         balanceDueDisplay = 0;
       }
     }

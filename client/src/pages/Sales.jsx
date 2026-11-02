@@ -18,7 +18,8 @@ import { ActionButton, Input, Select } from "../components/ui/FormFields";
 import { PageSkeleton } from "../components/LoadingStates";
 
 export default function Sales() {
-  const { user, activeOrgId } = useAuth();
+  const { user, activeOrgId, activeOrg } = useAuth();
+  const org = activeOrg || user?.organizations || {};
   const location = useLocation();
   const { success, error: showError } = useToast();
   const { modalState, confirm, handleConfirm, handleCancel, ConfirmationModal } = useConfirmation();
@@ -97,14 +98,16 @@ export default function Sales() {
       }
 
       if (salesToImport.length > 0) {
+        if (saving) return;
         const confirmed = await confirm({
           title: "Import Sales",
           message: `Found ${salesToImport.length} records. Import them now?`,
           confirmText: "Import",
+          loadingText: "Importing...",
           type: "primary"
         });
 
-        if (!confirmed) return;
+        if (!confirmed || saving) return;
 
         setSaving(true);
         try {
@@ -147,6 +150,7 @@ export default function Sales() {
           showError("Import failed: " + err.message);
         } finally {
           setSaving(false);
+          e.target.value = '';
         }
       }
     };
@@ -154,11 +158,13 @@ export default function Sales() {
   };
 
   const handleSaleSave = (data) => {
+    if (saving) return;
     setPendingSaleData(data);
     confirm({
       title: "Confirm Transaction",
       message: `Are you sure you want to record this sale for ${formatCurrency(data.grandTotal)}? This will deduct items from stock and create a journal entry.`,
       confirmText: "Yes, Record Sale",
+      loadingText: "Recording Sale...",
       type: "primary",
       onConfirm: (confirmData) => handleSubmit(confirmData || data),
       confirmData: data
@@ -167,7 +173,7 @@ export default function Sales() {
 
   const handleSubmit = async (saleDataParam) => {
     const data = saleDataParam || pendingSaleData;
-    if (!data) return;
+    if (!data || saving) return;
     setSaving(true);
     try {
       let resolvedCustomerId = data.customerId ? parseInt(data.customerId) : null;
@@ -230,7 +236,7 @@ export default function Sales() {
       const newSaleId = await SalesService.recordSaleTransaction({
         p_customer_id: resolvedCustomerId,
         p_customer_name: data.customerName,
-        p_total_amount: data.grandTotal,
+        p_total_amount: data.taxInclusive ? data.grandTotal : data.total,
         p_amount_paid: parseFloat(data.amountPaid) || 0,
         p_payment_method: data.paymentMethod,
         p_payment_status: status,
@@ -251,7 +257,10 @@ export default function Sales() {
       refetchSales();
 
       // Trigger automatic receipt printing if enabled
-      const shouldAutoPrint = user?.organizations?.auto_print_receipt !== false;
+      const shouldAutoPrint = hardwareConfig?.autoPrint !== null && hardwareConfig?.autoPrint !== undefined
+        ? !!hardwareConfig.autoPrint
+        : (org?.auto_print_receipt === true);
+
       if (shouldAutoPrint && !data.isDeposit) {
         const completedSale = {
           id: newSaleId,
@@ -262,12 +271,15 @@ export default function Sales() {
           balance_due: data.balance,
           payment_method: data.paymentMethod,
           payment_status: status,
+          notes: data.notes,
+          organization_id: activeOrgId || user?.organization_id,
           tax_amount: data.taxAmount || 0,
           tax_percentage: data.taxPercentage || 0,
+          tax_inclusive: data.taxInclusive,
           created_at: new Date().toISOString()
         };
 
-        PrinterService.printSale(completedSale, user?.organizations || {}, validItems).catch(printErr => {
+        PrinterService.printSale(completedSale, org, validItems).catch(printErr => {
           console.warn("Auto-print thermal ticket notice:", printErr);
         });
       }
@@ -282,6 +294,13 @@ export default function Sales() {
               total_amount: data.grandTotal,
               amount_paid: (parseFloat(data.amountPaid) || 0) + (parseFloat(data.useCredit) || 0),
               balance_due: data.balance,
+              payment_status: status,
+              payment_method: data.paymentMethod,
+              notes: data.notes,
+              organization_id: activeOrgId || user?.organization_id,
+              tax_amount: data.taxAmount || 0,
+              tax_percentage: data.taxPercentage || 0,
+              tax_inclusive: data.taxInclusive,
               created_at: new Date().toISOString()
             }, {
               customerPhone: data.customerPhone,
@@ -334,12 +353,12 @@ export default function Sales() {
           {showForm && (
             <div className="desktop-only" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ Draft Auto-saved</span>
-              <ActionButton variant="danger" size="sm" onClick={() => { localStorage.removeItem("sales_draft"); window.location.reload(); }}>
+              <ActionButton variant="danger" size="sm" disabled={saving} onClick={() => { if (!saving) { localStorage.removeItem("sales_draft"); window.location.reload(); } }}>
                 Clear Form
               </ActionButton>
             </div>
           )}
-          <ActionButton onClick={() => setShowForm(!showForm)}>
+          <ActionButton disabled={saving} onClick={() => { if (!saving) setShowForm(!showForm); }}>
             {showForm ? 'Close Form' : '+ New Sale'}
           </ActionButton>
         </div>
@@ -351,12 +370,14 @@ export default function Sales() {
           customers={customers}
           initialData={initialDraft}
           onSave={handleSaleSave}
-          onCancel={() => setShowForm(false)}
+          onCancel={() => { if (!saving) setShowForm(false); }}
           saving={saving}
-          orgTaxSettings={user?.organizations ? {
-            default_tax_rate: user.organizations.default_tax_rate,
-            default_tax_inclusive: user.organizations.default_tax_inclusive,
-            is_vat_registered: user.organizations.is_vat_registered
+          currency={org?.currency || 'GHS'}
+          orgTaxSettings={org ? {
+            default_tax_rate: org.default_tax_rate,
+            default_tax_inclusive: org.default_tax_inclusive,
+            is_vat_registered: org.is_vat_registered,
+            currency: org.currency || 'GHS'
           } : {}}
         />
       )}
@@ -376,7 +397,7 @@ export default function Sales() {
         onImportCSV={handleImportCSV}
         onGenerateReceipt={(s) => SalesService.generateReceipt(s)}
         onPrintThermalReceipt={(s) => {
-          PrinterService.printSale(s, user?.organizations || {}).catch(err => {
+          PrinterService.printSale(s, org).catch(err => {
             showError(`Thermal Print Error: ${err.message}`);
           });
         }}
@@ -387,6 +408,7 @@ export default function Sales() {
             showError(err.message);
           }
         }}
+        saving={saving}
       />
 
       {/* Storekeeper Register Hardware Modal */}
@@ -449,11 +471,25 @@ export default function Sales() {
                   Active Store Configuration
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#431407', marginTop: 3 }}>
-                  Roll: {user?.organizations?.receipt_paper_width || '80mm'} • Protocol: {user?.organizations?.receipt_mode?.toUpperCase() || 'BROWSER'}
+                  Roll: {org.receipt_paper_width || '80mm'} • Protocol: {org.receipt_mode?.toUpperCase() || 'BROWSER'}
                 </div>
                 <div style={{ fontSize: 11.5, color: '#7c2d12', marginTop: 2 }}>
-                  Auto-print on sale: {user?.organizations?.auto_print_receipt !== false ? 'Enabled' : 'Disabled'} • Drawer kick: {user?.organizations?.kick_cash_drawer ? 'Enabled' : 'Disabled'}
+                  Auto-print on sale: {shouldAutoPrint ? 'Enabled' : 'Disabled'} • Drawer kick: {org.kick_cash_drawer ? 'Enabled' : 'Disabled'}
                 </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: '#431407', marginTop: 8, paddingTop: 8, borderTop: '1px dashed #fed7aa' }}>
+                  <input
+                    type="checkbox"
+                    checked={shouldAutoPrint}
+                    onChange={(e) => {
+                      const nextVal = e.target.checked;
+                      const updated = PrinterService.saveLocalHardwareConfig({ autoPrint: nextVal });
+                      setHardwareConfig(updated);
+                      success(nextVal ? "Auto-print enabled for this register" : "Auto-print disabled for this register");
+                    }}
+                    style={{ width: 16, height: 16, cursor: 'pointer' }}
+                  />
+                  Auto-print thermal ticket on sale completion
+                </label>
               </div>
 
               {/* Terminal Connection Status */}
@@ -639,10 +675,11 @@ export default function Sales() {
         title={modalState.title}
         message={modalState.message}
         confirmText={modalState.confirmText}
+        loadingText={modalState.loadingText}
         onConfirm={handleConfirm}
         onCancel={handleCancel}
         type={modalState.type}
-        isLoading={modalState.isLoading}
+        isLoading={modalState.isLoading || saving}
       />
     </div>
   );

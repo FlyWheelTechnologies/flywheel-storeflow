@@ -11,7 +11,8 @@ import {
   Sparkle,
   ShieldCheck,
   WarningCircle,
-  Plus
+  Plus,
+  CircleNotch
 } from "@phosphor-icons/react";
 import { supabase } from "../services/supabaseClient";
 import { createClient } from "@supabase/supabase-js";
@@ -685,9 +686,10 @@ export default function SuperAdminNewOrg() {
           <button
             type="submit"
             className="super-btn super-btn--primary"
-            style={{ width: "100%", padding: 14, fontSize: 15 }}
+            style={{ width: "100%", padding: 14, fontSize: 15, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
             disabled={loading}
           >
+            {loading && <CircleNotch size={18} className="spin" weight="bold" />}
             {loading ? "Onboarding and Launching Business..." : "Complete Setup & Launch Business"}
           </button>
         </form>

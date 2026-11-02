@@ -143,24 +143,38 @@ export const SalesService = {
       offset = 7.5;
     }
 
-    let amountPaidDisplay = parseFloat(sale.amount_paid || 0);
-    let balanceDueDisplay = parseFloat(sale.balance_due || 0);
+    let amountPaidDisplay = sale.amount_paid !== undefined && sale.amount_paid !== null && !isNaN(parseFloat(sale.amount_paid))
+      ? Math.round(parseFloat(sale.amount_paid) * 100) / 100
+      : (sale.payment_status === 'PAID' ? totalAmt : 0);
     let changeDisplay = 0;
 
-    const changeString = `Change given: ${currency}`;
-    if (sale.notes && sale.notes.includes(changeString)) {
-      const match = sale.notes.match(new RegExp(`Change given: ${currency} ([\\d.]+)`));
+    if (sale.notes) {
+      const match = sale.notes.match(/Change given:\s*(?:[A-Z]{3}|[^\d\s]+)?\s*([\d.]+)/i);
       if (match) {
-        changeDisplay = parseFloat(match[1]);
-        amountPaidDisplay = totalAmt + changeDisplay;
-        balanceDueDisplay = 0;
+        changeDisplay = Math.round(parseFloat(match[1]) * 100) / 100;
+        amountPaidDisplay = Math.round((totalAmt + changeDisplay) * 100) / 100;
       }
+    }
+
+    let balanceDueDisplay = 0;
+    if (changeDisplay > 0 || sale.payment_status === 'PAID') {
+      balanceDueDisplay = 0;
+    } else if (sale.balance_due !== undefined && sale.balance_due !== null && !isNaN(parseFloat(sale.balance_due))) {
+      balanceDueDisplay = Math.max(0, Math.round(parseFloat(sale.balance_due) * 100) / 100);
+    } else {
+      balanceDueDisplay = Math.max(0, Math.round((totalAmt - amountPaidDisplay) * 100) / 100);
     }
 
     doc.setFontSize(8);
     doc.setTextColor(55, 65, 81);
     doc.setFont(undefined, 'normal');
-    doc.text(changeDisplay > 0 ? `Amount Tendered:` : `Amount Paid:`, 5, finalY + offset);
+    doc.text(
+      changeDisplay > 0
+        ? `Amount Tendered:`
+        : (sale.payment_status === 'DEPOSIT' ? `Deposit Paid:` : `Amount Paid:`),
+      5,
+      finalY + offset
+    );
     doc.text(`${currency} ${amountPaidDisplay.toFixed(2)}`, 75, finalY + offset, { align: 'right' });
 
     if (changeDisplay > 0) {
@@ -168,7 +182,7 @@ export const SalesService = {
       doc.setTextColor(5, 150, 105);
       doc.text(`${currency} ${changeDisplay.toFixed(2)}`, 75, finalY + offset + 4, { align: 'right' });
     } else if (balanceDueDisplay > 0) {
-      doc.text(`Balance Due:`, 5, finalY + offset + 4);
+      doc.text(sale.payment_status === 'DEPOSIT' ? `Balance on Delivery:` : `Balance Due:`, 5, finalY + offset + 4);
       doc.setTextColor(185, 28, 28);
       doc.text(`${currency} ${balanceDueDisplay.toFixed(2)}`, 75, finalY + offset + 4, { align: 'right' });
     }
@@ -249,23 +263,31 @@ export const SalesService = {
       itemsList += `\n`;
     }
 
-    let amountPaidDisplay = parseFloat(sale.amount_paid);
-    let balanceDueDisplay = parseFloat(sale.balance_due);
+    const totalAmt = Math.round(parseFloat(sale.total_amount || 0) * 100) / 100;
+    let amountPaidDisplay = sale.amount_paid !== undefined && sale.amount_paid !== null && !isNaN(parseFloat(sale.amount_paid))
+      ? Math.round(parseFloat(sale.amount_paid) * 100) / 100
+      : (sale.payment_status === 'PAID' ? totalAmt : 0);
     let changeDisplay = 0;
 
-    const changeString = `Change given: ${currency}`;
-    if (sale.notes && sale.notes.includes(changeString)) {
-      const match = sale.notes.match(new RegExp(`Change given: ${currency} ([\\d.]+)`));
+    if (sale.notes) {
+      const match = sale.notes.match(/Change given:\s*(?:[A-Z]{3}|[^\d\s]+)?\s*([\d.]+)/i);
       if (match) {
-        changeDisplay = parseFloat(match[1]);
-        amountPaidDisplay = parseFloat(sale.total_amount) + changeDisplay;
-        balanceDueDisplay = 0;
+        changeDisplay = Math.round(parseFloat(match[1]) * 100) / 100;
+        amountPaidDisplay = Math.round((totalAmt + changeDisplay) * 100) / 100;
       }
+    }
+
+    let balanceDueDisplay = 0;
+    if (changeDisplay > 0 || sale.payment_status === 'PAID') {
+      balanceDueDisplay = 0;
+    } else if (sale.balance_due !== undefined && sale.balance_due !== null && !isNaN(parseFloat(sale.balance_due))) {
+      balanceDueDisplay = Math.max(0, Math.round(parseFloat(sale.balance_due) * 100) / 100);
+    } else {
+      balanceDueDisplay = Math.max(0, Math.round((totalAmt - amountPaidDisplay) * 100) / 100);
     }
 
     const taxAmt = Math.round(parseFloat(sale.tax_amount || 0) * 100) / 100;
     const taxPct = parseFloat(sale.tax_percentage || 0);
-    const totalAmt = Math.round(parseFloat(sale.total_amount || 0) * 100) / 100;
     const netTaxable = Math.max(0, Math.round((totalAmt - taxAmt) * 100) / 100);
 
     let taxSection = '';
@@ -310,8 +332,14 @@ export const SalesService = {
       `*FINANCIAL SUMMARY*\n` +
       `${thinDivider}\n` +
       taxSection +
-      `*Total Amount:* ${currency} ${formatCurrency(sale.total_amount)}${sale.tax_inclusive ? ' _(Tax Inclusive)_' : ''}\n` +
-      `${changeDisplay > 0 ? `*Amount Tendered:* ${currency} ${formatCurrency(amountPaidDisplay)}\n*Change:*          ${currency} ${formatCurrency(changeDisplay)}` : `*Amount Paid:*  ${currency} ${formatCurrency(amountPaidDisplay)}\n*Balance Due:*  ${currency} ${formatCurrency(balanceDueDisplay)}`}\n` +
+      `*Total Amount:* ${currency} ${formatCurrency(totalAmt)}${sale.tax_inclusive ? ' _(Tax Inclusive)_' : ''}\n` +
+      (changeDisplay > 0
+        ? `*Amount Tendered:* ${currency} ${formatCurrency(amountPaidDisplay)}\n*Change:*          ${currency} ${formatCurrency(changeDisplay)}`
+        : (sale.payment_status === 'DEPOSIT'
+          ? `*Deposit Paid:*        ${currency} ${formatCurrency(amountPaidDisplay)}\n*Balance on Delivery:* ${currency} ${formatCurrency(balanceDueDisplay)}`
+          : `*Amount Paid:*  ${currency} ${formatCurrency(amountPaidDisplay)}\n*Balance Due:*  ${currency} ${formatCurrency(balanceDueDisplay)}`
+        )
+      ) + `\n` +
       `${thinDivider}\n\n` +
       `*Thank you for your business!*\n` +
       `*Hope to see you again soon!*`;

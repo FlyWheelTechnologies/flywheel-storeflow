@@ -268,7 +268,7 @@ export const PrinterService = {
 
     // 5. Totals & Tax
     const currency = org.currency || 'GHS';
-    const totalAmt = Number(sale.total_amount || 0).toFixed(2);
+    const totalAmt = Number(sale.total_amount || 0);
     const taxAmt = parseFloat(sale.tax_amount || 0);
 
     if (taxAmt > 0) {
@@ -277,15 +277,43 @@ export const PrinterService = {
 
     pushBytes(0x1B, 0x45, 0x01); // Bold
     pushBytes(0x1D, 0x21, 0x01); // Double height for total
-    pushTwoCol('TOTAL:', `${currency} ${totalAmt}`);
+    pushTwoCol('TOTAL:', `${currency} ${totalAmt.toFixed(2)}`);
     pushBytes(0x1D, 0x21, 0x00); // Reset font
     pushBytes(0x1B, 0x45, 0x00);
 
-    const amountPaid = Number(sale.amount_paid || totalAmt).toFixed(2);
-    const balance = Number(sale.balance_due || 0).toFixed(2);
-    pushTwoCol('Amount Paid:', `${currency} ${amountPaid}`);
-    if (Number(balance) > 0) {
-      pushTwoCol('Balance Due:', `${currency} ${balance}`);
+    // Parse change from notes if present
+    let changeAmt = 0;
+    if (sale.notes) {
+      const match = sale.notes.match(/Change given:\s*(?:[A-Z]{3}|[^\d\s]+)?\s*([\d.]+)/i);
+      if (match) changeAmt = Number(match[1]);
+    }
+
+    let amountPaidNum = sale.amount_paid !== undefined && sale.amount_paid !== null && !isNaN(Number(sale.amount_paid))
+      ? Number(sale.amount_paid)
+      : (sale.payment_status === 'PAID' ? totalAmt : 0);
+
+    if (changeAmt > 0) {
+      amountPaidNum = totalAmt + changeAmt;
+    }
+
+    let balanceNum = 0;
+    if (changeAmt > 0 || sale.payment_status === 'PAID') {
+      balanceNum = 0;
+    } else if (sale.balance_due !== undefined && sale.balance_due !== null && !isNaN(Number(sale.balance_due))) {
+      balanceNum = Math.max(0, Number(sale.balance_due));
+    } else {
+      balanceNum = Math.max(0, totalAmt - amountPaidNum);
+    }
+
+    if (changeAmt > 0) {
+      pushTwoCol('Amount Tendered:', `${currency} ${amountPaidNum.toFixed(2)}`);
+      pushTwoCol('Change:', `${currency} ${changeAmt.toFixed(2)}`);
+    } else {
+      pushTwoCol(sale.payment_status === 'DEPOSIT' ? 'Deposit Paid:' : 'Amount Paid:', `${currency} ${amountPaidNum.toFixed(2)}`);
+    }
+
+    if (balanceNum > 0) {
+      pushTwoCol(sale.payment_status === 'DEPOSIT' ? 'Balance on Delivery:' : 'Balance Due:', `${currency} ${balanceNum.toFixed(2)}`);
     }
 
     pushDivider('=');
@@ -331,9 +359,31 @@ export const PrinterService = {
     const currency = org.currency || 'GHS';
     const invNo = sale.invoice_no || `INV-${String(sale.id || '000').slice(-6).padStart(3, '0')}`;
     const saleDate = sale.created_at ? new Date(sale.created_at).toLocaleString() : new Date().toLocaleString();
-    const totalAmt = Number(sale.total_amount || 0).toFixed(2);
-    const amountPaid = Number(sale.amount_paid || totalAmt).toFixed(2);
-    const balance = Number(sale.balance_due || 0).toFixed(2);
+    const totalAmt = Number(sale.total_amount || 0);
+
+    // Parse change from notes if present
+    let changeAmt = 0;
+    if (sale.notes) {
+      const match = sale.notes.match(/Change given:\s*(?:[A-Z]{3}|[^\d\s]+)?\s*([\d.]+)/i);
+      if (match) changeAmt = Number(match[1]);
+    }
+
+    let amountPaidNum = sale.amount_paid !== undefined && sale.amount_paid !== null && !isNaN(Number(sale.amount_paid))
+      ? Number(sale.amount_paid)
+      : (sale.payment_status === 'PAID' ? totalAmt : 0);
+
+    if (changeAmt > 0) {
+      amountPaidNum = totalAmt + changeAmt;
+    }
+
+    let balanceNum = 0;
+    if (changeAmt > 0 || sale.payment_status === 'PAID') {
+      balanceNum = 0;
+    } else if (sale.balance_due !== undefined && sale.balance_due !== null && !isNaN(Number(sale.balance_due))) {
+      balanceNum = Math.max(0, Number(sale.balance_due));
+    } else {
+      balanceNum = Math.max(0, totalAmt - amountPaidNum);
+    }
 
     const isPersonalGhanaCard = org.tin && (org.tin.trim().toUpperCase().startsWith('GHA') || /^GHA-\d+/i.test(org.tin.trim()));
     const showTin = org.tin && org.print_tin_on_receipts && !isPersonalGhanaCard;
@@ -462,17 +512,28 @@ export const PrinterService = {
 
         <div class="total-row grand-total">
           <span>TOTAL:</span>
-          <span>${currency} ${totalAmt}</span>
+          <span>${currency} ${totalAmt.toFixed(2)}</span>
         </div>
 
-        <div class="total-row">
-          <span>Paid:</span>
-          <span>${currency} ${amountPaid}</span>
-        </div>
-        ${Number(balance) > 0 ? `
+        ${changeAmt > 0 ? `
+          <div class="total-row">
+            <span>Amount Tendered:</span>
+            <span>${currency} ${amountPaidNum.toFixed(2)}</span>
+          </div>
           <div class="total-row bold">
-            <span>Balance Due:</span>
-            <span>${currency} ${balance}</span>
+            <span>Change:</span>
+            <span>${currency} ${changeAmt.toFixed(2)}</span>
+          </div>
+        ` : `
+          <div class="total-row">
+            <span>${sale.payment_status === 'DEPOSIT' ? 'Deposit Paid:' : 'Paid:'}</span>
+            <span>${currency} ${amountPaidNum.toFixed(2)}</span>
+          </div>
+        `}
+        ${balanceNum > 0 ? `
+          <div class="total-row bold">
+            <span>${sale.payment_status === 'DEPOSIT' ? 'Balance on Delivery:' : 'Balance Due:'}</span>
+            <span>${currency} ${balanceNum.toFixed(2)}</span>
           </div>
         ` : ''}
 

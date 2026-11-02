@@ -18,7 +18,8 @@ const SalesTable = ({
   onImportCSV,
   onGenerateReceipt,
   onPrintThermalReceipt,
-  onShareViaWhatsApp
+  onShareViaWhatsApp,
+  saving = false
 }) => {
   return (
     <div className="table-card">
@@ -26,14 +27,23 @@ const SalesTable = ({
         <h3 className="table-card__title">Recent Transactions</h3>
         <div className="table-card__actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <div style={{ display: 'flex', gap: 8 }}>
-            <ActionButton variant="secondary" size="sm" onClick={onExportCSV} title="Export to CSV">
+            <ActionButton variant="secondary" size="sm" onClick={onExportCSV} disabled={saving} title="Export to CSV">
               <DownloadSimple size={14} weight="bold" /> Export
             </ActionButton>
-            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }} title="Import from CSV">
-              <ActionButton variant="secondary" size="sm">
-                <UploadSimple size={14} weight="bold" /> Import
+            <label 
+              style={{ 
+                cursor: saving ? 'not-allowed' : 'pointer', 
+                opacity: saving ? 0.6 : 1,
+                pointerEvents: saving ? 'none' : 'auto',
+                display: 'flex', 
+                alignItems: 'center' 
+              }} 
+              title="Import from CSV"
+            >
+              <ActionButton variant="secondary" size="sm" disabled={saving} style={{ pointerEvents: 'none' }}>
+                <UploadSimple size={14} weight="bold" /> {saving ? 'Importing...' : 'Import'}
               </ActionButton>
-              <input type="file" accept=".csv" onChange={onImportCSV} style={{ display: 'none' }} />
+              <input type="file" accept=".csv" onChange={onImportCSV} disabled={saving} style={{ display: 'none' }} />
             </label>
           </div>
           <Input
@@ -82,15 +92,20 @@ const SalesTable = ({
                 <td colSpan="7" style={{ textAlign: 'center', padding: 24 }}>No transactions found.</td>
               </tr>
             ) : paginatedSales.map(s => {
-              let amountPaidDisplay = parseFloat(s.amount_paid);
-              let balanceDueDisplay = parseFloat(s.balance_due);
+              const totalAmt = parseFloat(s.total_amount || 0);
+              let amountPaidDisplay = s.amount_paid !== undefined && s.amount_paid !== null && !isNaN(parseFloat(s.amount_paid))
+                ? parseFloat(s.amount_paid)
+                : (s.payment_status === 'PAID' ? totalAmt : 0);
+              let balanceDueDisplay = s.balance_due !== undefined && s.balance_due !== null && !isNaN(parseFloat(s.balance_due))
+                ? parseFloat(s.balance_due)
+                : Math.max(0, totalAmt - amountPaidDisplay);
               let changeDisplay = 0;
 
-              if (s.notes && s.notes.includes('Change given: GHS')) {
-                const match = s.notes.match(/Change given: GHS ([\d.]+)/);
+              if (s.notes) {
+                const match = s.notes.match(/Change given:\s*(?:[A-Z]{3}|[^\d\s]+)?\s*([\d.]+)/i);
                 if (match) {
                   changeDisplay = parseFloat(match[1]);
-                  amountPaidDisplay = parseFloat(s.total_amount) + changeDisplay;
+                  amountPaidDisplay = totalAmt + changeDisplay;
                   balanceDueDisplay = 0;
                 }
               }

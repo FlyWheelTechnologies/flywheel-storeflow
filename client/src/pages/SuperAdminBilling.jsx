@@ -12,7 +12,8 @@ import {
   Money,
   TrendUp,
   CheckCircle,
-  CurrencyCircleDollar
+  CurrencyCircleDollar,
+  CircleNotch
 } from "@phosphor-icons/react";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
@@ -599,8 +600,9 @@ export default function SuperAdminBilling() {
                 type="submit"
                 disabled={savingPayment}
                 className="super-btn super-btn--primary"
-                style={{ background: "#059669" }}
+                style={{ background: "#059669", display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
               >
+                {savingPayment && <CircleNotch size={14} className="spin" weight="bold" />}
                 {savingPayment ? "Saving Payment..." : "Save Payment & Update Expiry"}
               </button>
             </div>

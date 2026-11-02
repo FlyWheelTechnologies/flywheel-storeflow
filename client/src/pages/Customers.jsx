@@ -158,7 +158,7 @@ export default function Customers() {
           <h2 className="section-title">Customer Directory</h2>
           <p style={{ fontSize: '12.5px', color: '#6b7280' }}>Manage high-value clients and view their purchase history</p>
         </div>
-        <ActionButton onClick={() => { setShowForm(!showForm); setEditingId(null); setForm({ ...emptyForm }); }}>
+        <ActionButton disabled={saving} onClick={() => { if (!saving) { setShowForm(!showForm); setEditingId(null); setForm({ ...emptyForm }); } }}>
           {showForm ? 'Cancel' : '+ New Customer'}
         </ActionButton>
       </div>
@@ -205,8 +205,8 @@ export default function Customers() {
                   Is Contractor / Large Buyer?
                 </Label>
               </div>
-              <ActionButton type="submit" fullWidth disabled={saving}>
-                {saving ? 'Saving...' : (editingId ? 'Update Customer' : 'Save Customer')}
+              <ActionButton type="submit" fullWidth disabled={saving} loading={saving}>
+                {saving ? (editingId ? 'Updating Customer...' : 'Saving Customer...') : (editingId ? 'Update Customer' : 'Save Customer')}
               </ActionButton>
             </FieldGroup>
           </form>

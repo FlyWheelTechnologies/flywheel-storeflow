@@ -30,6 +30,7 @@ export default function Products() {
   const { success, error: showError } = useToast();
   const { modalState, confirm, handleConfirm, handleCancel, ConfirmationModal } = useConfirmation();
   const { products, loading, createProduct, updateProduct, deleteProduct } = useProducts();
+  const [saving, setSaving] = useState(false);
 
   // Active business industry resolution (from activeOrg, profile org, or local cache)
   const orgIndustry = useMemo(() => {
@@ -95,7 +96,7 @@ export default function Products() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (modalState.isLoading) return;
+    if (saving) return;
 
     const trimmedName = (form.name || '').trim().toUpperCase();
     const isDuplicate = products.some(p => p.name.trim().toUpperCase() === trimmedName && p.id !== editingId);
@@ -104,6 +105,7 @@ export default function Products() {
       return;
     }
 
+    setSaving(true);
     const payload = {
       ...form,
       item_code: form.item_code?.trim() || `FA-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
@@ -128,6 +130,8 @@ export default function Products() {
     } catch (err) {
       console.error("Product save error:", err);
       showError(`Failed to save product: ${err.message || "Please check your network"}`);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -167,34 +171,39 @@ export default function Products() {
   };
 
   const handleImport = (e) => {
+    if (saving) return;
     const file = e.target.files[0];
     if (!file) return;
+    setSaving(true);
     const reader = new FileReader();
     reader.onload = async (ev) => {
-      const lines = ev.target.result.split("\n").slice(1);
-      const productsToInsert = [];
-      for (const line of lines) {
-        const [, name, category, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity] = line.split(",");
-        if (!name) continue;
-        productsToInsert.push({
-          name, category, buying_uom, selling_uom,
-          conversion_factor: parseFloat(conversion_factor),
-          cost_price: parseFloat(cost_price),
-          selling_price: parseFloat(selling_price),
-          stock_quantity: parseFloat(stock_quantity),
-          created_at: new Date().toISOString()
-        });
-      }
+      try {
+        const lines = ev.target.result.split("\n").slice(1);
+        const productsToInsert = [];
+        for (const line of lines) {
+          const [, name, category, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity] = line.split(",");
+          if (!name) continue;
+          productsToInsert.push({
+            name, category, buying_uom, selling_uom,
+            conversion_factor: parseFloat(conversion_factor),
+            cost_price: parseFloat(cost_price),
+            selling_price: parseFloat(selling_price),
+            stock_quantity: parseFloat(stock_quantity),
+            created_at: new Date().toISOString()
+          });
+        }
 
-      if (productsToInsert.length > 0) {
-        try {
+        if (productsToInsert.length > 0) {
           for (const p of productsToInsert) {
             await createProduct(p);
           }
           success(`Imported ${productsToInsert.length} products`);
-        } catch (err) {
-          showError(`Import failed: ${err.message}`);
         }
+      } catch (err) {
+        showError(`Import failed: ${err.message}`);
+      } finally {
+        setSaving(false);
+        e.target.value = '';
       }
     };
     reader.readAsText(file);
@@ -243,7 +252,8 @@ export default function Products() {
       <div className="page-header-row">
         <h2 className="section-title">Product Inventory ({products.length} items)</h2>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexShrink: 0 }}>
-          <ActionButton onClick={() => { 
+          <ActionButton disabled={saving} onClick={() => { 
+            if (saving) return;
             const willShow = !showForm;
             setShowForm(willShow); 
             if (willShow && !editingId) {
@@ -257,9 +267,17 @@ export default function Products() {
           }}>
             {showForm ? 'Cancel' : '+ Add Product'}
           </ActionButton>
-          <ActionButton variant="secondary" onClick={handleExport} className="desktop-only">Export CSV</ActionButton>
-          <label className="desktop-only" style={{ ...ActionButton({ variant: "success", children: "Import CSV" }).props, cursor: 'pointer' }}>
-            Import CSV <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleImport} />
+          <ActionButton variant="secondary" onClick={handleExport} disabled={saving} className="desktop-only">Export CSV</ActionButton>
+          <label 
+            className="desktop-only" 
+            style={{ 
+              ...ActionButton({ variant: "success", children: "Import CSV" }).props, 
+              cursor: saving ? 'not-allowed' : 'pointer',
+              opacity: saving ? 0.7 : 1,
+              pointerEvents: saving ? 'none' : 'auto'
+            }}
+          >
+            {saving ? 'Importing...' : 'Import CSV'} <input type="file" accept=".csv" style={{ display: 'none' }} onChange={handleImport} disabled={saving} />
           </label>
         </div>
       </div>
@@ -271,7 +289,7 @@ export default function Products() {
             {!editingId && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 11, color: '#059669', fontWeight: 600 }}>✓ Draft Auto-saved</span>
-                <ActionButton variant="danger" size="sm" onClick={clearDraft} className="desktop-only">Clear Form</ActionButton>
+                <ActionButton variant="danger" size="sm" onClick={() => { if (!saving) clearDraft(); }} disabled={saving} className="desktop-only">Clear Form</ActionButton>
               </div>
             )}
           </div>
@@ -398,8 +416,13 @@ export default function Products() {
                   />
                 </div>
                 <div style={{ alignSelf: 'end' }}>
-                  <ActionButton type="submit" fullWidth disabled={modalState.isLoading}>
-                    {modalState.isLoading ? 'Saving...' : (editingId ? 'Update Product' : 'Create Product')}
+                  <ActionButton 
+                    type="submit" 
+                    fullWidth 
+                    disabled={saving}
+                    loading={saving}
+                  >
+                    {saving ? (editingId ? 'Updating Product...' : 'Creating Product...') : (editingId ? 'Update Product' : 'Create Product')}
                   </ActionButton>
                 </div>
               </FieldGroup>

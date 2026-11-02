@@ -84,7 +84,8 @@ const SalesForm = ({
   onCancel,
   initialData = {},
   saving = false,
-  orgTaxSettings = {}
+  orgTaxSettings = {},
+  currency = 'GHS'
 }) => {
   const [customerId, setCustomerId] = useState(initialData.customerId || '');
   const [customerName, setCustomerName] = useState(initialData.customerName || 'Walk-in Customer');
@@ -186,6 +187,7 @@ const SalesForm = ({
 
   const handleSubmit = (e) => {
     if (e) e.preventDefault();
+    if (saving) return;
 
     let finalAmountPaid = parseFloat(amountPaid) || 0;
     let finalNotes = notes;
@@ -193,7 +195,7 @@ const SalesForm = ({
     if (!isDeposit && finalAmountPaid > grandTotal) {
       const change = Math.round((finalAmountPaid - grandTotal) * 100) / 100;
       finalAmountPaid = grandTotal;
-      finalNotes = `${finalNotes ? finalNotes + ' | ' : ''}Change given: GHS ${change.toFixed(2)}`;
+      finalNotes = `${finalNotes ? finalNotes + ' | ' : ''}Change given: ${currency} ${change.toFixed(2)}`;
     }
 
     onSave({
@@ -507,13 +509,14 @@ const SalesForm = ({
             </div>
           </div>
           <ActionButton
-            variant={isDeposit ? 'primary' : 'primary'}
+            variant="primary"
             onClick={handleSubmit}
             disabled={saving}
+            loading={saving}
             className="sales-form-confirm-btn"
             style={{ minWidth: 240, height: 48, fontSize: 15 }}
           >
-            {isDeposit ? 'Record Deposit' : 'Confirm & Complete Sale'}
+            {saving ? 'Processing...' : (isDeposit ? 'Record Deposit' : 'Confirm & Complete Sale')}
           </ActionButton>
         </div>
       </CardSection>

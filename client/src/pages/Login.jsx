@@ -140,7 +140,25 @@ export default function Login() {
             </div>
           </div>
 
-          <button type="submit" className="auth-btn" disabled={loading}>
+          <button 
+            type="submit" 
+            className="auth-btn" 
+            disabled={loading}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+          >
+            {loading && (
+              <span 
+                style={{ 
+                  width: 14, 
+                  height: 14, 
+                  borderRadius: '50%', 
+                  border: '2px solid currentColor', 
+                  borderTopColor: 'transparent', 
+                  animation: 'spin 0.8s linear infinite',
+                  flexShrink: 0
+                }} 
+              />
+            )}
             {loading ? "Authenticating..." : "Login"}
           </button>
         </form>

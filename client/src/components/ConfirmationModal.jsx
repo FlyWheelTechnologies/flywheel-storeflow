@@ -1,7 +1,28 @@
 import { CircleNotch } from "@phosphor-icons/react";
 
-export default function ConfirmationModal({ show, title, message, onConfirm, onCancel, confirmText = "Confirm", cancelText = "Cancel", type = "danger", isLoading = false }) {
+export default function ConfirmationModal({ 
+  show, 
+  title, 
+  message, 
+  onConfirm, 
+  onCancel, 
+  confirmText = "Confirm", 
+  cancelText = "Cancel", 
+  type = "danger", 
+  isLoading = false,
+  loadingText
+}) {
   if (!show) return null;
+
+  const defaultLoadingText = confirmText.toLowerCase().includes('delete')
+    ? 'Deleting...'
+    : (confirmText.toLowerCase().includes('record') || confirmText.toLowerCase().includes('sale'))
+      ? 'Recording...'
+      : confirmText.toLowerCase().includes('import')
+        ? 'Importing...'
+        : 'Processing...';
+
+  const displayLoadingText = loadingText || defaultLoadingText;
 
   return (
     <div className="modal-overlay">
@@ -23,13 +44,14 @@ export default function ConfirmationModal({ show, title, message, onConfirm, onC
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 6
+              gap: 6,
+              cursor: isLoading ? 'not-allowed' : 'pointer'
             }}
-            onClick={onConfirm}
+            onClick={isLoading ? undefined : onConfirm}
             disabled={isLoading}
           >
             {isLoading && <CircleNotch size={14} className="spin" weight="bold" />}
-            {isLoading ? 'Recording...' : confirmText}
+            {isLoading ? displayLoadingText : confirmText}
           </button>
         </div>
       </div>

@@ -202,9 +202,20 @@ export function ActionButton({
   const v = variants[variant] || variants.primary;
   const s = sizes[size] || sizes.md;
 
+  const handleClick = (e) => {
+    if (disabled || loading) {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      return;
+    }
+    if (onClick) onClick(e);
+  };
+
   return (
     <button
-      onClick={onClick}
+      onClick={handleClick}
       disabled={disabled || loading}
       style={{
         display: 'inline-flex',
@@ -229,7 +240,8 @@ export function ActionButton({
           <span style={{
             width: 14, height: 14, borderRadius: '50%',
             border: '2px solid currentColor', borderTopColor: 'transparent',
-            animation: 'spin 0.8s linear infinite'
+            animation: 'spin 0.8s linear infinite',
+            flexShrink: 0
           }} />
           {children}
         </span>

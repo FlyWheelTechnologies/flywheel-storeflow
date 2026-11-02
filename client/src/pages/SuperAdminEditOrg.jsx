@@ -13,7 +13,8 @@ import {
   Phone, 
   MapPin,
   CheckCircle2,
-  Palette
+  Palette,
+  Loader2
 } from "lucide-react";
 import { supabase } from "../services/supabaseClient";
 import { createClient } from "@supabase/supabase-js";
@@ -657,6 +658,7 @@ export default function SuperAdminEditOrg() {
                 transition: "background 0.2s"
               }}
             >
+              {savingOrg && <Loader2 size={14} className="spin" />}
               {savingOrg ? "Saving..." : "Save All Changes"}
             </button>
           </div>
@@ -1024,9 +1026,13 @@ export default function SuperAdminEditOrg() {
                 padding: "10px 22px",
                 fontSize: 13,
                 fontWeight: 600,
-                cursor: savingOrg ? "not-allowed" : "pointer"
+                cursor: savingOrg ? "not-allowed" : "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6
               }}
             >
+              {savingOrg && <Loader2 size={14} className="spin" />}
               {savingOrg ? "Saving..." : "Save Profile Details"}
             </button>
           </div>
@@ -1167,9 +1173,13 @@ export default function SuperAdminEditOrg() {
                 padding: "10px 22px",
                 fontSize: 13,
                 fontWeight: 600,
-                cursor: savingOrg ? "not-allowed" : "pointer"
+                cursor: savingOrg ? "not-allowed" : "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6
               }}
             >
+              {savingOrg && <Loader2 size={14} className="spin" />}
               {savingOrg ? "Saving..." : "Save Commercial Settings"}
             </button>
           </div>

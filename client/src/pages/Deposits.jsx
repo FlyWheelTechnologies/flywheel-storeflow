@@ -170,6 +170,7 @@ export default function Deposits() {
 
   const handlePureDeposit = async (e) => {
     e.preventDefault();
+    if (depSaving) return;
     if (!depCustName || !depAmount) return showError("Please enter name and amount");
     setDepSaving(true);
     try {
@@ -262,7 +263,7 @@ export default function Deposits() {
   };
 
   const executeSettleAndFulfill = async () => {
-    if (!settleSale) return;
+    if (!settleSale || fulfilling) return;
     setFulfilling(true);
     try {
       await supabase.auth.getSession();
@@ -310,6 +311,7 @@ export default function Deposits() {
   };
 
   const handlePureFulfillment = async () => {
+    if (fulfilling) return;
     if (items.length === 0 || !items[0].product_id) return showError("Please add at least one product.");
     setFulfilling(true);
     try {
@@ -756,10 +758,10 @@ export default function Deposits() {
             </div>
 
             <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
-              <ActionButton variant="secondary" fullWidth onClick={() => setShowFulfillModal(false)}>
+              <ActionButton variant="secondary" fullWidth onClick={() => setShowFulfillModal(false)} disabled={fulfilling}>
                 Cancel
               </ActionButton>
-              <ActionButton variant="success" fullWidth disabled={fulfilling} onClick={handlePureFulfillment}>
+              <ActionButton variant="success" fullWidth disabled={fulfilling} loading={fulfilling} onClick={handlePureFulfillment}>
                 {fulfilling ? 'Processing...' : 'Complete Fulfillment'}
               </ActionButton>
             </div>
@@ -872,17 +874,18 @@ export default function Deposits() {
               )}
 
               <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
-                <ActionButton variant="secondary" fullWidth onClick={() => setShowSettleModal(false)}>
+                <ActionButton variant="secondary" fullWidth onClick={() => setShowSettleModal(false)} disabled={fulfilling}>
                   Cancel
                 </ActionButton>
                 <ActionButton
                   variant="success"
                   fullWidth
                   disabled={fulfilling}
+                  loading={fulfilling}
                   onClick={executeSettleAndFulfill}
                   style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                 >
-                  <Check size={14} weight="bold" />
+                  {!fulfilling && <Check size={14} weight="bold" />}
                   {fulfilling ? 'Processing...' : (outstanding > 0 && collecting > 0 ? 'Collect & Fulfill' : 'Mark as Fulfilled')}
                 </ActionButton>
               </div>
@@ -899,7 +902,7 @@ export default function Deposits() {
               <h2 style={{ fontSize: 20, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Coins size={22} weight="duotone" color="#059669" /> Record New Deposit
               </h2>
-              <ActionButton variant="ghost" size="sm" onClick={() => setShowDepositModal(false)}>
+              <ActionButton variant="ghost" size="sm" onClick={() => setShowDepositModal(false)} disabled={depSaving}>
                 <X size={16} weight="bold" />
               </ActionButton>
             </div>
@@ -987,8 +990,8 @@ export default function Deposits() {
                     { value: "Bank", label: "Bank Transfer" }
                   ]} required />
                 </div>
-                <ActionButton type="submit" fullWidth disabled={depSaving}>
-                  {depSaving ? 'Saving...' : 'Record Deposit'}
+                <ActionButton type="submit" fullWidth disabled={depSaving} loading={depSaving}>
+                  {depSaving ? 'Recording Deposit...' : 'Record Deposit'}
                 </ActionButton>
               </FieldGroup>
             </form>
@@ -1001,6 +1004,7 @@ export default function Deposits() {
         title={modalState.title}
         message={modalState.message}
         confirmText={modalState.confirmText}
+        loadingText={modalState.loadingText}
         onConfirm={handleConfirm}
         onCancel={handleCancel}
         type={modalState.type}

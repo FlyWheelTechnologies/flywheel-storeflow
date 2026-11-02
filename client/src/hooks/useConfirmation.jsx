@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import ConfirmationModal from "../components/ConfirmationModal";
 
 export function useConfirmation() {
@@ -7,19 +7,23 @@ export function useConfirmation() {
     title: "",
     message: "",
     confirmText: "Confirm",
+    loadingText: undefined,
     onConfirm: null,
     onCancel: null,
     type: "primary",
     isLoading: false
   });
+  const isConfirmingRef = useRef(false);
 
   const confirm = useCallback((options) => {
+    isConfirmingRef.current = false;
     return new Promise((resolve) => {
       setModalState({
         show: true,
         title: options.title || "Confirm",
         message: options.message || "Are you sure?",
         confirmText: options.confirmText || "Confirm",
+        loadingText: options.loadingText,
         onConfirm: async () => {
           if (options.onConfirm) {
             try {
@@ -29,6 +33,7 @@ export function useConfirmation() {
             }
           }
           resolve(true);
+          isConfirmingRef.current = false;
           setModalState(prev => ({ ...prev, show: false, isLoading: false }));
         },
         onCancel: () => {
@@ -36,6 +41,7 @@ export function useConfirmation() {
             options.onCancel();
           }
           resolve(false);
+          isConfirmingRef.current = false;
           setModalState(prev => ({ ...prev, show: false, isLoading: false }));
         },
         type: options.type || "primary",
@@ -45,21 +51,30 @@ export function useConfirmation() {
   }, []);
 
   const handleConfirm = useCallback(async () => {
+    if (isConfirmingRef.current || modalState.isLoading) return;
     if (modalState.onConfirm) {
+      isConfirmingRef.current = true;
       setModalState(prev => ({ ...prev, isLoading: true }));
-      await modalState.onConfirm();
+      try {
+        await modalState.onConfirm();
+      } finally {
+        isConfirmingRef.current = false;
+      }
     }
-  }, [modalState.onConfirm]);
+  }, [modalState.isLoading, modalState.onConfirm]);
 
   const handleCancel = useCallback(() => {
+    if (isConfirmingRef.current || modalState.isLoading) return;
     if (modalState.onCancel) {
       modalState.onCancel();
     }
+    isConfirmingRef.current = false;
     setModalState(prev => ({ ...prev, show: false, isLoading: false }));
-  }, [modalState.onCancel]);
+  }, [modalState.isLoading, modalState.onCancel]);
 
   const hideModal = useCallback(() => {
-    setModalState(prev => ({ ...prev, show: false }));
+    isConfirmingRef.current = false;
+    setModalState(prev => ({ ...prev, show: false, isLoading: false }));
   }, []);
 
   return {
