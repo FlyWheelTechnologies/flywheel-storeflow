@@ -1,0 +1,1 @@
+## 2026-11-04 - Added ARIA Labels to Close Buttons\n**Learning:** The codebase has a recurring pattern of missing aria-labels on generic 'X' close buttons across various modals (Layout, Confirmation, Dashboard, Sales).\n**Action:** When adding or modifying modals, always ensure icon-only buttons include descriptive aria-labels for screen reader accessibility.
