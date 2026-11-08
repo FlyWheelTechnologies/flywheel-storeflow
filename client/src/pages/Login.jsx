@@ -21,78 +21,56 @@ import {
 } from "lucide-react";
 import "./Auth.css";
 
-// ── Interactive 3D Origami Emblem ──
-// Reacts to password focus (folds inward to protect privacy),
-// flutters when clicked/tapped, and takes flight when authenticating.
+// ── StoreFlow Origami Emblem ──
+// Pure self-contained SVG geometric origami facets (no external defs/gradient dependencies).
 const OrigamiIcon = ({ 
   size = 32, 
-  isFolded = false, 
-  isFlying = false, 
-  isFluttering = false,
+  isFluttering = false, 
   onClick 
 }) => (
   <div 
-    className={`sf-origami-container ${isFluttering ? "is-fluttering" : ""} ${isFlying ? "is-flying" : ""}`}
-    onClick={onClick}
-    title="StoreFlow Origami — tap to fold"
+    className={`sf-origami-badge ${isFluttering ? "is-fluttering" : ""}`}
+    onClick={(e) => {
+      e.stopPropagation();
+      onClick?.(e);
+    }}
+    title="StoreFlow"
     role="button"
     tabIndex={0}
-    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") onClick?.(); }}
+    onKeyDown={(e) => { 
+      if (e.key === "Enter" || e.key === " ") { 
+        e.preventDefault(); 
+        onClick?.(e); 
+      } 
+    }}
   >
     <svg 
       width={size} 
       height={size} 
-      viewBox="0 0 36 36" 
+      viewBox="0 0 40 40" 
       fill="none" 
       xmlns="http://www.w3.org/2000/svg"
       className="sf-origami-svg"
     >
-      <defs>
-        <linearGradient id="og-grad-1" x1="18" y1="3" x2="4" y2="15" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#ff8555" />
-          <stop offset="1" stopColor="#f15a24" />
-        </linearGradient>
-        <linearGradient id="og-grad-2" x1="18" y1="3" x2="32" y2="15" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#ea580c" />
-          <stop offset="1" stopColor="#c2410c" />
-        </linearGradient>
-        <linearGradient id="og-grad-3" x1="4" y1="15" x2="18" y2="21" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#fb923c" />
-          <stop offset="1" stopColor="#f97316" />
-        </linearGradient>
-        <linearGradient id="og-grad-4" x1="32" y1="15" x2="18" y2="21" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#9a3412" />
-          <stop offset="1" stopColor="#7c2d12" />
-        </linearGradient>
-        <linearGradient id="og-grad-5" x1="18" y1="21" x2="11" y2="33" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#fdba74" />
-          <stop offset="1" stopColor="#fb923c" />
-        </linearGradient>
-        <linearGradient id="og-grad-6" x1="18" y1="21" x2="25" y2="33" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#c2410c" />
-          <stop offset="1" stopColor="#9a3412" />
-        </linearGradient>
-      </defs>
+      {/* Origami Head & Beak */}
+      <polygon points="20,4 16,9 20,11" fill="#fb923c" />
+      <polygon points="16,9 11,10 16,11" fill="#ea580c" />
+      <polygon points="20,4 20,11 18,7.5" fill="#ffffff" fillOpacity="0.45" />
 
-      {/* Left Wing Group (Folds inward on password focus) */}
-      <g className={`sf-origami-wing sf-origami-wing-left ${isFolded ? "folded-in" : ""}`}>
-        <path d="M18 3L4 14L18 20Z" fill="url(#og-grad-1)" />
-        <path d="M4 14L11 25L18 20Z" fill="url(#og-grad-3)" />
-        <path d="M18 20L11 25L18 33Z" fill="url(#og-grad-5)" />
-      </g>
+      {/* Left Wing Facets */}
+      <polygon points="20,11 4,16 20,22" fill="#ff7a45" />
+      <polygon points="4,16 12,27 20,22" fill="#f97316" />
+      <polygon points="20,22 12,27 20,36" fill="#fdba74" />
+      <polygon points="20,11 20,22 15,16.5" fill="#ffffff" fillOpacity="0.32" />
 
-      {/* Right Wing Group (Folds inward on password focus) */}
-      <g className={`sf-origami-wing sf-origami-wing-right ${isFolded ? "folded-in" : ""}`}>
-        <path d="M18 3L32 14L18 20Z" fill="url(#og-grad-2)" />
-        <path d="M32 14L25 25L18 20Z" fill="url(#og-grad-4)" />
-        <path d="M18 20L25 25L18 33Z" fill="url(#og-grad-6)" />
-      </g>
+      {/* Right Wing Facets */}
+      <polygon points="20,11 36,16 20,22" fill="#ea580c" />
+      <polygon points="36,16 28,27 20,22" fill="#c2410c" />
+      <polygon points="20,22 28,27 20,36" fill="#9a3412" />
+      <polygon points="20,11 20,22 25,16.5" fill="#000000" fillOpacity="0.14" />
 
-      {/* Center Spine & Fold Highlights */}
-      <g className="sf-origami-spine">
-        <path d="M18 3L18 20L13.5 11.5Z" fill="#ffffff" fillOpacity="0.38" />
-        <line x1="18" y1="3" x2="18" y2="33" stroke="rgba(255,255,255,0.45)" strokeWidth="0.8" />
-      </g>
+      {/* Center Spine Crease Line */}
+      <line x1="20" y1="4" x2="20" y2="36" stroke="#ffffff" strokeOpacity="0.75" strokeWidth="1" />
     </svg>
   </div>
 );
@@ -103,7 +81,6 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
   const [origamiFlutter, setOrigamiFlutter] = useState(false);
   const [capsLockActive, setCapsLockActive] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -147,10 +124,8 @@ export default function Login() {
 
   const triggerOrigamiFlutter = () => {
     setOrigamiFlutter(true);
-    setTimeout(() => setOrigamiFlutter(false), 800);
+    setTimeout(() => setOrigamiFlutter(false), 600);
   };
-
-  const isOrigamiFolded = passwordFocused && !showPassword && mode === "signin";
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -239,7 +214,7 @@ export default function Login() {
 
   return (
     <div className="sf-auth-layout">
-      {/* ── Left Hero Visual / Brand Side (Desktop) ── */}
+      {/* ── Left Hero Visual / Brand Side (Desktop Showcase) ── */}
       <aside className="sf-auth-hero">
         <div className="sf-hero-gradient-overlay" />
         
@@ -248,22 +223,20 @@ export default function Login() {
         <div className="sf-glow-orb orb-secondary" />
 
         <div className="sf-hero-inner">
-          {/* Top Brand Link */}
-          <Link to="/" className="sf-hero-brand" title="Return to StoreFlow Home">
-            <div className="sf-brand-logo-badge">
-              <OrigamiIcon 
-                size={28} 
-                isFolded={isOrigamiFolded} 
-                isFlying={loading} 
-                isFluttering={origamiFlutter}
-                onClick={triggerOrigamiFlutter}
-              />
-            </div>
-            <div className="sf-brand-text-col">
-              <span className="sf-brand-title">StoreFlow</span>
-              <span className="sf-brand-tag">By Flywheel</span>
-            </div>
-          </Link>
+          {/* Top Brand Showcase */}
+          <div className="sf-hero-brand-row">
+            <OrigamiIcon 
+              size={32} 
+              isFluttering={origamiFlutter}
+              onClick={triggerOrigamiFlutter}
+            />
+            <Link to="/" className="sf-hero-brand" title="Return to StoreFlow Home">
+              <div className="sf-brand-text-col">
+                <span className="sf-brand-title">StoreFlow</span>
+                <span className="sf-brand-tag">By Flywheel</span>
+              </div>
+            </Link>
+          </div>
 
           {/* Central Pitch / Headline */}
           <div className="sf-hero-pitch">
@@ -330,7 +303,7 @@ export default function Login() {
         </div>
       </aside>
 
-      {/* ── Right Auth Form Panel ── */}
+      {/* ── Right Auth Form Panel (Centered Form Container) ── */}
       <main className="sf-auth-form-panel">
         <div className="sf-form-container">
           
@@ -352,19 +325,17 @@ export default function Login() {
             </button>
           </div>
 
-          {/* Mobile-Only Prominent Brand Header */}
-          <div className="sf-mobile-brand-hero">
-            <div className="sf-mobile-origami-badge">
-              <OrigamiIcon 
-                size={34} 
-                isFolded={isOrigamiFolded} 
-                isFlying={loading} 
-                isFluttering={origamiFlutter}
-                onClick={triggerOrigamiFlutter}
-              />
+          {/* ── Brand Header (Left-Aligned with Form) ── */}
+          <div className="sf-form-brand-row">
+            <OrigamiIcon 
+              size={34} 
+              isFluttering={origamiFlutter}
+              onClick={triggerOrigamiFlutter}
+            />
+            <div className="sf-form-brand-meta">
+              <span className="sf-form-brand-title">StoreFlow</span>
+              <span className="sf-form-brand-subtitle">by Flywheel</span>
             </div>
-            <h1 className="sf-mobile-brand-title">StoreFlow</h1>
-            <span className="sf-mobile-brand-tag">by Flywheel</span>
           </div>
 
           {/* Form Header */}
@@ -463,8 +434,6 @@ export default function Login() {
                     placeholder="Enter your password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    onFocus={() => setPasswordFocused(true)}
-                    onBlur={() => setPasswordFocused(false)}
                     onKeyDown={handleKeyDown}
                     onKeyUp={handleKeyDown}
                     required
@@ -601,7 +570,7 @@ export default function Login() {
           <div className="sf-modal-card animate-slide-up" onClick={(e) => e.stopPropagation()}>
             <div className="sf-modal-header">
               <div className="sf-modal-title-group">
-                <OrigamiIcon size={24} />
+                <Store size={22} className="sf-modal-icon" />
                 <h3>Get Access to StoreFlow</h3>
               </div>
               <button 

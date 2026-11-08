@@ -200,9 +200,13 @@ export default function Layout({ children }) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const { user, logout, activeOrg } = useAuth();
+  const { user, logout, activeOrg, impersonatedOrg } = useAuth();
   const navigate = useNavigate();
   const menuRef = useRef(null);
+
+  // Bottom navigation is only for store operations (members or when super admin is impersonating an organization)
+  const isSuperAdminMode = user?.role === 'super_admin' && !impersonatedOrg;
+  const showMobileBottomNav = !isSuperAdminMode;
 
   // Update clock every minute
   useEffect(() => {
@@ -309,82 +313,84 @@ export default function Layout({ children }) {
           </header>
           <InstallPWA />
           <OfflineBanner />
-          <main className="page-content" style={{ overflowY: 'auto', display: 'block' }}>
+          <main className={`page-content ${showMobileBottomNav ? 'has-bottom-nav' : ''}`} style={{ overflowY: 'auto', display: 'block' }}>
             {children}
           </main>
 
-          {/* Native-grade Mobile Bottom Navigation Bar */}
-          <nav className="mobile-bottom-nav" aria-label="Mobile Navigation">
-            <button
-              type="button"
-              className={`mobile-bottom-nav__item ${location.pathname === '/dashboard' ? 'mobile-bottom-nav__item--active' : ''}`}
-              onClick={() => navigate('/dashboard')}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7"></rect>
-                <rect x="14" y="3" width="7" height="7"></rect>
-                <rect x="14" y="14" width="7" height="7"></rect>
-                <rect x="3" y="14" width="7" height="7"></rect>
-              </svg>
-              <span>Home</span>
-            </button>
-
-            <button
-              type="button"
-              className={`mobile-bottom-nav__item ${location.pathname.startsWith('/products') ? 'mobile-bottom-nav__item--active' : ''}`}
-              onClick={() => navigate('/products')}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                <line x1="12" y1="22.08" x2="12" y2="12"></line>
-              </svg>
-              <span>Stock</span>
-            </button>
-
-            {/* Central prominent sale POS trigger */}
-            <button
-              type="button"
-              className="mobile-bottom-nav__pos-btn"
-              onClick={() => navigate('/sales', { state: { showForm: true } })}
-              aria-label="New Sale"
-            >
-              <div className="mobile-bottom-nav__pos-circle">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
+          {/* Native-grade Mobile Bottom Navigation Bar: Hidden in super admin mode, visible only when impersonating or logged in as an organization member */}
+          {showMobileBottomNav && (
+            <nav className="mobile-bottom-nav" aria-label="Mobile Navigation">
+              <button
+                type="button"
+                className={`mobile-bottom-nav__item ${location.pathname === '/dashboard' ? 'mobile-bottom-nav__item--active' : ''}`}
+                onClick={() => navigate('/dashboard')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
                 </svg>
-              </div>
-              <span className="mobile-bottom-nav__pos-label">Sale</span>
-            </button>
+                <span>Home</span>
+              </button>
 
-            <button
-              type="button"
-              className={`mobile-bottom-nav__item ${location.pathname.startsWith('/customers') ? 'mobile-bottom-nav__item--active' : ''}`}
-              onClick={() => navigate('/customers')}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-              </svg>
-              <span>Clients</span>
-            </button>
+              <button
+                type="button"
+                className={`mobile-bottom-nav__item ${location.pathname.startsWith('/products') ? 'mobile-bottom-nav__item--active' : ''}`}
+                onClick={() => navigate('/products')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                  <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+                <span>Stock</span>
+              </button>
 
-            <button
-              type="button"
-              className="mobile-bottom-nav__item"
-              onClick={() => setMobileSidebarOpen(true)}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="4" y1="6" x2="20" y2="6"></line>
-                <line x1="4" y1="12" x2="20" y2="12"></line>
-                <line x1="4" y1="18" x2="20" y2="18"></line>
-              </svg>
-              <span>Menu</span>
-            </button>
-          </nav>
+              {/* Central prominent sale POS trigger */}
+              <button
+                type="button"
+                className="mobile-bottom-nav__pos-btn"
+                onClick={() => navigate('/sales', { state: { showForm: true } })}
+                aria-label="New Sale"
+              >
+                <div className="mobile-bottom-nav__pos-circle">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                </div>
+                <span className="mobile-bottom-nav__pos-label">Sale</span>
+              </button>
+
+              <button
+                type="button"
+                className={`mobile-bottom-nav__item ${location.pathname.startsWith('/customers') ? 'mobile-bottom-nav__item--active' : ''}`}
+                onClick={() => navigate('/customers')}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+                <span>Clients</span>
+              </button>
+
+              <button
+                type="button"
+                className="mobile-bottom-nav__item"
+                onClick={() => setMobileSidebarOpen(true)}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="4" y1="6" x2="20" y2="6"></line>
+                  <line x1="4" y1="12" x2="20" y2="12"></line>
+                  <line x1="4" y1="18" x2="20" y2="18"></line>
+                </svg>
+                <span>Menu</span>
+              </button>
+            </nav>
+          )}
         </div>
 
       <ProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} />

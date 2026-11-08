@@ -201,7 +201,7 @@ button {
   min-height: 38px;
   display: flex;
   align-items: center;
-  justifyContent: flex-end;
+  justify-content: flex-end;
 }
 
 /* Deposits summary cards grid on mobile */

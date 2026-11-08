@@ -11,16 +11,25 @@ import { registerSW } from 'virtual:pwa-register';
 // Initialize diagnostics & telemetry (PostHog)
 initPostHog();
 
-// Register PWA service worker with immediate check
-registerSW({
-  immediate: true,
-  onNeedRefresh() {
-    console.log('[PWA] New StoreFlow version detected, updating cache...');
-  },
-  onOfflineReady() {
-    console.log('[PWA] StoreFlow offline cache ready.');
-  },
-});
+// In local development, proactively unregister any cached service worker to prevent stale cache
+if (import.meta.env.DEV && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const registration of registrations) {
+      registration.unregister();
+    }
+  });
+} else {
+  // Register PWA service worker with immediate check in production
+  registerSW({
+    immediate: true,
+    onNeedRefresh() {
+      console.log('[PWA] New StoreFlow version detected, updating cache...');
+    },
+    onOfflineReady() {
+      console.log('[PWA] StoreFlow offline cache ready.');
+    },
+  });
+}
 
 window.addEventListener('online', () => {
   console.log('App is back online!');

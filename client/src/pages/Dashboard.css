@@ -1253,7 +1253,7 @@
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.06);
   }
 
-  .page-content {
+  .page-content.has-bottom-nav {
     padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)) !important;
   }
 

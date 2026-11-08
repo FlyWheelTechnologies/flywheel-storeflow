@@ -1,5 +1,5 @@
 /* ==========================================================================
-   STOREFLOW ENTERPRISE AUTHENTICATION & LOGIN REDESIGN
+   STOREFLOW ENTERPRISE AUTHENTICATION & LOGIN
    Crafted for Ghanaian Retailers & Wholesalers • Powered by Flywheel
    ========================================================================== */
 
@@ -92,11 +92,16 @@
   max-width: 540px;
 }
 
-/* Top Brand Logo */
+/* Top Brand Showcase Row */
+.sf-hero-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .sf-hero-brand {
   display: inline-flex;
   align-items: center;
-  gap: 14px;
   text-decoration: none;
   width: fit-content;
   transition: transform 0.2s ease;
@@ -104,27 +109,6 @@
 
 .sf-hero-brand:hover {
   transform: translateY(-1px);
-}
-
-.sf-brand-logo-badge {
-  width: 48px;
-  height: 48px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
-  border: 1px solid rgba(241, 90, 36, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 24px -2px rgba(241, 90, 36, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.15);
-  flex-shrink: 0;
-  backdrop-filter: blur(12px);
-  transition: all 0.25s ease;
-}
-
-.sf-brand-logo-badge:hover {
-  transform: translateY(-1px) scale(1.03);
-  border-color: rgba(241, 90, 36, 0.6);
-  box-shadow: 0 12px 28px -2px rgba(241, 90, 36, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.25);
 }
 
 .sf-brand-text-col {
@@ -146,97 +130,6 @@
   color: #94a3b8;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-}
-
-/* ==========================================================================
-   INTERACTIVE 3D ORIGAMI ICON ANIMATIONS & FOLDING LOGIC
-   ========================================================================== */
-.sf-origami-container {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  outline: none;
-  perspective: 700px;
-  transform-style: preserve-3d;
-  user-select: none;
-  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.sf-origami-container:hover {
-  transform: scale(1.1) translateY(-2px);
-}
-
-.sf-origami-svg {
-  display: block;
-  overflow: visible;
-}
-
-/* Individual origami wings with transform origin at center crease */
-.sf-origami-wing {
-  transform-origin: 18px 20px;
-  transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
-}
-
-/* Idle subtle breathing paper flutter */
-.sf-origami-wing-left {
-  animation: idleWingLeft 4s ease-in-out infinite alternate;
-}
-
-.sf-origami-wing-right {
-  animation: idleWingRight 4s ease-in-out infinite alternate;
-}
-
-@keyframes idleWingLeft {
-  0% { transform: rotate(0deg) scale(1); }
-  100% { transform: rotate(-3deg) scale(1.02); }
-}
-
-@keyframes idleWingRight {
-  0% { transform: rotate(0deg) scale(1); }
-  100% { transform: rotate(3deg) scale(1.02); }
-}
-
-/* Password Privacy Fold: Wings fold inward over center spine */
-.sf-origami-wing-left.folded-in {
-  transform: rotate(28deg) scaleX(0.65) translateX(4px) !important;
-  filter: brightness(0.92);
-}
-
-.sf-origami-wing-right.folded-in {
-  transform: rotate(-28deg) scaleX(0.65) translateX(-4px) !important;
-  filter: brightness(0.92);
-}
-
-/* Tap / Click Flutter Animation (3D Somersault) */
-.sf-origami-container.is-fluttering {
-  animation: origamiSomersault 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@keyframes origamiSomersault {
-  0% { transform: scale(1) rotate(0deg); }
-  40% { transform: scale(1.22) rotate(-12deg) translateY(-4px); }
-  75% { transform: scale(1.1) rotate(6deg) translateY(-1px); }
-  100% { transform: scale(1) rotate(0deg); }
-}
-
-/* Ascending Flight on Authentication */
-.sf-origami-container.is-flying .sf-origami-wing-left {
-  animation: flyingFlapLeft 0.3s ease-in-out infinite alternate !important;
-}
-
-.sf-origami-container.is-flying .sf-origami-wing-right {
-  animation: flyingFlapRight 0.3s ease-in-out infinite alternate !important;
-}
-
-@keyframes flyingFlapLeft {
-  0% { transform: rotate(0deg) scaleY(1); }
-  100% { transform: rotate(-18deg) scaleY(0.85); }
-}
-
-@keyframes flyingFlapRight {
-  0% { transform: rotate(0deg) scaleY(1); }
-  100% { transform: rotate(18deg) scaleY(0.85); }
 }
 
 /* Hero Pitch & Content */
@@ -396,7 +289,7 @@
   align-items: center;
   justify-content: center;
   background-color: #ffffff;
-  padding: 36px 24px;
+  padding: 32px 20px;
   position: relative;
 }
 
@@ -412,7 +305,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 .sf-back-link {
@@ -455,66 +348,89 @@
 }
 
 /* ==========================================================================
-   MOBILE BRAND HERO SECTION (Visible on mobile/tablets < 1024px)
+   LEFT-ALIGNED BRAND HEADER (Form Panel)
    ========================================================================== */
-.sf-mobile-brand-hero {
+.sf-form-brand-row {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  text-align: center;
-  margin-bottom: 28px;
-  padding-bottom: 20px;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
   border-bottom: 1px solid #f1f5f9;
 }
 
-@media (min-width: 1024px) {
-  .sf-mobile-brand-hero {
-    display: none;
-  }
-}
-
-.sf-mobile-origami-badge {
-  width: 58px;
-  height: 58px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
-  border: 1.5px solid #fed7aa;
+.sf-form-brand-meta {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 12px;
-  box-shadow: 0 8px 20px -2px rgba(241, 90, 36, 0.2);
-  transition: transform 0.25s ease;
+  flex-direction: column;
 }
 
-.sf-mobile-origami-badge:hover {
-  transform: translateY(-2px) scale(1.04);
-}
-
-.sf-mobile-brand-title {
-  font-size: 24px;
+.sf-form-brand-title {
+  font-size: 22px;
   font-weight: 800;
   color: #0f172a;
   letter-spacing: -0.025em;
   line-height: 1.1;
-  margin-bottom: 2px;
 }
 
-.sf-mobile-brand-tag {
+.sf-form-brand-subtitle {
   font-size: 11px;
-  color: #f15a24;
   font-weight: 700;
+  color: #f15a24;
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
 
+/* ── Interactive Origami Badge Container ── */
+.sf-origami-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+  border: 1.5px solid #fed7aa;
+  box-shadow: 0 4px 14px -2px rgba(241, 90, 36, 0.22);
+  cursor: pointer;
+  flex-shrink: 0;
+  user-select: none;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.sf-origami-badge:hover {
+  transform: translateY(-2px) scale(1.06);
+  border-color: #f97316;
+  box-shadow: 0 8px 20px -2px rgba(241, 90, 36, 0.35);
+}
+
+.sf-origami-badge:active {
+  transform: translateY(0) scale(0.95);
+}
+
+.sf-origami-svg {
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 2px 4px rgba(241, 90, 36, 0.28));
+}
+
+/* Clean, 100% Reliable 360 Origami Paper Spin */
+.sf-origami-badge.is-fluttering {
+  animation: origamiSpin 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes origamiSpin {
+  0% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.15) rotate(180deg); }
+  100% { transform: scale(1) rotate(360deg); }
+}
+
 /* Header Text */
 .sf-form-header {
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 .sf-form-title {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 800;
   color: #0f172a;
   letter-spacing: -0.025em;
@@ -522,7 +438,7 @@
 }
 
 .sf-form-subtitle {
-  font-size: 14.5px;
+  font-size: 14px;
   color: #64748b;
   line-height: 1.5;
 }
@@ -579,7 +495,7 @@
 .sf-auth-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
 .sf-field-group {
@@ -812,13 +728,13 @@
 
 /* Footer Section */
 .sf-form-footer {
-  margin-top: 36px;
+  margin-top: 32px;
   display: flex;
   flex-direction: column;
   gap: 14px;
   align-items: center;
   text-align: center;
-  padding-top: 24px;
+  padding-top: 20px;
   border-top: 1px solid #f1f5f9;
 }
 
@@ -1007,4 +923,64 @@
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   MOBILE VIEWPORT ENHANCEMENTS (< 640px)
+   ========================================================================== */
+@media (max-width: 640px) {
+  .sf-auth-form-panel {
+    padding: 24px 18px 48px;
+    align-items: flex-start;
+  }
+
+  .sf-form-container {
+    max-width: 100%;
+    margin-top: 4px;
+  }
+
+  .sf-form-top-nav {
+    margin-bottom: 18px;
+  }
+
+  .sf-form-brand-row {
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    gap: 12px;
+  }
+
+  .sf-origami-badge {
+    width: 44px;
+    height: 44px;
+  }
+
+  .sf-form-brand-title {
+    font-size: 20px;
+  }
+
+  .sf-form-header {
+    margin-bottom: 20px;
+  }
+
+  .sf-form-title {
+    font-size: 24px;
+  }
+
+  .sf-form-subtitle {
+    font-size: 13.5px;
+  }
+
+  .sf-auth-form {
+    gap: 16px;
+  }
+
+  .sf-input {
+    height: 48px;
+    font-size: 14.5px;
+  }
+
+  .sf-submit-btn {
+    height: 48px;
+    font-size: 15px;
+  }
 }
