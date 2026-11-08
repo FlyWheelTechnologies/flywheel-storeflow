@@ -4,43 +4,36 @@
  * grounded in real-time store telemetry (RAG).
  */
 
-import { generateStoreCopilotResponse, cleanAIMessageText } from "./aiAnalyticsService";
+import { generateStoreCopilotResponse, cleanAIMessageText } from "./aiAnalyticsService.js";
 
 export const CURATED_MODELS = [
   {
-    id: "meta-llama/llama-3.3-70b-instruct:free",
-    name: "Llama 3.3 70B (Free)",
+    id: "liquid/lfm-2.5-2.6b:free",
+    name: "Liquid LFM 2.6B (Free)",
     badge: "Free",
-    provider: "Meta / OpenRouter",
-    desc: "Highly intelligent, full context, free tier"
+    provider: "LiquidAI / OpenRouter",
+    desc: "Ultra-fast retail intelligence, zero latency, 100% free"
   },
   {
-    id: "google/gemini-2.0-flash-lite-001",
-    name: "Gemini 2.0 Flash Lite",
-    badge: "Ultra Fast",
+    id: "google/gemma-4-26b-a4b-it:free",
+    name: "Google Gemma 4 26B (Free)",
+    badge: "Free",
     provider: "Google / OpenRouter",
-    desc: "Instant responses, negligible cost"
+    desc: "Intelligent analytics and financial summarization"
   },
   {
-    id: "mistralai/mistral-7b-instruct:free",
-    name: "Mistral 7B Instruct (Free)",
+    id: "liquid/lfm-3-1.7b:free",
+    name: "Liquid LFM 3 1.7B (Free)",
+    badge: "Light Free",
+    provider: "LiquidAI / OpenRouter",
+    desc: "Ultra lightweight free model"
+  },
+  {
+    id: "nvidia/nemotron-3.5-lightning:free",
+    name: "NVIDIA Nemotron 3.5 (Free)",
     badge: "Free",
-    provider: "Mistral / OpenRouter",
-    desc: "Fast, concise retail answers"
-  },
-  {
-    id: "deepseek/deepseek-r1:free",
-    name: "DeepSeek R1 (Free)",
-    badge: "Reasoning",
-    provider: "DeepSeek / OpenRouter",
-    desc: "Deep inventory problem-solving"
-  },
-  {
-    id: "qwen/qwen-2.5-72b-instruct:free",
-    name: "Qwen 2.5 72B (Free)",
-    badge: "Free",
-    provider: "Alibaba / OpenRouter",
-    desc: "Top multilingual and analytics accuracy"
+    provider: "NVIDIA / OpenRouter",
+    desc: "1M context window, high capacity problem-solving"
   },
   {
     id: "storeflow-offline",
@@ -59,8 +52,8 @@ const STORAGE_KEYS = {
 
 export function getStoredApiKey() {
   return (
-    localStorage.getItem(STORAGE_KEYS.API_KEY) ||
-    import.meta.env.VITE_OPENROUTER_API_KEY ||
+    (typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEYS.API_KEY) : null) ||
+    import.meta.env?.VITE_OPENROUTER_API_KEY ||
     ""
   );
 }
@@ -74,23 +67,34 @@ export function setStoredApiKey(key) {
 }
 
 export function getCurrentModel() {
-  return (
-    localStorage.getItem(STORAGE_KEYS.MODEL) ||
-    "meta-llama/llama-3.3-70b-instruct:free"
-  );
+  const saved = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEYS.MODEL) : null;
+  const validIds = CURATED_MODELS.map((m) => m.id);
+  // Auto-migrate old/retired model slugs like llama-3.3-70b:free or mistral-7b:free to active free model
+  if (saved && validIds.includes(saved)) {
+    return saved;
+  }
+  const defaultModel = "liquid/lfm-2.5-2.6b:free";
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem(STORAGE_KEYS.MODEL, defaultModel);
+  }
+  return defaultModel;
 }
 
 export function setCurrentModel(modelId) {
-  localStorage.setItem(STORAGE_KEYS.MODEL, modelId);
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem(STORAGE_KEYS.MODEL, modelId);
+  }
 }
 
 export function getTemperature() {
-  const val = localStorage.getItem(STORAGE_KEYS.TEMPERATURE);
+  const val = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEYS.TEMPERATURE) : null;
   return val ? parseFloat(val) : 0.7; // 0.7 for creative non-deterministic retail answers
 }
 
 export function setTemperature(val) {
-  localStorage.setItem(STORAGE_KEYS.TEMPERATURE, String(val));
+  if (typeof localStorage !== "undefined") {
+    localStorage.setItem(STORAGE_KEYS.TEMPERATURE, String(val));
+  }
 }
 
 /**
@@ -222,8 +226,8 @@ export function buildStoreRAGContext(storeData = {}, userQuery = "") {
 
 /**
  * Universal Store Query Method
- * Sends grounding RAG context to OpenRouter or free model.
- * Seamlessly falls back to local engine if offline or unconfigured.
+ * Sends grounding RAG context to free OpenRouter endpoint.
+ * Seamlessly retries fallback free model or local engine if offline.
  */
 export async function queryStoreLLM({
   query,
@@ -240,8 +244,8 @@ export async function queryStoreLLM({
   const effectiveApiKey = apiKey || getStoredApiKey();
   const effectiveTemp = temperature !== null ? temperature : getTemperature();
 
-  // If user selected offline engine or no API key is available
-  if (chosenModel === "storeflow-offline" || !effectiveApiKey) {
+  // If user selected offline engine
+  if (chosenModel === "storeflow-offline") {
     const localRes = generateStoreCopilotResponse(cleanQ, storeData || {});
     return {
       text: cleanAIMessageText(localRes.text),
@@ -273,9 +277,50 @@ ${ragContext}`;
     { role: "user", content: cleanQ }
   ];
 
-  try {
+  // If no OpenRouter API key is configured, query the zero-key free online endpoint
+  if (!effectiveApiKey) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+      const pollRes = await fetch("https://text.pollinations.ai/openai/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "openai",
+          messages,
+          temperature: effectiveTemp
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      if (pollRes.ok) {
+        const pollData = await pollRes.json();
+        const pollText = pollData?.choices?.[0]?.message?.content;
+        if (pollText) {
+          return {
+            text: cleanAIMessageText(pollText),
+            source: "live-llm",
+            modelName: "Free Online Gateway"
+          };
+        }
+      }
+    } catch (pollErr) {
+      console.warn("Zero-key free endpoint fallback warning:", pollErr.message);
+    }
+
+    // Fall back to local on-device engine
+    const localRes = generateStoreCopilotResponse(cleanQ, storeData || {});
+    return {
+      text: cleanAIMessageText(localRes.text),
+      source: "local-engine",
+      modelName: "StoreFlow On-Device Engine"
+    };
+  }
+
+  const callOpenRouter = async (model) => {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -286,7 +331,7 @@ ${ragContext}`;
         "X-Title": "StoreFlow AI Retail Copilot"
       },
       body: JSON.stringify({
-        model: chosenModel,
+        model,
         messages,
         temperature: effectiveTemp,
         max_tokens: 650
@@ -295,11 +340,25 @@ ${ragContext}`;
     });
 
     clearTimeout(timeoutId);
+    return res;
+  };
+
+  try {
+    let res = await callOpenRouter(chosenModel);
+
+    // If primary model failed (404/429/500) and wasn't already liquid-lfm, retry with fallback free model
+    if (!res.ok && chosenModel !== "liquid/lfm-2.5-2.6b:free") {
+      console.warn(`Primary model ${chosenModel} returned status ${res.status}. Retrying with liquid/lfm-2.5-2.6b:free...`);
+      try {
+        res = await callOpenRouter("liquid/lfm-2.5-2.6b:free");
+      } catch (retryErr) {
+        console.warn("Fallback model retry failed:", retryErr.message);
+      }
+    }
 
     if (!res.ok) {
       const errBody = await res.json().catch(() => ({}));
       console.warn("OpenRouter API error, falling back to local engine:", errBody);
-      // Fallback to local
       const localRes = generateStoreCopilotResponse(cleanQ, storeData || {});
       return {
         text: cleanAIMessageText(localRes.text),
@@ -316,7 +375,7 @@ ${ragContext}`;
     return {
       text: cleanAnswer,
       source: "live-llm",
-      modelName: chosenModel
+      modelName: data?.model || chosenModel
     };
   } catch (err) {
     console.warn("LLM fetch failed, using local engine fallback:", err.message);
@@ -326,6 +385,135 @@ ${ragContext}`;
       source: "fallback-local",
       modelName: "StoreFlow Fast Engine",
       error: err.message
+    };
+  }
+}
+
+/**
+ * Platform Super-Admin RAG Query
+ * Connects cross-tenant platform telemetry to the free online LLM.
+ */
+export async function queryPlatformLLM({
+  query,
+  platformData = {},
+  chatHistory = []
+}) {
+  const cleanQ = (query || "").trim();
+  if (!cleanQ) return { text: "Please enter a question regarding platform operations.", source: "local" };
+
+  const effectiveApiKey = getStoredApiKey();
+  const {
+    telemetry = {},
+    organizations = [],
+    sales = [],
+    products = [],
+    logs = []
+  } = platformData;
+
+  const totalGMV = telemetry.totalGMV || sales.reduce((sum, s) => sum + Number(s.total_amount || 0), 0);
+  const totalCollected = telemetry.totalCollected || sales.reduce((sum, s) => sum + Number(s.amount_paid || 0), 0);
+  const platformMRR = telemetry.platformMRR || 0;
+  const activeTenants = telemetry.activeTenants || organizations.filter((o) => o.status !== "suspended").length;
+
+  const ragContext = `=== STOREFLOW PLATFORM MULTI-TENANT TELEMETRY (RAG) ===
+Scope: Super-Admin Cross-Tenant Intelligence
+Timestamp: ${new Date().toLocaleString()}
+Currency: GHS
+Total Registered Businesses: ${organizations.length}
+Active Tenants: ${activeTenants}
+Estimated Platform MRR: GHS ${platformMRR.toLocaleString()}
+Total Gross Merchandise Value (GMV): GHS ${totalGMV.toLocaleString()}
+Total Cash & Digital Collected: GHS ${totalCollected.toLocaleString()}
+MoMo Volume: GHS ${(telemetry.methods?.momo || 0).toLocaleString()}
+Physical Cash Volume: GHS ${(telemetry.methods?.cash || 0).toLocaleString()}
+Identified Ledger Anomalies: ${telemetry.anomalies?.length || 0}
+
+--- ACTIVE TENANTS SAMPLE ---
+${organizations.slice(0, 10).map((o) => `- ${o.name} (Plan: ${o.plan || "starter"}, Status: ${o.status || "active"}, Monthly: GHS ${o.monthly_price || 120})`).join("\n")}
+
+--- ACTIVE AUDIT ALERTS ---
+${(telemetry.anomalies || []).length === 0 ? "No critical anomalies detected." : (telemetry.anomalies || []).slice(0, 5).map((a) => `- [${(a.severity || "info").toUpperCase()}] ${a.type}: ${a.desc}`).join("\n")}
+=== END PLATFORM TELEMETRY ===`;
+
+  const systemPrompt = `You are StoreFlow Platform Intelligence for the Super Admin console.
+You have real-time visibility across all registered stores and multi-tenant telemetry.
+Rules:
+1. Ground your answers strictly in the platform telemetry facts and GHS figures provided.
+2. CRITICAL FORMATTING MANDATE: NEVER use markdown asterisks (such as **bold** or *italic*). Use clean line breaks, uppercase tags or clean bullet dashes (- ) instead.
+3. Be professional, analytical, concise, and direct. Offer executive-level insights on SaaS MRR, transaction volume, and operational anomalies.
+4. Quote all monetary figures in Ghanaian Cedis (GHS).
+
+${ragContext}`;
+
+  const messages = [
+    { role: "system", content: systemPrompt },
+    ...chatHistory.slice(-6).map((m) => ({
+      role: m.sender === "user" ? "user" : "assistant",
+      content: cleanAIMessageText(m.text)
+    })),
+    { role: "user", content: cleanQ }
+  ];
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    const endpoint = effectiveApiKey
+      ? "https://openrouter.ai/api/v1/chat/completions"
+      : "https://text.pollinations.ai/openai/chat/completions";
+
+    const headers = { "Content-Type": "application/json" };
+    if (effectiveApiKey) {
+      headers["Authorization"] = `Bearer ${effectiveApiKey}`;
+      headers["HTTP-Referer"] = "https://storeflow.app";
+      headers["X-Title"] = "StoreFlow Platform AI";
+    }
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model: effectiveApiKey ? "liquid/lfm-2.5-2.6b:free" : "openai",
+        messages,
+        temperature: 0.5,
+        max_tokens: 600
+      }),
+      signal: controller.signal
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const rawAnswer = data?.choices?.[0]?.message?.content || "";
+    return {
+      text: cleanAIMessageText(rawAnswer),
+      source: "live-llm",
+      modelName: effectiveApiKey ? "Liquid LFM 2.6B (Free)" : "Free Online Gateway"
+    };
+  } catch (err) {
+    console.warn("Platform LLM fetch fallback:", err.message);
+    // Intelligent rule-based fallback if offline
+    let reply = "";
+    const q = cleanQ.toLowerCase();
+    if (q.includes("mrr") || q.includes("revenue") || q.includes("billing") || q.includes("gmv")) {
+      reply = `Platform Financial Summary:\n- Total Cross-Tenant GMV: GHS ${totalGMV.toLocaleString("en-US", { minimumFractionDigits: 2 })}\n- Estimated Platform MRR: GHS ${platformMRR.toLocaleString("en-US", { minimumFractionDigits: 2 })}\n- Total Collections: GHS ${totalCollected.toLocaleString("en-US", { minimumFractionDigits: 2 })}\n- Active Businesses: ${activeTenants} organizations actively processing orders.`;
+    } else if (q.includes("momo") || q.includes("cash") || q.includes("payment")) {
+      const momoShare = totalCollected > 0 ? (((telemetry.methods?.momo || 0) / totalCollected) * 100).toFixed(1) : 0;
+      const cashShare = totalCollected > 0 ? (((telemetry.methods?.cash || 0) / totalCollected) * 100).toFixed(1) : 0;
+      reply = `Payment Infrastructure Breakdown:\n- MoMo Volume: GHS ${(telemetry.methods?.momo || 0).toLocaleString()} (${momoShare}%)\n- Physical Cash: GHS ${(telemetry.methods?.cash || 0).toLocaleString()} (${cashShare}%)\n- Insight: Digital payment adoption is strong across Ghanaian retail merchants on StoreFlow.`;
+    } else if (q.includes("anomal") || q.includes("risk") || q.includes("fraud") || q.includes("audit")) {
+      reply = `Security & Ledger Anomaly Report:\n- Total anomalies flagged: ${telemetry.anomalies?.length || 0}\n${(telemetry.anomalies || []).slice(0, 4).map((a) => `- [${a.severity.toUpperCase()}] ${a.type}: ${a.desc}`).join("\n") || "- No critical ledger anomalies detected."}`;
+    } else {
+      reply = `StoreFlow Platform Intelligence:\nPlatform health is normal across ${organizations.length} registered organizations. Active MRR stands at GHS ${platformMRR.toLocaleString()} with total GMV of GHS ${totalGMV.toLocaleString()}.`;
+    }
+    return {
+      text: reply,
+      source: "local-engine",
+      modelName: "StoreFlow Platform Engine"
     };
   }
 }

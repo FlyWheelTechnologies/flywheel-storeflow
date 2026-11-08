@@ -12,7 +12,8 @@ import {
   Key,
   ArrowsClockwise,
   SidebarSimple,
-  CaretDown
+  CaretDown,
+  Sparkle
 } from "@phosphor-icons/react";
 import { useAuth } from "../context/AuthContext";
 import "./Sidebar.css";
@@ -21,6 +22,11 @@ const NAV_ITEMS = [
   {
     id: "dashboard", label: "Dashboard", path: "/dashboard",
     icon: <SquaresFour size={18} weight="duotone" />,
+  },
+  {
+    id: "ai-copilot", label: "StoreFlow AI", path: "/ai",
+    icon: <Sparkle size={18} weight="duotone" />,
+    badge: "AI"
   },
 
   {
@@ -62,6 +68,11 @@ const SUPER_ADMIN_NAV_ITEMS = [
   {
     id: "super-dashboard", label: "Admin Console", path: "/admin",
     icon: <SquaresFour size={18} weight="duotone" />,
+  },
+  {
+    id: "super-ai", label: "Platform AI", path: "/admin/ai",
+    icon: <Sparkle size={18} weight="duotone" />,
+    badge: "AI"
   },
   {
     id: "super-billing", label: "Billing & MRR", path: "/admin/billing",
@@ -245,7 +256,12 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           ) : (
             <button key={item.id} className={`sidebar__item ${isActive(item.path) ? "sidebar__item--active" : ""}`} onClick={() => handleNav(item.path)} title={displayCollapsed ? item.label : ""}>
               <span className="sidebar__icon">{item.icon}</span>
-              {!displayCollapsed && <span className="sidebar__label">{item.label}</span>}
+              {!displayCollapsed && (
+                <>
+                  <span className="sidebar__label">{item.label}</span>
+                  {item.badge && <span className="sidebar__pill-badge">{item.badge}</span>}
+                </>
+              )}
             </button>
           )
         )}

@@ -4,6 +4,7 @@ import { supabase } from "../services/supabaseClient";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import AIMessageContent from "../components/AI/AIMessageContent";
+import { queryPlatformLLM } from "../services/llmService";
 import "./Dashboard.css";
 
 export default function SuperAdminAI() {
@@ -105,37 +106,50 @@ export default function SuperAdminAI() {
     };
   }, [organizations, sales, products]);
 
-  // Handle Copilot Question
-  const handleAskCopilot = (customPrompt) => {
+  // Handle Copilot Question using Free Live LLM Endpoint
+  const handleAskCopilot = async (customPrompt) => {
     const query = customPrompt || copilotQuery;
     if (!query.trim()) return;
 
     const userMessage = { sender: "user", text: query };
-    setChatHistory(prev => [...prev, userMessage]);
+    setChatHistory((prev) => [...prev, userMessage]);
     setCopilotQuery("");
     setCopilotLoading(true);
 
-    setTimeout(() => {
-      let reply = "";
-      const q = query.toLowerCase();
+    try {
+      const result = await queryPlatformLLM({
+        query,
+        platformData: {
+          telemetry,
+          organizations,
+          sales,
+          products,
+          logs
+        },
+        chatHistory
+      });
 
-      if (q.includes("mrr") || q.includes("revenue") || q.includes("billing") || q.includes("gmv")) {
-        reply = `Platform Financial Summary:\n• Total Cross-Tenant GMV: GHS ${telemetry.totalGMV.toLocaleString('en-US', { minimumFractionDigits: 2 })}\n• Estimated Platform MRR: GHS ${telemetry.platformMRR.toLocaleString('en-US', { minimumFractionDigits: 2 })}\n• Total Collections: GHS ${telemetry.totalCollected.toLocaleString('en-US', { minimumFractionDigits: 2 })}\n• Active Businesses: ${telemetry.activeTenants} organizations actively processing orders.`;
-      } else if (q.includes("momo") || q.includes("cash") || q.includes("payment")) {
-        const momoShare = telemetry.totalCollected > 0 ? ((telemetry.methods.momo / telemetry.totalCollected) * 100).toFixed(1) : 0;
-        const cashShare = telemetry.totalCollected > 0 ? ((telemetry.methods.cash / telemetry.totalCollected) * 100).toFixed(1) : 0;
-        reply = `Payment Infrastructure Analysis:\n• MTN/Telecel MoMo Volume: GHS ${telemetry.methods.momo.toLocaleString()} (${momoShare}% of total)\n• Physical Cash: GHS ${telemetry.methods.cash.toLocaleString()} (${cashShare}% of total)\n• Insight: Ghanaian retail businesses on StoreFlow demonstrate strong digital settlement adoption, with MoMo accounting for substantial volumes.`;
-      } else if (q.includes("anomal") || q.includes("risk") || q.includes("fraud") || q.includes("audit")) {
-        reply = `Security & Anomaly Sentinel Report:\n• Total anomalies identified: ${telemetry.anomalies.length}\n${telemetry.anomalies.slice(0, 4).map(a => `• [${a.severity.toUpperCase()}] ${a.type}: ${a.desc}`).join('\n') || '• No critical cross-tenant ledger anomalies detected at this time.'}`;
-      } else if (q.includes("growth") || q.includes("churn") || q.includes("retain")) {
-        reply = `Tenant Retention & Sector Growth Vectors:\n• Hardware & Construction: Highest ticket velocity and average basket sizes.\n• FMCG & Groceries: Highest daily transaction frequency.\n• Tenant Churn Risk: 0 organizations currently flagged for churn this billing cycle.\n• Recommendation: Provide hardware merchants with automated bulk purchase order tools to capture market share.`;
-      } else {
-        reply = `StoreFlow Platform Intelligence:\nBased on platform telemetry across ${organizations.length} organizations and ${sales.length} transactions, platform health is stable at 99.8% uptime with healthy transaction flow. Ask for an audit of specific tenant activity or inventory margins.`;
-      }
-
-      setChatHistory(prev => [...prev, { sender: "ai", text: reply }]);
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          sender: "ai",
+          text: result.text,
+          source: result.source,
+          modelName: result.modelName
+        }
+      ]);
+    } catch (err) {
+      console.error("Super Admin AI query failed:", err);
+      setChatHistory((prev) => [
+        ...prev,
+        {
+          sender: "ai",
+          text: "Encountered a temporary network error connecting to Platform AI. Please try again."
+        }
+      ]);
+    } finally {
       setCopilotLoading(false);
-    }, 700);
+    }
   };
 
   // Export Executive Briefing PDF

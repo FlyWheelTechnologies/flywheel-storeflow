@@ -126,6 +126,21 @@
   text-overflow: ellipsis;
 }
 
+.sidebar__pill-badge {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.22);
+  color: #ff9348;
+  border: 1px solid rgba(249, 115, 22, 0.4);
+  line-height: 1.4;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
 .sidebar__chevron {
   display: flex;
   align-items: center;

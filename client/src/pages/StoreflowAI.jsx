@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -53,7 +53,8 @@ import "./StoreflowAI.css";
 
 export default function StoreflowAI() {
   const location = useLocation();
-  const { activeOrg, user, activeOrgId } = useAuth();
+  const navigate = useNavigate();
+  const { activeOrg, user, activeOrgId, impersonatedOrg } = useAuth();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(location.state?.tab || "reorder");
 
@@ -406,6 +407,81 @@ export default function StoreflowAI() {
           </button>
         </div>
       </div>
+
+      {/* Super Admin Notice (when not impersonating an org) */}
+      {user?.role === 'super_admin' && !impersonatedOrg && (
+        <div
+          style={{
+            background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.08) 0%, rgba(249, 115, 22, 0.02) 100%)',
+            border: '1px solid rgba(249, 115, 22, 0.25)',
+            borderRadius: 14,
+            padding: '16px 20px',
+            marginBottom: 24,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 14
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                background: 'rgba(249, 115, 22, 0.15)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--brand-primary)'
+              }}
+            >
+              <Sparkle size={20} weight="fill" />
+            </div>
+            <div>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: '#0f172a' }}>
+                Store-Level AI View (Super Admin)
+              </div>
+              <div style={{ fontSize: 12, color: '#64748b' }}>
+                You are currently in platform admin mode without a store selected. Impersonate a store to ground AI in their inventory, or use Platform AI for cross-tenant telemetry.
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => navigate('/admin/ai')}
+              style={{
+                background: 'var(--brand-primary, #f15a24)',
+                color: '#fff',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: 8,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Open Platform AI →
+            </button>
+            <button
+              onClick={() => navigate('/admin')}
+              style={{
+                background: '#fff',
+                color: '#334155',
+                border: '1px solid #cbd5e1',
+                padding: '8px 16px',
+                borderRadius: 8,
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              Select Store to Impersonate
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* KPI Stat Widgets (Redesigned from cards to icons) */}
       <div className="ai-stat-grid">
@@ -946,8 +1022,11 @@ export default function StoreflowAI() {
                 <AIMessageContent text={msg.text} isUser={msg.sender === "user"} />
                 {msg.sender === "ai" && msg.modelName && (
                   <div className="ai-chat-bubble-meta">
-                    <Sparkle size={11} weight="fill" />
-                    <span>{msg.modelName.split("/").pop()}</span>
+                    <Sparkle size={11} weight="fill" color="var(--brand-primary)" />
+                    <span>
+                      {msg.source === "live-llm" ? "⚡ Live AI · " : ""}
+                      {msg.modelName.split("/").pop()}
+                    </span>
                   </div>
                 )}
               </div>
@@ -1041,8 +1120,8 @@ export default function StoreflowAI() {
                               fontWeight: 800,
                               padding: "1px 6px",
                               borderRadius: 6,
-                              background: model.badge === "Free" ? "#ecfdf5" : "#f1f5f9",
-                              color: model.badge === "Free" ? "#059669" : "#475569"
+                              background: model.badge.includes("Free") ? "#ecfdf5" : "#f1f5f9",
+                              color: model.badge.includes("Free") ? "#059669" : "#475569"
                             }}
                           >
                             {model.badge}
