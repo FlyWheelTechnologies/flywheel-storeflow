@@ -327,7 +327,7 @@ const SalesForm = ({
                   </td>
                   <td style={{ fontWeight: 600 }}>{formatCurrency(item.quantity * item.unit_price)}</td>
                   <td>
-                    <ActionButton variant="ghost" size="sm" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{ color: '#ef4444' }}>
+                    <ActionButton variant="ghost" size="sm" onClick={() => setItems(items.filter((_, i) => i !== idx))} style={{ color: '#ef4444' }} aria-label="Remove item">
                       ✕
                     </ActionButton>
                   </td>
@@ -348,6 +348,7 @@ const SalesForm = ({
                     type="button"
                     className="sales-item-card__remove"
                     onClick={() => setItems(items.filter((_, i) => i !== idx))}
+                    aria-label="Remove item"
                   >
                     ✕ Remove
                   </button>
