@@ -86,6 +86,7 @@ Deno.serve(async (req: Request) => {
       console.log(`Customer has no email — will send to admin (${adminEmail}) only`);
     }
 
+    const appUrl = Deno.env.get('APP_URL') || 'https://storeflow.bookflywheel.com';
     const isDeposit = record.payment_status === 'DEPOSIT';
     
     const totalAmt = Number(record.total_amount || 0);
@@ -208,7 +209,7 @@ Deno.serve(async (req: Request) => {
         <!-- Footer -->
         <div style="background: #f9fafb; padding: 20px 28px; text-align: center; border-top: 1px solid #e5e7eb;">
           <p style="font-size: 12px; color: #9ca3af; margin: 0;">Questions? Contact your store admin.</p>
-          <p style="font-size: 11px; color: #d1d5db; margin: 4px 0 0;">Powered by StoreFlow by Flywheel</p>
+          <p style="font-size: 11px; color: #9ca3af; margin: 4px 0 0;"><a href="${appUrl}" style="color: #9ca3af; text-decoration: underline;">storeflow.bookflywheel.com</a> • Powered by StoreFlow by Flywheel</p>
         </div>
       </div>
     `;

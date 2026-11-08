@@ -14,6 +14,7 @@
     <meta name="description" content="Manage inventory, track sales, accept MoMo payments, and balance your books automatically. Built specifically for retail and wholesale businesses in Ghana." />
     <meta name="keywords" content="inventory management, accounting software, ghana business, stock tracking, sales tracker, double-entry bookkeeping, point of sale, momo payments, storeflow, flywheel" />
     <meta name="author" content="Flywheel Technologies" />
+    <link rel="canonical" href="https://storeflow.bookflywheel.com" />
     <!-- PWA & Mobile Web App Capabilities -->
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -24,18 +25,28 @@
 
     <!-- Open Graph / Facebook / Instagram / WhatsApp -->
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://storeflow-by-flywheel.pages.dev" />
+    <meta property="og:url" content="https://storeflow.bookflywheel.com" />
     <meta property="og:title" content="StoreFlow by Flywheel — Stock Management & Accounting" />
     <meta property="og:description" content="Manage inventory, track sales, accept MoMo payments, and balance your books automatically. Built specifically for retail and wholesale businesses in Ghana." />
-    <meta property="og:image" content="https://storeflow-by-flywheel.pages.dev/orange_receipt_machine.jpg" />
+    <meta property="og:image" content="https://storeflow.bookflywheel.com/orange_receipt_machine.jpg" />
     <meta property="og:site_name" content="StoreFlow" />
 
     <!-- Twitter / X -->
     <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content="https://storeflow-by-flywheel.pages.dev" />
+    <meta property="twitter:url" content="https://storeflow.bookflywheel.com" />
     <meta property="twitter:title" content="StoreFlow by Flywheel — Stock Management & Accounting" />
     <meta property="twitter:description" content="Manage inventory, track sales, accept MoMo payments, and balance your books automatically. Built specifically for retail and wholesale businesses in Ghana." />
-    <meta property="twitter:image" content="https://storeflow-by-flywheel.pages.dev/orange_receipt_machine.jpg" />
+    <meta property="twitter:image" content="https://storeflow.bookflywheel.com/orange_receipt_machine.jpg" />
+
+    <!-- Domain Reroute (pages.dev -> storeflow.bookflywheel.com) -->
+    <script>
+      (function() {
+        if (window.location.hostname.endsWith('.pages.dev')) {
+          var target = 'https://storeflow.bookflywheel.com' + window.location.pathname + window.location.search + window.location.hash;
+          window.location.replace(target);
+        }
+      })();
+    </script>
 
     <!-- Performance Optimization & Modern Typography -->
     <link rel="preload" as="image" href="/orange_receipt_machine.jpg" />

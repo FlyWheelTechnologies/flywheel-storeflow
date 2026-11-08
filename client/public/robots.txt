@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /settings
+Disallow: /logs
+
+Sitemap: https://storeflow.bookflywheel.com/sitemap.xml
+
