@@ -152,7 +152,7 @@ export function buildStoreRAGContext(storeData = {}, userQuery = "") {
       .filter((p) => qLower.includes((p.name || "").toLowerCase()) || (p.item_code && qLower.includes(p.item_code.toLowerCase())))
       .slice(0, 5);
   }
-
+  0
   const contextLines = [
     `=== STOREFLOW LIVE GROUNDING TELEMETRY (RAG) ===`,
     `Store: ${activeOrg?.name || "Retail Shop"} | Currency: GHS`,
@@ -172,31 +172,31 @@ export function buildStoreRAGContext(storeData = {}, userQuery = "") {
     criticalReorders.length === 0
       ? "None currently. Stock buffers are adequate."
       : criticalReorders
-          .map(
-            (c) =>
-              `- ${c.name}: Current Stock: ${c.current_stock} units | Velocity: ${c.daily_velocity}/day | Need Reorder: +${c.suggested_reorder} units (Est Cost: GHS ${c.estimated_reorder_cost})`
-          )
-          .join("\n"),
+        .map(
+          (c) =>
+            `- ${c.name}: Current Stock: ${c.current_stock} units | Velocity: ${c.daily_velocity}/day | Need Reorder: +${c.suggested_reorder} units (Est Cost: GHS ${c.estimated_reorder_cost})`
+        )
+        .join("\n"),
     "",
     `--- DEAD STOCK (Stagnant Capital) ---`,
     topDeadStock.length === 0
       ? "No stagnant zero-sale inventory detected."
       : topDeadStock
-          .map(
-            (d) =>
-              `- ${d.name}: ${d.stock_quantity} units sitting idle | Trapped Capital: GHS ${d.capital_locked.toLocaleString()} | Action: ${d.recommended_action}`
-          )
-          .join("\n"),
+        .map(
+          (d) =>
+            `- ${d.name}: ${d.stock_quantity} units sitting idle | Trapped Capital: GHS ${d.capital_locked.toLocaleString()} | Action: ${d.recommended_action}`
+        )
+        .join("\n"),
     "",
     `--- TOP VELOCITY BESTSELLERS ---`,
     topSellers.length === 0
       ? "No velocity sales recorded yet."
       : topSellers
-          .map(
-            (s) =>
-              `- ${s.name}: ${s.daily_velocity} units/day sold | Days Left: ${s.days_remaining === 999 ? "Plenty" : s.days_remaining + "d"}`
-          )
-          .join("\n"),
+        .map(
+          (s) =>
+            `- ${s.name}: ${s.daily_velocity} units/day sold | Days Left: ${s.days_remaining === 999 ? "Plenty" : s.days_remaining + "d"}`
+        )
+        .join("\n"),
     "",
     `--- TOP MARGIN PRODUCTS ---`,
     topMargin
