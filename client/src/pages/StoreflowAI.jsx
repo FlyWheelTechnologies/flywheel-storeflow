@@ -6,47 +6,24 @@ import {
   calculateStockoutForecast,
   identifyDeadStock,
   calculateCashflowRunrate,
-  detectAccountingAnomalies,
-  generateStoreCopilotResponse
+  detectAccountingAnomalies
 } from "../services/aiAnalyticsService";
-import {
-  queryStoreLLM,
-  getCurrentModel,
-  setCurrentModel,
-  getStoredApiKey,
-  setStoredApiKey,
-  getTemperature,
-  setTemperature,
-  CURATED_MODELS
-} from "../services/llmService";
+import { queryStoreLLM } from "../services/llmService";
 import AIMessageContent from "../components/AI/AIMessageContent";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import {
   Sparkle,
-  Robot,
   WhatsappLogo,
   FilePdf,
-  Gear,
   WarningOctagon,
   Package,
   HourglassHigh,
   TrendUp,
   ChatCircleDots,
   PaperPlaneTilt,
-  Money,
-  DeviceMobile,
-  Bank,
-  WarningCircle,
-  Tag,
-  CheckCircle,
   Lightning,
-  Trash,
-  X,
-  Check,
-  ShieldCheck,
-  Coins,
-  Cpu
+  Trash
 } from "@phosphor-icons/react";
 import "./Dashboard.css";
 import "./StoreflowAI.css";
@@ -69,21 +46,16 @@ export default function StoreflowAI() {
   const [saleItems, setSaleItems] = useState([]);
   const [expenses, setExpenses] = useState([]);
 
-  // Copilot & RAG State
+  // Store Assistant Chat State
   const [copilotQuery, setCopilotQuery] = useState("");
   const [copilotLoading, setCopilotLoading] = useState(false);
-  const [selectedModel, setSelectedModel] = useState(() => getCurrentModel());
-  const [apiKeyInput, setApiKeyInput] = useState(() => getStoredApiKey());
-  const [temperatureVal, setTemperatureVal] = useState(() => getTemperature());
-  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [copiedToast, setCopiedToast] = useState(false);
-  const [apiKeySavedToast, setApiKeySavedToast] = useState(false);
   const chatBottomRef = useRef(null);
 
   const [chatHistory, setChatHistory] = useState([
     {
       sender: "ai",
-      text: `Hello ${user?.full_name?.split(" ")[0] || "there"}! I am your StoreFlow AI Retail Copilot. I have grounded context on your store's live sales velocity, inventory, and cash flow. Ask me what to restock, which items are dead stock, or for revenue projections!`
+      text: `Hello ${user?.full_name?.split(" ")[0] || "there"}! I am your StoreFlow Store Assistant. I can check your current stock, highlight what to reorder, spot stagnant inventory, and summarize your daily sales and cash flow. What would you like to know today?`
     }
   ]);
 
@@ -196,7 +168,7 @@ export default function StoreflowAI() {
     }
   }, [chatHistory, copilotLoading, activeTab]);
 
-  // Handle Copilot Query with Live RAG Pipeline
+  // Handle Store Assistant Query
   const handleAskCopilot = async (customPrompt) => {
     const q = (customPrompt || copilotQuery).trim();
     if (!q) return;
@@ -217,27 +189,23 @@ export default function StoreflowAI() {
           cashflow,
           activeOrg
         },
-        chatHistory,
-        modelId: selectedModel,
-        temperature: temperatureVal
+        chatHistory
       });
 
       setChatHistory((prev) => [
         ...prev,
         {
           sender: "ai",
-          text: result.text,
-          source: result.source,
-          modelName: result.modelName
+          text: result.text
         }
       ]);
     } catch (err) {
-      console.error("Copilot error:", err);
+      console.error("Store assistant error:", err);
       setChatHistory((prev) => [
         ...prev,
         {
           sender: "ai",
-          text: "An error occurred while communicating with the AI model. Please try again."
+          text: "I couldn't reach the store assistant right now. Please check your connection and try again."
         }
       ]);
     } finally {
@@ -349,20 +317,6 @@ export default function StoreflowAI() {
     );
   };
 
-  const handleSaveSettings = () => {
-    setStoredApiKey(apiKeyInput);
-    setCurrentModel(selectedModel);
-    setTemperature(temperatureVal);
-    setApiKeySavedToast(true);
-    setTimeout(() => {
-      setApiKeySavedToast(false);
-      setShowSettingsModal(false);
-    }, 1200);
-  };
-
-  const activeModelObj =
-    CURATED_MODELS.find((m) => m.id === selectedModel) || CURATED_MODELS[0];
-
   return (
     <div className="storeflow-ai-container">
       {/* Header Banner */}
@@ -370,27 +324,17 @@ export default function StoreflowAI() {
         <div>
           <div className="ai-page-badge">
             <Sparkle size={14} weight="fill" />
-            <span>StoreFlow AI Engine</span>
-            <span className="ai-page-badge__pill">RAG Grounded</span>
+            <span>StoreFlow Business Assistant</span>
           </div>
           <h1 className="ai-page-title">
-            Retail Intelligence & Copilot
+            Store Assistant & Insights
           </h1>
           <p className="ai-page-desc">
-            Automated stockout velocity forecasting, dead-stock capital liberation, and natural language copilot grounded in live shop data.
+            Restock recommendations, dead stock identification, and instant answers about your stock, sales, and daily cash flow.
           </p>
         </div>
 
         <div className="ai-header-actions">
-          <button
-            onClick={() => setShowSettingsModal(true)}
-            className="ai-btn-action ai-btn-action--settings"
-            title="Configure AI Model & RAG parameters"
-          >
-            <Cpu size={16} weight="duotone" />
-            <span>{activeModelObj.name}</span>
-            <Gear size={14} weight="bold" />
-          </button>
           <button
             onClick={handleCopyReorderList}
             className="ai-btn-action ai-btn-action--whatsapp"
@@ -572,32 +516,32 @@ export default function StoreflowAI() {
         </div>
       </div>
 
-      {/* Tabs Navigation with Phosphor Icons */}
+      {/* Tabs Navigation */}
       <div className="ai-tab-nav">
         {[
           {
             id: "reorder",
-            label: "Stockout & Reorder AI",
+            label: "Items to Restock",
             icon: <Package size={18} weight="duotone" />,
             count: forecast.filter((f) => f.suggested_reorder > 0).length
           },
           {
             id: "deadstock",
-            label: "Dead Stock Optimizer",
+            label: "Dead Stock Finder",
             icon: <HourglassHigh size={18} weight="duotone" />,
             count: deadStock.length
           },
           {
             id: "cashflow",
-            label: "Cash Flow Run-Rate",
+            label: "Cash Flow & Runway",
             icon: <TrendUp size={18} weight="duotone" />,
             count: null
           },
           {
             id: "copilot",
-            label: "Retail Copilot & RAG",
+            label: "Store Assistant Chat",
             icon: <ChatCircleDots size={18} weight="duotone" />,
-            count: activeModelObj.badge
+            count: null
           }
         ].map((tab) => (
           <button
@@ -914,7 +858,7 @@ export default function StoreflowAI() {
         </div>
       )}
 
-      {/* Tab 4: Retail Copilot & RAG */}
+      {/* Tab 4: Store Assistant Chat */}
       {activeTab === "copilot" && (
         <div className="ai-copilot-panel">
           {/* Copilot Header */}
@@ -936,59 +880,41 @@ export default function StoreflowAI() {
               </div>
               <div>
                 <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
-                  StoreFlow Retail Copilot
+                  StoreFlow Assistant
                 </h3>
-                <span style={{ fontSize: 12, color: "#64748b" }}>
-                  Model: {activeModelObj.name}
+                <span style={{ fontSize: 12, color: "#10b981", display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 500 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981" }} />
+                  Ready to answer your store questions
                 </span>
               </div>
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div className="ai-copilot-telemetry-badge">
-                <Lightning size={12} weight="fill" />
-                <span>RAG Grounded ({products.length} items / {sales.length} orders)</span>
-              </div>
-              <button
-                onClick={() => setShowSettingsModal(true)}
-                style={{
-                  background: "none",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 8,
-                  padding: "6px 10px",
-                  fontSize: 12,
-                  color: "#475569",
-                  cursor: "pointer",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6
-                }}
-              >
-                <Gear size={14} />
-                <span>Settings</span>
-              </button>
               <button
                 onClick={() =>
                   setChatHistory([
                     {
                       sender: "ai",
-                      text: "Chat cleared. What store data can I analyze for you today?"
+                      text: "Chat cleared. What store data can I check for you?"
                     }
                   ])
                 }
                 style={{
                   background: "none",
-                  border: "none",
-                  color: "#94a3b8",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 8,
+                  padding: "6px 12px",
+                  color: "#64748b",
                   fontSize: 12,
+                  fontWeight: 600,
                   cursor: "pointer",
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: 4
+                  gap: 5
                 }}
               >
                 <Trash size={14} />
-                <span>Clear</span>
+                <span>Clear Chat</span>
               </button>
             </div>
           </div>
@@ -996,9 +922,9 @@ export default function StoreflowAI() {
           {/* Prompt Chips Bar */}
           <div className="ai-prompt-chips-bar">
             {[
-              "What should I reorder from the market today?",
+              "What should I restock today?",
               "Which products are dead stock and tying up cash?",
-              "Summarize today's sales and payment methods",
+              "How much cash and MoMo did we collect?",
               "Show my top 5 highest-margin products"
             ].map((chip, idx) => (
               <button
@@ -1020,15 +946,6 @@ export default function StoreflowAI() {
                 className={`ai-chat-bubble ai-chat-bubble--${msg.sender}`}
               >
                 <AIMessageContent text={msg.text} isUser={msg.sender === "user"} />
-                {msg.sender === "ai" && msg.modelName && (
-                  <div className="ai-chat-bubble-meta">
-                    <Sparkle size={11} weight="fill" color="var(--brand-primary)" />
-                    <span>
-                      {msg.source === "live-llm" ? "⚡ Live AI · " : ""}
-                      {msg.modelName.split("/").pop()}
-                    </span>
-                  </div>
-                )}
               </div>
             ))}
             {copilotLoading && (
@@ -1047,7 +964,7 @@ export default function StoreflowAI() {
                 }}
               >
                 <Sparkle size={16} weight="fill" color="var(--brand-primary)" className="spin" />
-                <span>StoreFlow AI is synthesizing live telemetry...</span>
+                <span>Checking your store records...</span>
               </div>
             )}
             <div ref={chatBottomRef} />
@@ -1065,7 +982,7 @@ export default function StoreflowAI() {
               type="text"
               value={copilotQuery}
               onChange={(e) => setCopilotQuery(e.target.value)}
-              placeholder="Ask anything (e.g. 'How much cement should I reorder?' or 'Give me a cash breakdown')..."
+              placeholder="Ask anything (e.g. 'How much cement should I reorder?' or 'Give me today's sales breakdown')..."
               className="ai-copilot-input"
             />
             <button
@@ -1077,149 +994,6 @@ export default function StoreflowAI() {
               <PaperPlaneTilt size={14} weight="bold" />
             </button>
           </form>
-        </div>
-      )}
-
-      {/* Model & RAG Settings Modal */}
-      {showSettingsModal && (
-        <div className="ai-modal-backdrop" onClick={() => setShowSettingsModal(false)}>
-          <div className="ai-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="ai-modal-header">
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <Cpu size={22} weight="duotone" color="var(--brand-primary)" />
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#0f172a" }}>
-                  AI Model & RAG Settings
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowSettingsModal(false)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8" }}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="ai-modal-body">
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: "#475569", display: "block", marginBottom: 6 }}>
-                  SELECT LLM MODEL:
-                </label>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {CURATED_MODELS.map((model) => (
-                    <div
-                      key={model.id}
-                      onClick={() => setSelectedModel(model.id)}
-                      className={`ai-model-card ${selectedModel === model.id ? "ai-model-card--selected" : ""}`}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: "#0f172a", display: "flex", alignItems: "center", gap: 8 }}>
-                          <span>{model.name}</span>
-                          <span
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 800,
-                              padding: "1px 6px",
-                              borderRadius: 6,
-                              background: model.badge.includes("Free") ? "#ecfdf5" : "#f1f5f9",
-                              color: model.badge.includes("Free") ? "#059669" : "#475569"
-                            }}
-                          >
-                            {model.badge}
-                          </span>
-                        </div>
-                        <span style={{ fontSize: 11, color: "#64748b" }}>{model.desc}</span>
-                      </div>
-                      {selectedModel === model.id && (
-                        <Check size={18} weight="bold" color="var(--brand-primary)" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 700, color: "#475569", display: "block", marginBottom: 6 }}>
-                  OPENROUTER / LLM API KEY:
-                </label>
-                <input
-                  type="password"
-                  value={apiKeyInput}
-                  onChange={(e) => setApiKeyInput(e.target.value)}
-                  placeholder="sk-or-v1-..."
-                  style={{
-                    width: "100%",
-                    padding: "10px 14px",
-                    borderRadius: 8,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 13,
-                    fontFamily: "monospace",
-                    boxSizing: "border-box"
-                  }}
-                />
-                <span style={{ fontSize: 11, color: "#64748b", marginTop: 4, display: "block" }}>
-                  Used to query free or cheap models on OpenRouter. Pre-configured for store copilot.
-                </span>
-              </div>
-
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <label style={{ fontSize: 12, fontWeight: 700, color: "#475569" }}>
-                    CREATIVITY / TEMPERATURE:
-                  </label>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--brand-primary)" }}>
-                    {temperatureVal}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="0.1"
-                  max="1.0"
-                  step="0.1"
-                  value={temperatureVal}
-                  onChange={(e) => setTemperatureVal(parseFloat(e.target.value))}
-                  style={{ width: "100%" }}
-                />
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#94a3b8" }}>
-                  <span>Deterministic (0.1)</span>
-                  <span>Creative Retail Advisor (0.7)</span>
-                  <span>Wild (1.0)</span>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
-                <button
-                  onClick={() => setShowSettingsModal(false)}
-                  style={{
-                    background: "#f1f5f9",
-                    border: "none",
-                    padding: "10px 18px",
-                    borderRadius: 8,
-                    fontWeight: 600,
-                    fontSize: 13,
-                    color: "#475569",
-                    cursor: "pointer"
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveSettings}
-                  style={{
-                    background: "var(--brand-primary, #f15a24)",
-                    border: "none",
-                    padding: "10px 20px",
-                    borderRadius: 8,
-                    fontWeight: 700,
-                    fontSize: 13,
-                    color: "#ffffff",
-                    cursor: "pointer"
-                  }}
-                >
-                  {apiKeySavedToast ? "Saved!" : "Save & Apply"}
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       )}
     </div>
