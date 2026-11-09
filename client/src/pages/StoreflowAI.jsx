@@ -17,11 +17,16 @@ import {
   WhatsappLogo,
   FilePdf,
   WarningOctagon,
+  WarningCircle,
+  CheckCircle,
   Package,
   HourglassHigh,
   TrendUp,
   ChatCircleDots,
   PaperPlaneTilt,
+  Money,
+  DeviceMobile,
+  Bank,
   Lightning,
   Trash
 } from "@phosphor-icons/react";
