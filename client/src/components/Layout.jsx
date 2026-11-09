@@ -110,7 +110,7 @@ const ProfileModal = ({ isOpen, onClose }) => {
       <div className="modal-card">
         <div className="modal-header">
           <h3>Profile Settings</h3>
-          <button className="close-btn" onClick={onClose}>✕</button>
+          <button className="close-btn" onClick={onClose} aria-label="Close profile settings">✕</button>
         </div>
         <form onSubmit={handleSave} className="modal-body">
           <div className="form-group">
