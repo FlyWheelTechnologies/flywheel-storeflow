@@ -401,6 +401,7 @@ export default function AIBubble() {
             <button
               type="submit"
               className="ai-overlay__send-btn"
+              aria-label="Send message"
               disabled={loading || !query.trim()}
             >
               <PaperPlaneTilt size={16} weight="fill" />
