@@ -2,6 +2,8 @@ import { supabase } from "./supabaseClient";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { formatCurrency } from "./formatters";
+import { dataCache } from "./dataCache";
+import { SyncService } from "./SyncService";
 
 export const SalesService = {
   /**
@@ -384,11 +386,97 @@ export const SalesService = {
   },
 
   /**
-   * Records a sale transaction via Supabase RPC
+   * Records a sale transaction via Supabase RPC, with seamless offline queuing and optimistic cache updates
    */
   async recordSaleTransaction(params) {
-    const { data, error } = await supabase.rpc('record_sale_transaction', params);
-    if (error) throw error;
-    return data;
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    const orgId = params.p_organization_id;
+
+    const buildOptimisticSale = () => {
+      const localSaleId = crypto.randomUUID();
+      const items = params.p_items || [];
+      const computedTotal = items.reduce((sum, item) => sum + (Number(item.unit_price || 0) * Number(item.quantity || 1)), 0);
+      const paid = Number(params.p_amount_paid || 0);
+
+      const localSale = {
+        id: localSaleId,
+        organization_id: orgId,
+        customer_name: params.p_customer_name || 'Walk-in Customer',
+        customer_phone: params.p_customer_phone,
+        customer_id: params.p_customer_id,
+        total_amount: computedTotal,
+        amount_paid: paid,
+        balance_due: Math.max(0, computedTotal - paid),
+        payment_method: params.p_payment_method || 'Cash',
+        payment_status: params.p_payment_status || (paid >= computedTotal ? 'PAID' : (paid > 0 ? 'PARTIAL' : 'UNPAID')),
+        tax_amount: params.p_tax_amount || 0,
+        tax_percentage: params.p_tax_percentage || 0,
+        tax_inclusive: params.p_tax_inclusive || false,
+        recorded_by: params.p_recorded_by || 'Staff',
+        invoice_no: `INV-${localSaleId.slice(-6).toUpperCase()}`,
+        created_at: new Date().toISOString(),
+        sync_status: 'pending'
+      };
+
+      // Optimistically decrement product stock in local cache
+      if (orgId && items.length > 0) {
+        dataCache.setCachedData('products', orgId, (prevProducts) => {
+          if (!prevProducts) return prevProducts;
+          const soldMap = new Map(items.map(i => [i.product_id, Number(i.quantity || 1)]));
+          return prevProducts.map(p => {
+            if (soldMap.has(p.id)) {
+              return {
+                ...p,
+                stock_quantity: Math.max(0, Number(p.stock_quantity || 0) - soldMap.get(p.id)),
+                total_sold: Number(p.total_sold || 0) + soldMap.get(p.id)
+              };
+            }
+            return p;
+          });
+        });
+      }
+
+      // Optimistically add sale to local cache
+      if (orgId) {
+        dataCache.setCachedData('sales', orgId, (prevSales) => [localSale, ...(prevSales || [])]);
+      }
+
+      return { localSaleId, localSale };
+    };
+
+    if (!isOnline) {
+      const { localSaleId, localSale } = buildOptimisticSale();
+      await SyncService.queueRpc('record_sale_transaction', params, { optimisticSale: localSale });
+      return localSaleId;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('record_sale_transaction', params);
+      if (error) throw error;
+
+      // Update cache in background
+      if (orgId) {
+        dataCache.invalidate('sales', orgId);
+        dataCache.invalidate('products', orgId);
+        dataCache.fetchWithSWR('sales', orgId, async () => {
+          const { data: refreshed } = await supabase
+            .from('sales')
+            .select('*')
+            .eq('organization_id', orgId)
+            .order('created_at', { ascending: false });
+          return refreshed || [];
+        }, { force: true, silent: true });
+      }
+
+      return data;
+    } catch (err) {
+      if (err.message?.includes('fetch') || err.message?.includes('network') || !navigator.onLine) {
+        console.warn("Network error during sale transaction; queuing for offline sync:", err.message);
+        const { localSaleId, localSale } = buildOptimisticSale();
+        await SyncService.queueRpc('record_sale_transaction', params, { optimisticSale: localSale });
+        return localSaleId;
+      }
+      throw err;
+    }
   }
 };

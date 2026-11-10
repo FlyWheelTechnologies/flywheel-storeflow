@@ -7,6 +7,7 @@ import OfflineBanner from "./OfflineBanner";
 import InstallPWA from "./InstallPWA";
 import ImpersonationBanner from "./ImpersonationBanner";
 import AIBubble from "./AI/AIBubble";
+import { dataCache } from "../services/dataCache";
 import "../pages/Dashboard.css";
 
 const AVATAR_PRESETS = [
@@ -213,6 +214,14 @@ export default function Layout({ children }) {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Background warm cache for active organization so pages and action buttons render instantly (0ms)
+  useEffect(() => {
+    const orgId = activeOrg?.id || impersonatedOrg?.id || user?.organizations?.id || user?.organization_id;
+    if (orgId) {
+      dataCache.prefetch(orgId);
+    }
+  }, [activeOrg?.id, impersonatedOrg?.id, user?.organizations?.id, user?.organization_id]);
 
   // Close menu when clicking outside
   useEffect(() => {

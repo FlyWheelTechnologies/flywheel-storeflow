@@ -1,38 +1,67 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../services/supabaseClient";
 import { useActiveOrgId } from "./useActiveOrgId";
+import { dataCache } from "../services/dataCache";
+import { SalesService } from "../services/SalesService";
 
 /**
  * Hook to fetch and manage sales for the active organization
+ * Uses Stale-While-Revalidate (SWR) cache for instant 0ms loads and offline queuing.
  */
 export function useSales() {
   const orgId = useActiveOrgId();
-  const [sales, setSales] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const cached = dataCache.getCachedData('sales', orgId);
+  const [sales, setSales] = useState(() => cached || []);
+  const [loading, setLoading] = useState(() => !cached);
   const [error, setError] = useState(null);
 
-  const fetchSales = useCallback(async () => {
+  // Subscribe to cache updates (from background revalidation or new sales)
+  useEffect(() => {
     if (!orgId) {
       setSales([]);
       setLoading(false);
       return;
     }
 
-    setLoading(true);
+    const unsubscribe = dataCache.subscribe('sales', orgId, (updatedSales) => {
+      setSales(updatedSales);
+      setLoading(false);
+    });
+
+    return unsubscribe;
+  }, [orgId]);
+
+  const fetchSales = useCallback(async (options = {}) => {
+    if (!orgId) {
+      setSales([]);
+      setLoading(false);
+      return [];
+    }
+
+    if (!dataCache.hasCachedData('sales', orgId)) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
-      const { data, error } = await supabase
-        .from('sales')
-        .select('*')
-        .eq('organization_id', orgId)
-        .order('created_at', { ascending: false });
+      const data = await dataCache.fetchWithSWR('sales', orgId, async () => {
+        const { data, error } = await supabase
+          .from('sales')
+          .select('*')
+          .eq('organization_id', orgId)
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setSales(data || []);
+        if (error) throw error;
+        return data || [];
+      }, options);
+
+      setSales(data);
+      return data;
     } catch (err) {
       setError(err.message);
-      console.error("Failed to fetch sales:", err);
+      const fallback = dataCache.getCachedData('sales', orgId) || [];
+      setSales(fallback);
+      return fallback;
     } finally {
       setLoading(false);
     }
@@ -43,17 +72,20 @@ export function useSales() {
   }, [fetchSales]);
 
   const recordSale = useCallback(async (params) => {
-    const { data, error } = await supabase.rpc('record_sale_transaction', params);
-    if (error) throw error;
-    await fetchSales(); // Refresh after recording
-    return data;
-  }, [fetchSales]);
+    const saleId = await SalesService.recordSaleTransaction({
+      ...params,
+      p_organization_id: params.p_organization_id || orgId
+    });
+    // Trigger background refresh
+    fetchSales({ force: true, silent: true });
+    return saleId;
+  }, [orgId, fetchSales]);
 
   return {
     sales,
     loading,
     error,
-    refetch: fetchSales,
+    refetch: (opts) => fetchSales({ force: true, ...opts }),
     recordSale
   };
 }

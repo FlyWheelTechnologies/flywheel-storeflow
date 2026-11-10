@@ -31,7 +31,8 @@ import {
 import "./Dashboard.css";
 import { formatCurrency, formatPhone } from "../services/formatters";
 import { ActionButton, Label, Input, Select } from "../components/ui/FormFields";
-import { PageSkeleton } from "../components/LoadingStates";
+import { PageSkeleton, CardSkeleton } from "../components/LoadingStates";
+import { SyncService } from "../services/SyncService";
 
 const InfoTip = ({ text }) => (
   <span className="info-tip" title={text}>ⓘ
@@ -102,16 +103,30 @@ export default function Dashboard() {
     e.preventDefault();
     if (!depCustName || !depCustPhone || !depAmount) return showError("Please fill all fields");
     setDepSaving(true);
-    try {
-      const { data, error } = await supabase.rpc('record_pure_deposit', {
-        p_customer_name: depCustName,
-        p_customer_phone: depCustPhone,
-        p_amount: parseFloat(depAmount),
-        p_recorded_by: user?.email || 'System',
-        p_payment_method: depMethod,
-        p_organization_id: activeOrgId || null
-      });
+    const depositPayload = {
+      p_customer_name: depCustName,
+      p_customer_phone: depCustPhone,
+      p_amount: parseFloat(depAmount),
+      p_recorded_by: user?.email || 'System',
+      p_payment_method: depMethod,
+      p_organization_id: activeOrgId || null
+    };
 
+    const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+    if (!isOnline) {
+      await SyncService.queueRpc('record_pure_deposit', depositPayload);
+      setShowDepositModal(false);
+      setDepCustName('');
+      setDepCustPhone('+233');
+      setDepAmount('');
+      success("Deposit saved locally! Will sync when connection restores.");
+      setDepSaving(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc('record_pure_deposit', depositPayload);
       if (error) throw error;
 
       setShowDepositModal(false);
@@ -124,6 +139,16 @@ export default function Dashboard() {
       refetchSales();
       fetchLogs();
     } catch (err) {
+      if (err.message?.includes('fetch') || err.message?.includes('network') || !navigator.onLine) {
+        console.warn("Network error during deposit; queuing for offline sync:", err.message);
+        await SyncService.queueRpc('record_pure_deposit', depositPayload);
+        setShowDepositModal(false);
+        setDepCustName('');
+        setDepCustPhone('+233');
+        setDepAmount('');
+        success("Deposit saved locally! Will sync when connection restores.");
+        return;
+      }
       showError("Error: " + err.message);
     } finally {
       setDepSaving(false);
@@ -272,13 +297,10 @@ export default function Dashboard() {
   }, [timeframe, sales, expenses]);
 
   const currency = user?.organizations?.currency || 'GHS';
-
-  if (loading) {
-    return <PageSkeleton title stats={true} table={false} />;
-  }
-
   const locationString = activeOrg?.address || activeOrg?.city || user?.organizations?.address || 'SUNYANI, GHANA';
   const firstName = userName ? userName.split(' ')[0] : 'Godwin';
+
+  const isColdLoading = loading && products.length === 0 && sales.length === 0;
 
   return (
     <div className="page-wrapper" style={{ padding: 24 }}>
@@ -340,7 +362,13 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* ─── Executive KPI Cards Grid ─── */}
+      {isColdLoading ? (
+        <div style={{ marginTop: 24 }}>
+          <CardSkeleton count={5} />
+        </div>
+      ) : (
+        <>
+          {/* ─── Executive KPI Cards Grid ─── */}
       <div className="kpi-row">
         {user?.role !== 'storekeeper' ? (
           <>
@@ -560,6 +588,9 @@ export default function Dashboard() {
             </table>
           </div>
         </div>
+        </>
+      )}
+
       {showAudit && (
         <div className="modal-overlay" style={{ zIndex: 3000 }}>
           <div className="modal-card" style={{ maxWidth: 600 }}>
