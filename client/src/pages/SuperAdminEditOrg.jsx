@@ -1432,7 +1432,7 @@ export default function SuperAdminEditOrg() {
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1e293b" }}>
                 Add Staff Account for {org.name}
               </h3>
-              <button
+              <button aria-label="Close"
                 type="button"
                 onClick={() => setShowAddStaffModal(false)}
                 style={{ background: "none", border: "none", fontSize: 18, color: "#94a3b8", cursor: "pointer" }}
@@ -1558,7 +1558,7 @@ export default function SuperAdminEditOrg() {
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#1e293b" }}>
                 Edit Account: {staffToEdit.email}
               </h3>
-              <button
+              <button aria-label="Close"
                 type="button"
                 onClick={() => setStaffToEdit(null)}
                 style={{ background: "none", border: "none", fontSize: 18, color: "#94a3b8", cursor: "pointer" }}

@@ -131,7 +131,7 @@ function ToastItem({ toast, onClose }) {
           </button>
         )}
       </div>
-      <button
+      <button aria-label="Close"
         onClick={() => onClose(toast.id)}
         style={{
           background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff',
