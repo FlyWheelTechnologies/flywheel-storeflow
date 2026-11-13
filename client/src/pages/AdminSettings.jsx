@@ -14,7 +14,13 @@ import {
   Usb,
   Bluetooth,
   Lightning,
-  CircleNotch
+  CircleNotch,
+  Bell,
+  EnvelopeSimple,
+  PaperPlaneTilt,
+  Sparkle,
+  Clock,
+  CalendarBlank
 } from "@phosphor-icons/react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabaseClient";
@@ -30,6 +36,8 @@ export default function AdminSettings() {
   const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(() => {
     if (tabParam === 'staff' || tabParam === 'users') return 'staff';
+    if (tabParam === 'hardware' || tabParam === 'printer' || tabParam === 'printing') return 'hardware';
+    if (tabParam === 'notifications' || tabParam === 'alerts') return 'notifications';
     return 'organization';
   });
   const [users, setUsers] = useState([]);
@@ -48,6 +56,8 @@ export default function AdminSettings() {
       setActiveTab('staff');
     } else if (tabParam === 'hardware' || tabParam === 'printer' || tabParam === 'printing') {
       setActiveTab('hardware');
+    } else if (tabParam === 'notifications' || tabParam === 'alerts') {
+      setActiveTab('notifications');
     } else if (tabParam === 'organization' || tabParam === 'store') {
       setActiveTab('organization');
     }
@@ -81,6 +91,20 @@ export default function AdminSettings() {
   const [pairedDevice, setPairedDevice] = useState(() => {
     return PrinterService.getLocalHardwareConfig()?.deviceName || null;
   });
+
+  // Notification Preferences State (Daily 6PM, Saturday 6PM, Alerts)
+  const [notifForm, setNotifForm] = useState({
+    daily_summary_enabled: true,
+    daily_summary_time: '18:00',
+    weekly_summary_enabled: true,
+    weekly_summary_day: 'saturday',
+    weekly_summary_time: '18:00',
+    low_stock_alerts_enabled: true,
+    deposit_alerts_enabled: true,
+    additional_emails: ''
+  });
+  const [notifSaving, setNotifSaving] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
 
   useEffect(() => {
     if (currentUser?.role === 'admin' || currentUser?.role === 'super_admin') {
@@ -133,10 +157,113 @@ export default function AdminSettings() {
           kick_cash_drawer: data.kick_cash_drawer !== undefined ? !!data.kick_cash_drawer : false,
           receipt_footer_note: data.receipt_footer_note || 'Thank you for your business!'
         });
+
+        // Populate notification settings if present
+        if (data.notification_settings) {
+          const ns = data.notification_settings;
+          setNotifForm({
+            daily_summary_enabled: ns.daily_summary?.enabled !== false,
+            daily_summary_time: ns.daily_summary?.time || '18:00',
+            weekly_summary_enabled: ns.weekly_summary?.enabled !== false,
+            weekly_summary_day: ns.weekly_summary?.day || 'saturday',
+            weekly_summary_time: ns.weekly_summary?.time || '18:00',
+            low_stock_alerts_enabled: ns.low_stock_alerts?.enabled !== false,
+            deposit_alerts_enabled: ns.deposit_alerts?.enabled !== false,
+            additional_emails: Array.isArray(ns.recipients) ? ns.recipients.join(', ') : ''
+          });
+        }
         setOrgLoaded(true);
       }
     } catch (err) {
       console.warn("Could not load organization details:", err.message);
+    }
+  };
+
+  const handleSaveNotifications = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const orgId = targetOrgId;
+    if (!orgId) return;
+
+    setNotifSaving(true);
+    setError('');
+
+    const recipientArray = (notifForm.additional_emails || '')
+      .split(',')
+      .map(em => em.trim())
+      .filter(em => em && em.includes('@'));
+
+    const payload = {
+      daily_summary: {
+        enabled: notifForm.daily_summary_enabled,
+        time: notifForm.daily_summary_time || '18:00'
+      },
+      weekly_summary: {
+        enabled: notifForm.weekly_summary_enabled,
+        day: notifForm.weekly_summary_day || 'saturday',
+        time: notifForm.weekly_summary_time || '18:00'
+      },
+      low_stock_alerts: {
+        enabled: notifForm.low_stock_alerts_enabled
+      },
+      deposit_alerts: {
+        enabled: notifForm.deposit_alerts_enabled
+      },
+      recipients: recipientArray
+    };
+
+    try {
+      let { error: updateErr } = await supabase
+        .from('organizations')
+        .update({ notification_settings: payload })
+        .eq('id', orgId);
+
+      // Resilient fallback if notification_settings column is not yet migrated in remote DB
+      if (updateErr && (updateErr.code === "42703" || updateErr.message?.includes("notification_settings"))) {
+        console.warn("notification_settings column not yet present in organizations table, saving locally:", updateErr.message);
+        localStorage.setItem(`storeflow_org_notif_${orgId}`, JSON.stringify(payload));
+        updateErr = null;
+      }
+
+      if (updateErr) throw updateErr;
+
+      setToast({ message: "Notification preferences saved successfully!", type: "success" });
+      setTimeout(() => setToast(null), 3500);
+    } catch (err) {
+      console.error("Error saving notification settings:", err);
+      setError("Failed to save notification settings: " + err.message);
+    } finally {
+      setNotifSaving(false);
+    }
+  };
+
+  const handleSendTestSummary = async (freq = 'daily') => {
+    const orgId = targetOrgId;
+    if (!orgId) return;
+
+    setSendingTest(true);
+    setError('');
+
+    try {
+      const { data, error: funcErr } = await supabase.functions.invoke('send-store-summary', {
+        body: {
+          frequency: freq,
+          org_id: orgId,
+          is_test: true
+        }
+      });
+
+      if (funcErr) throw funcErr;
+
+      setToast({
+        message: `Test ${freq === 'weekly' ? 'Weekly' : 'Daily'} summary email sent to store administrator!`,
+        type: "success"
+      });
+      setTimeout(() => setToast(null), 4000);
+    } catch (err) {
+      console.error("Error sending test summary:", err);
+      setError(`Could not send test summary: ${err.message || 'Check network connection'}`);
+    } finally {
+      setSendingTest(false);
     }
   };
 
@@ -571,6 +698,26 @@ export default function AdminSettings() {
           }}
         >
           <Printer size={16} weight="duotone" /> Hardware & Printing
+        </button>
+        <button
+          onClick={() => handleTabChange('notifications')}
+          style={{
+            background: activeTab === 'notifications' ? 'var(--brand-primary, #f15a24)' : '#f3f4f6',
+            color: activeTab === 'notifications' ? '#fff' : '#4b5563',
+            border: 'none',
+            padding: '8px 18px',
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            boxShadow: activeTab === 'notifications' ? '0 2px 4px rgba(241, 90, 36, 0.2)' : 'none',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8
+          }}
+        >
+          <Bell size={16} weight="duotone" /> Notifications & Alerts
         </button>
       </div>
 
@@ -1104,6 +1251,293 @@ export default function AdminSettings() {
             </div>
           </div>
         </>
+      )}
+
+      {/* TAB 4: Notifications & Alerts */}
+      {activeTab === 'notifications' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* Card 1: Automated Daily & Weekly Sales Digests */}
+          <div className="table-card" style={{ padding: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563eb' }}>
+                <EnvelopeSimple size={24} weight="duotone" />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Automated Sales & Cash Digests</h3>
+                <p style={{ margin: '2px 0 0', fontSize: 12.5, color: '#64748b' }}>
+                  Scheduled executive reports delivered directly to the store administrator inbox
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: 12 }}>
+              {/* Daily Summary Option */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                padding: '16px 18px',
+                borderRadius: 12,
+                border: '1.5px solid #e2e8f0',
+                background: notifForm.daily_summary_enabled ? '#f8fafc' : '#ffffff'
+              }}>
+                <div style={{ flex: 1, paddingRight: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <Clock size={18} color="#2563eb" weight="bold" />
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>Daily Sales & Cash Digest</span>
+                    <span style={{ fontSize: 11, background: '#dbeafe', color: '#1e40af', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
+                      Every Day @ 6:00 PM
+                    </span>
+                  </div>
+                  <p style={{ margin: '6px 0 0', fontSize: 12.5, color: '#64748b', lineHeight: 1.5 }}>
+                    Summarizes gross sales, cash-in-drawer vs Mobile Money breakdown, receipts audited, and new customer credit balances for the day.
+                  </p>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 11.5, color: '#059669', background: '#ecfdf5', padding: '4px 8px', borderRadius: 6, fontWeight: 600 }}>
+                    <CheckCircle size={14} weight="fill" />
+                    <span>Zero-Activity Rule: If zero transactions are recorded on a day, no email is sent.</span>
+                  </div>
+                </div>
+                <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, flexShrink: 0, marginTop: 2 }}>
+                  <input
+                    type="checkbox"
+                    checked={notifForm.daily_summary_enabled}
+                    onChange={e => setNotifForm({ ...notifForm, daily_summary_enabled: e.target.checked })}
+                    style={{ opacity: 0, width: 0, height: 0 }}
+                  />
+                  <span style={{
+                    position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: notifForm.daily_summary_enabled ? 'var(--brand-primary, #f15a24)' : '#cbd5e1',
+                    borderRadius: 24, transition: '.3s'
+                  }}>
+                    <span style={{
+                      position: 'absolute', content: '""', height: 18, width: 18, left: notifForm.daily_summary_enabled ? 23 : 3, bottom: 3,
+                      backgroundColor: 'white', borderRadius: '50%', transition: '.3s'
+                    }} />
+                  </span>
+                </label>
+              </div>
+
+              {/* Weekly Executive Summary Option */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                padding: '16px 18px',
+                borderRadius: 12,
+                border: '1.5px solid #e2e8f0',
+                background: notifForm.weekly_summary_enabled ? '#f8fafc' : '#ffffff'
+              }}>
+                <div style={{ flex: 1, paddingRight: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <CalendarBlank size={18} color="#7c3aed" weight="bold" />
+                    <span style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>Weekly Executive Performance Report</span>
+                    <span style={{ fontSize: 11, background: '#ede9fe', color: '#6d28d9', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
+                      Saturdays @ 6:00 PM
+                    </span>
+                  </div>
+                  <p style={{ margin: '6px 0 0', fontSize: 12.5, color: '#64748b', lineHeight: 1.5 }}>
+                    Comprehensive 7-day executive briefing: week-over-week revenue growth, live stock inventory valuation, top 5 bestselling SKUs, store expenses, and debt receivables.
+                  </p>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 8, fontSize: 11.5, color: '#6d28d9', background: '#f5f3ff', padding: '4px 8px', borderRadius: 6, fontWeight: 600 }}>
+                    <Sparkle size={14} weight="fill" />
+                    <span>Calculates profit margins & reorder recommendations for the upcoming week.</span>
+                  </div>
+                </div>
+                <label style={{ position: 'relative', display: 'inline-block', width: 44, height: 24, flexShrink: 0, marginTop: 2 }}>
+                  <input
+                    type="checkbox"
+                    checked={notifForm.weekly_summary_enabled}
+                    onChange={e => setNotifForm({ ...notifForm, weekly_summary_enabled: e.target.checked })}
+                    style={{ opacity: 0, width: 0, height: 0 }}
+                  />
+                  <span style={{
+                    position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: notifForm.weekly_summary_enabled ? 'var(--brand-primary, #f15a24)' : '#cbd5e1',
+                    borderRadius: 24, transition: '.3s'
+                  }}>
+                    <span style={{
+                      position: 'absolute', content: '""', height: 18, width: 18, left: notifForm.weekly_summary_enabled ? 23 : 3, bottom: 3,
+                      backgroundColor: 'white', borderRadius: '50%', transition: '.3s'
+                    }} />
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Real-time Operational Alerts */}
+          <div className="table-card" style={{ padding: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 10, background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706' }}>
+                <WarningCircle size={24} weight="duotone" />
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#1e293b' }}>Real-Time Operational Alerts</h3>
+                <p style={{ margin: '2px 0 0', fontSize: 12.5, color: '#64748b' }}>
+                  Instant email notifications when urgent store events occur
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={notifForm.low_stock_alerts_enabled}
+                  onChange={e => setNotifForm({ ...notifForm, low_stock_alerts_enabled: e.target.checked })}
+                  style={{ width: 18, height: 18, accentColor: 'var(--brand-primary, #f15a24)' }}
+                />
+                <div>
+                  <span style={{ fontSize: 13.5, fontWeight: 700, color: '#1e293b' }}>Low Stock Depletion Alerts</span>
+                  <span style={{ fontSize: 12, color: '#64748b', display: 'block', marginTop: 2 }}>
+                    Triggered immediately when any product quantity drops below its reorder alert threshold.
+                  </span>
+                </div>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 8, border: '1px solid #e2e8f0', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={notifForm.deposit_alerts_enabled}
+                  onChange={e => setNotifForm({ ...notifForm, deposit_alerts_enabled: e.target.checked })}
+                  style={{ width: 18, height: 18, accentColor: 'var(--brand-primary, #f15a24)' }}
+                />
+                <div>
+                  <span style={{ fontSize: 13.5, fontWeight: 700, color: '#1e293b' }}>Customer Advance Deposit & Fulfillment Alerts</span>
+                  <span style={{ fontSize: 12, color: '#64748b', display: 'block', marginTop: 2 }}>
+                    Triggered when customers pay part deposits or layaway orders that require future stock fulfillment.
+                  </span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Card 3: Recipients & Test Previews */}
+          <div className="table-card" style={{ padding: 24 }}>
+            <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700, color: '#1e293b' }}>
+              Notification Delivery & Test Preview
+            </h3>
+
+            <div style={{ marginBottom: 18 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                Primary Admin Recipient
+              </label>
+              <input
+                type="text"
+                value={orgForm.admin_email || currentUser?.email || 'Store Administrator'}
+                disabled
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  border: '1px solid #e2e8f0',
+                  background: '#f8fafc',
+                  color: '#64748b',
+                  fontSize: 13.5
+                }}
+              />
+              <span style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 4, display: 'block' }}>
+                Assigned store administrator email.
+              </span>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+                Additional Email Recipients (Optional)
+              </label>
+              <input
+                type="text"
+                placeholder="accountant@store.com, partner@store.com"
+                value={notifForm.additional_emails}
+                onChange={e => setNotifForm({ ...notifForm, additional_emails: e.target.value })}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  border: '1px solid #cbd5e1',
+                  fontSize: 13.5,
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+              <span style={{ fontSize: 11.5, color: '#64748b', marginTop: 4, display: 'block' }}>
+                Separate multiple email addresses with commas.
+              </span>
+            </div>
+
+            {/* Actions Bar */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => handleSendTestSummary('daily')}
+                  disabled={sendingTest || notifSaving}
+                  style={{
+                    background: '#eff6ff',
+                    color: '#1d4ed8',
+                    border: '1px solid #bfdbfe',
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: (sendingTest || notifSaving) ? 'not-allowed' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                >
+                  <PaperPlaneTilt size={14} weight="bold" />
+                  {sendingTest ? 'Sending Test...' : 'Send Test Daily Digest'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleSendTestSummary('weekly')}
+                  disabled={sendingTest || notifSaving}
+                  style={{
+                    background: '#faf5ff',
+                    color: '#7e22ce',
+                    border: '1px solid #e9d5ff',
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    fontSize: 12.5,
+                    fontWeight: 700,
+                    cursor: (sendingTest || notifSaving) ? 'not-allowed' : 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                >
+                  <PaperPlaneTilt size={14} weight="bold" />
+                  {sendingTest ? 'Sending Test...' : 'Send Test Weekly Report'}
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveNotifications}
+                disabled={notifSaving}
+                style={{
+                  background: 'var(--brand-primary, #f15a24)',
+                  color: '#ffffff',
+                  border: 'none',
+                  padding: '10px 22px',
+                  borderRadius: 8,
+                  fontSize: 13.5,
+                  fontWeight: 700,
+                  cursor: notifSaving ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  boxShadow: '0 2px 6px rgba(241, 90, 36, 0.25)'
+                }}
+              >
+                <CheckCircle size={16} weight="bold" />
+                {notifSaving ? 'Saving Preferences...' : 'Save Notification Preferences'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
