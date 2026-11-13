@@ -20,7 +20,8 @@ import {
   PaperPlaneTilt,
   Sparkle,
   Clock,
-  CalendarBlank
+  CalendarBlank,
+  X
 } from "@phosphor-icons/react";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../services/supabaseClient";
@@ -101,8 +102,9 @@ export default function AdminSettings() {
     weekly_summary_time: '18:00',
     low_stock_alerts_enabled: true,
     deposit_alerts_enabled: true,
-    additional_emails: ''
+    recipient_emails: []
   });
+  const [recipientInput, setRecipientInput] = useState('');
   const [notifSaving, setNotifSaving] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
 
@@ -161,6 +163,13 @@ export default function AdminSettings() {
         // Populate notification settings if present
         if (data.notification_settings) {
           const ns = data.notification_settings;
+          let recipientsList = [];
+          if (Array.isArray(ns.recipients)) {
+            recipientsList = ns.recipients.filter(em => em && typeof em === 'string');
+          } else if (typeof ns.recipients === 'string' && ns.recipients.trim()) {
+            recipientsList = ns.recipients.split(',').map(s => s.trim()).filter(Boolean);
+          }
+
           setNotifForm({
             daily_summary_enabled: ns.daily_summary?.enabled !== false,
             daily_summary_time: ns.daily_summary?.time || '18:00',
@@ -169,7 +178,7 @@ export default function AdminSettings() {
             weekly_summary_time: ns.weekly_summary?.time || '18:00',
             low_stock_alerts_enabled: ns.low_stock_alerts?.enabled !== false,
             deposit_alerts_enabled: ns.deposit_alerts?.enabled !== false,
-            additional_emails: Array.isArray(ns.recipients) ? ns.recipients.join(', ') : ''
+            recipient_emails: recipientsList
           });
         }
         setOrgLoaded(true);
@@ -177,6 +186,39 @@ export default function AdminSettings() {
     } catch (err) {
       console.warn("Could not load organization details:", err.message);
     }
+  };
+
+  const handleAddRecipientEmail = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const emailToAdd = recipientInput.trim().toLowerCase();
+    if (!emailToAdd) return;
+
+    // Standard email validation regex
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(emailToAdd)) {
+      setError('Please enter a valid email address (e.g. accountant@store.com)');
+      return;
+    }
+
+    const currentList = notifForm.recipient_emails || [];
+    if (currentList.includes(emailToAdd)) {
+      setRecipientInput('');
+      return;
+    }
+
+    setNotifForm(prev => ({
+      ...prev,
+      recipient_emails: [...(prev.recipient_emails || []), emailToAdd]
+    }));
+    setRecipientInput('');
+    setError('');
+  };
+
+  const handleRemoveRecipientEmail = (emailToRemove) => {
+    setNotifForm(prev => ({
+      ...prev,
+      recipient_emails: (prev.recipient_emails || []).filter(em => em !== emailToRemove)
+    }));
   };
 
   const handleSaveNotifications = async (e) => {
@@ -187,10 +229,15 @@ export default function AdminSettings() {
     setNotifSaving(true);
     setError('');
 
-    const recipientArray = (notifForm.additional_emails || '')
-      .split(',')
-      .map(em => em.trim())
-      .filter(em => em && em.includes('@'));
+    // If an email was typed in the input without pressing Enter, include it
+    let recipientArray = [...(notifForm.recipient_emails || [])];
+    const pending = recipientInput.trim().toLowerCase();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (pending && emailPattern.test(pending) && !recipientArray.includes(pending)) {
+      recipientArray.push(pending);
+      setRecipientInput('');
+      setNotifForm(prev => ({ ...prev, recipient_emails: recipientArray }));
+    }
 
     const payload = {
       daily_summary: {
@@ -248,7 +295,8 @@ export default function AdminSettings() {
         body: {
           frequency: freq,
           org_id: orgId,
-          is_test: true
+          is_test: true,
+          recipients: notifForm.recipient_emails || []
         }
       });
 
@@ -1418,50 +1466,128 @@ export default function AdminSettings() {
               Notification Delivery & Test Preview
             </h3>
 
-            <div style={{ marginBottom: 18 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
-                Primary Admin Recipient
-              </label>
-              <input
-                type="text"
-                value={orgForm.admin_email || currentUser?.email || 'Store Administrator'}
-                disabled
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 8,
-                  border: '1px solid #e2e8f0',
-                  background: '#f8fafc',
-                  color: '#64748b',
-                  fontSize: 13.5
-                }}
-              />
-              <span style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 4, display: 'block' }}>
-                Assigned store administrator email.
-              </span>
+            {/* Automatic Admin Delivery Notice */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '12px 16px',
+              borderRadius: 8,
+              background: '#f8fafc',
+              border: '1px solid #e2e8f0',
+              marginBottom: 18
+            }}>
+              <EnvelopeSimple size={20} weight="duotone" color="var(--brand-primary, #f15a24)" />
+              <div style={{ fontSize: 13, color: '#334155' }}>
+                <strong>Automatic Delivery:</strong> Registered store administrators ({users.filter(u => u.role === 'admin').map(u => u.email).filter(Boolean).join(', ') || 'assigned admin staff'}) automatically receive all digests and critical alerts.
+              </div>
             </div>
 
+            {/* Additional Recipients Tag/Pill Manager */}
             <div style={{ marginBottom: 20 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
                 Additional Email Recipients (Optional)
               </label>
-              <input
-                type="text"
-                placeholder="accountant@store.com, partner@store.com"
-                value={notifForm.additional_emails}
-                onChange={e => setNotifForm({ ...notifForm, additional_emails: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  borderRadius: 8,
-                  border: '1px solid #cbd5e1',
-                  fontSize: 13.5,
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
-              />
-              <span style={{ fontSize: 11.5, color: '#64748b', marginTop: 4, display: 'block' }}>
-                Separate multiple email addresses with commas.
+              <span style={{ fontSize: 12, color: '#64748b', marginBottom: 8, display: 'block' }}>
+                Add secondary recipients (e.g. an external accountant or business partner) who should also receive daily/weekly summaries.
+              </span>
+
+              {/* Tag/Pill Box */}
+              <div style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 8,
+                alignItems: 'center',
+                padding: '8px 12px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                background: '#ffffff',
+                minHeight: 46,
+                boxSizing: 'border-box'
+              }}>
+                {(notifForm.recipient_emails || []).map((email) => (
+                  <span
+                    key={email}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      background: '#fff7ed',
+                      color: '#c2410c',
+                      border: '1px solid #fed7aa',
+                      padding: '4px 10px',
+                      borderRadius: 16,
+                      fontSize: 12.5,
+                      fontWeight: 600
+                    }}
+                  >
+                    <EnvelopeSimple size={13} weight="bold" />
+                    <span>{email}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveRecipientEmail(email)}
+                      title={`Remove ${email}`}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#ea580c',
+                        cursor: 'pointer',
+                        padding: 0,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        lineHeight: 1
+                      }}
+                    >
+                      <X size={12} weight="bold" />
+                    </button>
+                  </span>
+                ))}
+
+                <input
+                  type="email"
+                  placeholder={(notifForm.recipient_emails || []).length === 0 ? "Type email and press Enter (e.g. accountant@store.com)..." : "Add another email..."}
+                  value={recipientInput}
+                  onChange={e => setRecipientInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      e.preventDefault();
+                      handleAddRecipientEmail();
+                    }
+                  }}
+                  style={{
+                    flex: '1 1 180px',
+                    border: 'none',
+                    outline: 'none',
+                    fontSize: 13,
+                    padding: '6px 4px',
+                    background: 'transparent',
+                    minWidth: 160
+                  }}
+                />
+
+                {recipientInput.trim() && (
+                  <button
+                    type="button"
+                    onClick={handleAddRecipientEmail}
+                    style={{
+                      background: 'var(--brand-primary, #f15a24)',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '5px 12px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    + Add
+                  </button>
+                )}
+              </div>
+
+              <span style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 6, display: 'block' }}>
+                Press <strong>Enter</strong> or click <strong>+ Add</strong> to save each email as a tag. Click the <strong>×</strong> on any tag to remove it.
               </span>
             </div>
 

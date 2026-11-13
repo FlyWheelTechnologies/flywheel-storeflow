@@ -350,20 +350,20 @@ export default function SuperAdminDashboard() {
         </div>
       )}
 
-      {/* Modern Financial & Executive KPI Cards Grid */}
+      {/* Modern Financial & Executive KPI Cards Grid - Unified Palette */}
       <div className="super-kpi-grid">
         {/* Card 1: Active Businesses (Platform Fleet) */}
         <div className="super-kpi-card">
           <div className="super-kpi-card__top">
             <span className="super-kpi-card__label">Active Businesses</span>
-            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--blue">
+            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--orange">
               <Buildings size={22} weight="duotone" />
             </div>
           </div>
           <div className="super-kpi-card__value">{stats.totalOrgs}</div>
           <div className="super-kpi-card__footer">
             <span className="super-kpi-card__subtitle">Subscribed tenant stores</span>
-            <span className="super-kpi-card__badge super-kpi-card__badge--green">Fleet Active</span>
+            <span className="super-kpi-card__badge">Fleet Active</span>
           </div>
         </div>
 
@@ -371,18 +371,18 @@ export default function SuperAdminDashboard() {
         <div className="super-kpi-card">
           <div className="super-kpi-card__top">
             <span className="super-kpi-card__label">Total Sales Processed</span>
-            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--emerald">
+            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--orange">
               <Receipt size={22} weight="duotone" />
             </div>
           </div>
-          <div className="super-kpi-card__value" style={{ color: "#059669" }}>
+          <div className="super-kpi-card__value">
             {formatCurrency(stats.totalSalesProcessed, stats.currency)}
           </div>
           <div className="super-kpi-card__footer">
             <span className="super-kpi-card__subtitle">
               {stats.totalSalesCount} audited customer receipt{stats.totalSalesCount === 1 ? "" : "s"}
             </span>
-            <span className="super-kpi-card__badge super-kpi-card__badge--green">GMV Audited</span>
+            <span className="super-kpi-card__badge">GMV Audited</span>
           </div>
         </div>
 
@@ -390,11 +390,11 @@ export default function SuperAdminDashboard() {
         <div className="super-kpi-card">
           <div className="super-kpi-card__top">
             <span className="super-kpi-card__label">Total Stock Value</span>
-            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--purple">
+            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--orange">
               <Package size={22} weight="duotone" />
             </div>
           </div>
-          <div className="super-kpi-card__value" style={{ color: "#7c3aed" }}>
+          <div className="super-kpi-card__value">
             {formatCurrency(stats.totalStockValue, stats.currency)}
           </div>
           <div className="super-kpi-card__footer">
@@ -413,14 +413,14 @@ export default function SuperAdminDashboard() {
               <ChartLineUp size={22} weight="duotone" />
             </div>
           </div>
-          <div className="super-kpi-card__value" style={{ color: "#ea580c" }}>
+          <div className="super-kpi-card__value">
             {formatCurrency(stats.averageOrderValue, stats.currency)}
           </div>
           <div className="super-kpi-card__footer">
             <span className="super-kpi-card__subtitle">
               {stats.grossMargin}% Gross Margin • {formatCurrency(stats.potentialProfit, stats.currency)} Profit Potential
             </span>
-            <span className="super-kpi-card__badge" style={{ background: "#ffedd5", color: "#c2410c" }}>Pitch Metric</span>
+            <span className="super-kpi-card__badge">Pitch Metric</span>
           </div>
         </div>
       </div>

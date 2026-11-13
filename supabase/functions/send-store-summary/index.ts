@@ -99,6 +99,13 @@ Deno.serve(async (req: Request) => {
         });
       }
 
+      // If test preview includes immediate recipients in payload
+      if (isTest && Array.isArray(body.recipients)) {
+        body.recipients.forEach((em: string) => {
+          if (em && typeof em === 'string') recipients.add(em.trim().toLowerCase());
+        });
+      }
+
       const recipientList = Array.from(recipients).filter(Boolean);
       if (recipientList.length === 0) {
         console.warn(`No valid recipient emails for ${org.name} — skipping.`);
