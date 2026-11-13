@@ -10,11 +10,13 @@ import {
 } from "../components/ui/FormFields";
 import { PageSkeleton } from "../components/LoadingStates";
 import { getIndustryCategories, getIndustryInfo } from "../constants/industries";
+import { CheckCircle } from "@phosphor-icons/react";
 
 
 const emptyForm = {
   name: '',
   category: 'General',
+  condition: 'new',
   buying_uom: 'Piece',
   selling_uom: 'Piece',
   conversion_factor: 1,
@@ -108,6 +110,7 @@ export default function Products() {
     setSaving(true);
     const payload = {
       ...form,
+      condition: form.condition || 'new',
       item_code: form.item_code?.trim() || `FA-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
       cost_price: parseFloat(form.cost_price) || 0,
       selling_price: parseFloat(form.selling_price) || 0,
@@ -136,7 +139,7 @@ export default function Products() {
   };
 
   const startEdit = (p) => {
-    setForm({ ...p });
+    setForm({ ...p, condition: p.condition || 'new' });
     setEditingId(p.id);
     setShowForm(true);
     setNameError('');
@@ -162,8 +165,8 @@ export default function Products() {
   };
 
   const handleExport = () => {
-    const csv = "Item Code,Name,Category,Buy UOM,Sell UOM,Conv Factor,Cost,Price,Stock\n"
-      + products.map(p => `${p.item_code},${p.name},${p.category},${p.buying_uom},${p.selling_uom},${p.conversion_factor},${p.cost_price},${p.selling_price},${p.stock_quantity}`).join("\n");
+    const csv = "Item Code,Name,Category,Condition,Buy UOM,Sell UOM,Conv Factor,Cost,Price,Stock\n"
+      + products.map(p => `${p.item_code},${p.name},${p.category},${p.condition || 'new'},${p.buying_uom},${p.selling_uom},${p.conversion_factor},${p.cost_price},${p.selling_price},${p.stock_quantity}`).join("\n");
     const link = document.createElement("a");
     link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
     link.download = "florzy_products.csv";
@@ -181,10 +184,21 @@ export default function Products() {
         const lines = ev.target.result.split("\n").slice(1);
         const productsToInsert = [];
         for (const line of lines) {
-          const [, name, category, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity] = line.split(",");
+          const parts = line.split(",");
+          // Handle both 9-column and 10-column CSV (with or without condition)
+          let name, category, condition = 'new', buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity;
+          if (parts.length >= 10) {
+            [, name, category, condition, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity] = parts;
+          } else {
+            [, name, category, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity] = parts;
+          }
           if (!name) continue;
           productsToInsert.push({
-            name, category, buying_uom, selling_uom,
+            name,
+            category,
+            condition: condition?.toLowerCase() === 'used' ? 'used' : 'new',
+            buying_uom,
+            selling_uom,
             conversion_factor: parseFloat(conversion_factor),
             cost_price: parseFloat(cost_price),
             selling_price: parseFloat(selling_price),
@@ -354,6 +368,80 @@ export default function Products() {
                   )}
                 </div>
               </FieldGroup>
+
+              {/* Product Condition Selection with Checkmarks */}
+              <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
+                <Label>Product Condition</Label>
+                <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+                  <label
+                    onClick={() => setForm(f => ({ ...f, condition: 'new' }))}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 16px',
+                      borderRadius: 8,
+                      border: `1.5px solid ${form.condition === 'new' ? '#10b981' : '#cbd5e1'}`,
+                      background: form.condition === 'new' ? '#ecfdf5' : '#ffffff',
+                      cursor: 'pointer',
+                      fontWeight: form.condition === 'new' ? 700 : 500,
+                      color: form.condition === 'new' ? '#065f46' : '#64748b',
+                      fontSize: 13,
+                      transition: 'all 0.15s ease',
+                      userSelect: 'none'
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="product-condition"
+                      value="new"
+                      checked={form.condition === 'new'}
+                      onChange={() => {}}
+                      style={{ display: 'none' }}
+                    />
+                    <CheckCircle
+                      size={18}
+                      weight={form.condition === 'new' ? 'fill' : 'regular'}
+                      color={form.condition === 'new' ? '#10b981' : '#94a3b8'}
+                    />
+                    <span>Brand New</span>
+                  </label>
+
+                  <label
+                    onClick={() => setForm(f => ({ ...f, condition: 'used' }))}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 16px',
+                      borderRadius: 8,
+                      border: `1.5px solid ${form.condition === 'used' ? '#f59e0b' : '#cbd5e1'}`,
+                      background: form.condition === 'used' ? '#fffbeb' : '#ffffff',
+                      cursor: 'pointer',
+                      fontWeight: form.condition === 'used' ? 700 : 500,
+                      color: form.condition === 'used' ? '#92400e' : '#64748b',
+                      fontSize: 13,
+                      transition: 'all 0.15s ease',
+                      userSelect: 'none'
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="product-condition"
+                      value="used"
+                      checked={form.condition === 'used'}
+                      onChange={() => {}}
+                      style={{ display: 'none' }}
+                    />
+                    <CheckCircle
+                      size={18}
+                      weight={form.condition === 'used' ? 'fill' : 'regular'}
+                      color={form.condition === 'used' ? '#f59e0b' : '#94a3b8'}
+                    />
+                    <span>Used / Second-hand</span>
+                  </label>
+                </div>
+              </div>
             </CardSection>
 
             {/* SECTION 2: PRICING & UNITS */}
@@ -496,7 +584,20 @@ export default function Products() {
               ) : paginated.map(p => (
                 <tr key={p.id}>
                   <td className="table-code">{p.item_code || '---'}</td>
-                  <td style={{ fontWeight: 500 }}>{p.name}</td>
+                  <td style={{ fontWeight: 500 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{p.name}</span>
+                      {p.condition === 'used' ? (
+                        <span style={{ fontSize: 10, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', padding: '1px 5px', borderRadius: 4, fontWeight: 700, textTransform: 'uppercase' }}>
+                          Used
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: 10, background: '#ecfdf5', color: '#065f46', border: '1px solid #a7f3d0', padding: '1px 5px', borderRadius: 4, fontWeight: 700, textTransform: 'uppercase' }}>
+                          New
+                        </span>
+                      )}
+                    </div>
+                  </td>
                   <td style={{ color: '#475569', fontSize: 13 }}>{p.category}</td>
                   <td style={{ fontWeight: 600 }}>{p.stock_quantity} {p.selling_uom}s</td>
                   <td>{p.selling_uom}</td>

@@ -97,15 +97,34 @@ export function useProducts() {
     }
 
     try {
+      let inserted = null;
       const { data, error } = await supabase
         .from('products')
         .insert([{ ...product, organization_id: orgId, created_at: now }])
         .select()
         .single();
 
-      if (error) throw error;
-      dataCache.setCachedData('products', orgId, prev => [data, ...(prev || [])]);
-      return data;
+      if (error) {
+        // If the database schema has not yet been migrated to include 'condition', retry without it
+        if (error.message?.includes("'condition' column") || error.code === 'PGRST204') {
+          console.warn("Retrying product insert without 'condition' column (pending DB migration)");
+          const { condition, ...productWithoutCondition } = product;
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('products')
+            .insert([{ ...productWithoutCondition, organization_id: orgId, created_at: now }])
+            .select()
+            .single();
+          if (fallbackError) throw fallbackError;
+          inserted = { ...fallbackData, condition: product.condition || 'new' };
+        } else {
+          throw error;
+        }
+      } else {
+        inserted = data;
+      }
+
+      dataCache.setCachedData('products', orgId, prev => [inserted, ...(prev || [])]);
+      return inserted;
     } catch (err) {
       // Network drop or connection failure: fallback to offline queue
       if (err.message?.includes('fetch') || err.message?.includes('network') || !navigator.onLine) {
@@ -141,6 +160,7 @@ export function useProducts() {
     }
 
     try {
+      let updated = null;
       const { data, error } = await supabase
         .from('products')
         .update({ ...updates, updated_at: now })
@@ -148,11 +168,30 @@ export function useProducts() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        // If the database schema has not yet been migrated to include 'condition', retry without it
+        if (error.message?.includes("'condition' column") || error.code === 'PGRST204') {
+          console.warn("Retrying product update without 'condition' column (pending DB migration)");
+          const { condition, ...updatesWithoutCondition } = updates;
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('products')
+            .update({ ...updatesWithoutCondition, updated_at: now })
+            .eq('id', id)
+            .select()
+            .single();
+          if (fallbackError) throw fallbackError;
+          updated = { ...fallbackData, condition: updates.condition || 'new' };
+        } else {
+          throw error;
+        }
+      } else {
+        updated = data;
+      }
+
       dataCache.setCachedData('products', orgId, prev => 
-        (prev || []).map(p => p.id === id ? data : p)
+        (prev || []).map(p => p.id === id ? updated : p)
       );
-      return data;
+      return updated;
     } catch (err) {
       if (err.message?.includes('fetch') || err.message?.includes('network') || !navigator.onLine) {
         console.warn("Network error during product update; falling back to offline queue:", err.message);

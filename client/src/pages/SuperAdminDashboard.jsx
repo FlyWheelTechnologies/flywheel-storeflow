@@ -17,11 +17,14 @@ import {
   EnvelopeSimple,
   Phone,
   CurrencyCircleDollar,
-  Sparkle
+  Sparkle,
+  Package,
+  ChartLineUp
 } from "@phosphor-icons/react";
 import { supabase } from "../services/supabaseClient";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { formatCurrency } from "../services/formatters";
 import "./SuperAdmin.css";
 import "./Dashboard.css";
 
@@ -31,7 +34,21 @@ export default function SuperAdminDashboard() {
   const navigate = useNavigate();
   const [orgs, setOrgs] = useState([]);
   const [logs, setLogs] = useState([]);
-  const [stats, setStats] = useState({ totalOrgs: 0, totalUsers: 0, orphanedUsers: 0, totalSales: 0 });
+  const [stats, setStats] = useState({
+    totalOrgs: 0,
+    totalUsers: 0,
+    orphanedUsers: 0,
+    totalSalesCount: 0,
+    totalSalesProcessed: 0,
+    totalStockValue: 0,
+    totalStockCost: 0,
+    potentialProfit: 0,
+    grossMargin: "0.0",
+    averageOrderValue: 0,
+    totalProductsCount: 0,
+    totalInventoryUnits: 0,
+    currency: "GHS"
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [orgSearchQuery, setOrgSearchQuery] = useState("");
@@ -59,7 +76,7 @@ export default function SuperAdminDashboard() {
       if (logError) throw logError;
       setLogs(logData || []);
 
-      // 3. Fetch general stats across all orgs
+      // 3. Fetch general fleet & financial metrics across all orgs
       const { count: orgCount } = await supabase
         .from("organizations")
         .select("*", { count: "exact", head: true });
@@ -78,15 +95,57 @@ export default function SuperAdminDashboard() {
         .is("organization_id", null)
         .neq("role", "super_admin");
 
-      const { count: salesCount } = await supabase
+      // Fetch all sales for real-time GMV and transaction metrics
+      const { data: salesData, error: salesErr } = await supabase
         .from("sales")
-        .select("*", { count: "exact", head: true });
+        .select("id, total_amount, payment_status, created_at");
+
+      if (salesErr) console.warn("Sales fetch warning for financial metrics:", salesErr.message);
+
+      // Fetch all products for real-time inventory valuation
+      const { data: productsData, error: prodErr } = await supabase
+        .from("products")
+        .select("id, name, stock_quantity, cost_price, selling_price");
+
+      if (prodErr) console.warn("Products fetch warning for inventory metrics:", prodErr.message);
+
+      const allSales = salesData || [];
+      const allProducts = productsData || [];
+
+      const totalSalesCount = allSales.length;
+      const totalSalesProcessed = allSales.reduce((acc, s) => acc + (parseFloat(s.total_amount) || 0), 0);
+      const aov = totalSalesCount > 0 ? (totalSalesProcessed / totalSalesCount) : 0;
+
+      let totalStockRetail = 0;
+      let totalStockCost = 0;
+      let totalUnits = 0;
+
+      allProducts.forEach((p) => {
+        const qty = Math.max(0, parseFloat(p.stock_quantity) || 0);
+        const cost = parseFloat(p.cost_price) || 0;
+        const sell = parseFloat(p.selling_price) || 0;
+        totalStockRetail += sell * qty;
+        totalStockCost += cost * qty;
+        totalUnits += qty;
+      });
+
+      const potentialProfit = totalStockRetail - totalStockCost;
+      const grossMargin = totalStockRetail > 0 ? ((potentialProfit / totalStockRetail) * 100).toFixed(1) : "0.0";
 
       setStats({
         totalOrgs: orgCount || 0,
         totalUsers: userCount || 0,
         orphanedUsers: orphanedUserCount || 0,
-        totalSales: salesCount || 0,
+        totalSalesCount,
+        totalSalesProcessed,
+        totalStockValue: totalStockRetail,
+        totalStockCost,
+        potentialProfit,
+        grossMargin,
+        averageOrderValue: aov,
+        totalProductsCount: allProducts.length,
+        totalInventoryUnits: totalUnits,
+        currency: "GHS"
       });
 
     } catch (err) {
@@ -291,8 +350,9 @@ export default function SuperAdminDashboard() {
         </div>
       )}
 
-      {/* Modern KPI Cards Grid */}
+      {/* Modern Financial & Executive KPI Cards Grid */}
       <div className="super-kpi-grid">
+        {/* Card 1: Active Businesses (Platform Fleet) */}
         <div className="super-kpi-card">
           <div className="super-kpi-card__top">
             <span className="super-kpi-card__label">Active Businesses</span>
@@ -303,52 +363,64 @@ export default function SuperAdminDashboard() {
           <div className="super-kpi-card__value">{stats.totalOrgs}</div>
           <div className="super-kpi-card__footer">
             <span className="super-kpi-card__subtitle">Subscribed tenant stores</span>
-            <span className="super-kpi-card__badge super-kpi-card__badge--green">Online</span>
+            <span className="super-kpi-card__badge super-kpi-card__badge--green">Fleet Active</span>
           </div>
         </div>
 
+        {/* Card 2: Total Sales Processed (Cumulative GMV) */}
         <div className="super-kpi-card">
           <div className="super-kpi-card__top">
-            <span className="super-kpi-card__label">Staff Accounts</span>
-            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--purple">
-              <Users size={22} weight="duotone" />
-            </div>
-          </div>
-          <div className="super-kpi-card__value">{stats.totalUsers}</div>
-          <div className="super-kpi-card__footer">
-            <span className="super-kpi-card__subtitle">Admins & Storekeepers</span>
-            <span className="super-kpi-card__badge">Managed</span>
-          </div>
-        </div>
-
-        <div className="super-kpi-card">
-          <div className="super-kpi-card__top">
-            <span className="super-kpi-card__label">Transactions Volume</span>
+            <span className="super-kpi-card__label">Total Sales Processed</span>
             <div className="super-kpi-card__icon-box super-kpi-card__icon-box--emerald">
               <Receipt size={22} weight="duotone" />
             </div>
           </div>
-          <div className="super-kpi-card__value">{stats.totalSales}</div>
+          <div className="super-kpi-card__value" style={{ color: "#059669" }}>
+            {formatCurrency(stats.totalSalesProcessed, stats.currency)}
+          </div>
           <div className="super-kpi-card__footer">
-            <span className="super-kpi-card__subtitle">Total receipts generated</span>
-            <span className="super-kpi-card__badge super-kpi-card__badge--green">Audited</span>
+            <span className="super-kpi-card__subtitle">
+              {stats.totalSalesCount} audited customer receipt{stats.totalSalesCount === 1 ? "" : "s"}
+            </span>
+            <span className="super-kpi-card__badge super-kpi-card__badge--green">GMV Audited</span>
           </div>
         </div>
 
+        {/* Card 3: Total Stock Value (Live Inventory Valuation) */}
         <div className="super-kpi-card">
           <div className="super-kpi-card__top">
-            <span className="super-kpi-card__label">Security & RLS</span>
-            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--orange">
-              <ShieldCheck size={22} weight="duotone" />
+            <span className="super-kpi-card__label">Total Stock Value</span>
+            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--purple">
+              <Package size={22} weight="duotone" />
             </div>
           </div>
-          <div className="super-kpi-card__value" style={{ fontSize: 24, display: "flex", alignItems: "center", gap: 8 }}>
-            <CheckCircle size={26} weight="fill" color="#10b981" />
-            Isolated
+          <div className="super-kpi-card__value" style={{ color: "#7c3aed" }}>
+            {formatCurrency(stats.totalStockValue, stats.currency)}
           </div>
           <div className="super-kpi-card__footer">
-            <span className="super-kpi-card__subtitle">Row-Level Security Active</span>
-            <span className="super-kpi-card__badge super-kpi-card__badge--green">Enforced</span>
+            <span className="super-kpi-card__subtitle">
+              Cost: {formatCurrency(stats.totalStockCost, stats.currency)} • {stats.totalInventoryUnits.toLocaleString()} units
+            </span>
+            <span className="super-kpi-card__badge">Live Inventory</span>
+          </div>
+        </div>
+
+        {/* Card 4: Average Order Value & Profit Potential (Investor Pitch Metric) */}
+        <div className="super-kpi-card">
+          <div className="super-kpi-card__top">
+            <span className="super-kpi-card__label">Average Order Value (AOV)</span>
+            <div className="super-kpi-card__icon-box super-kpi-card__icon-box--orange">
+              <ChartLineUp size={22} weight="duotone" />
+            </div>
+          </div>
+          <div className="super-kpi-card__value" style={{ color: "#ea580c" }}>
+            {formatCurrency(stats.averageOrderValue, stats.currency)}
+          </div>
+          <div className="super-kpi-card__footer">
+            <span className="super-kpi-card__subtitle">
+              {stats.grossMargin}% Gross Margin • {formatCurrency(stats.potentialProfit, stats.currency)} Profit Potential
+            </span>
+            <span className="super-kpi-card__badge" style={{ background: "#ffedd5", color: "#c2410c" }}>Pitch Metric</span>
           </div>
         </div>
       </div>
