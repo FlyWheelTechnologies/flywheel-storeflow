@@ -165,12 +165,42 @@ export default function Products() {
   };
 
   const handleExport = () => {
+    const storeName = activeOrg?.name || user?.organizations?.name || 'storeflow';
+    const storeSlug = storeName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    const today = new Date().toISOString().split('T')[0];
+
+    const escapeCsv = (str) => {
+      const val = str === undefined || str === null ? '' : String(str);
+      if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+        return `"${val.replace(/"/g, '""')}"`;
+      }
+      return val;
+    };
+
     const csv = "Item Code,Name,Category,Condition,Buy UOM,Sell UOM,Conv Factor,Cost,Price,Stock\n"
-      + products.map(p => `${p.item_code},${p.name},${p.category},${p.condition || 'new'},${p.buying_uom},${p.selling_uom},${p.conversion_factor},${p.cost_price},${p.selling_price},${p.stock_quantity}`).join("\n");
+      + products.map(p => [
+          escapeCsv(p.item_code || ''),
+          escapeCsv(p.name || ''),
+          escapeCsv(p.category || 'General'),
+          escapeCsv(p.condition || 'new'),
+          escapeCsv(p.buying_uom || 'Piece'),
+          escapeCsv(p.selling_uom || 'Piece'),
+          p.conversion_factor || 1,
+          p.cost_price || 0,
+          p.selling_price || 0,
+          p.stock_quantity || 0
+        ].join(",")).join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.href = "data:text/csv;charset=utf-8," + encodeURI(csv);
-    link.download = "florzy_products.csv";
+    link.href = url;
+    link.download = `${storeSlug}_products_${today}.csv`;
     link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const handleImport = (e) => {
@@ -181,28 +211,52 @@ export default function Products() {
     const reader = new FileReader();
     reader.onload = async (ev) => {
       try {
-        const lines = ev.target.result.split("\n").slice(1);
+        const text = ev.target.result;
+        const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0).slice(1);
         const productsToInsert = [];
+
+        const parseCsvLine = (line) => {
+          const row = [];
+          let insideQuote = false;
+          let entry = '';
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"' || char === "'") {
+              insideQuote = !insideQuote;
+            } else if (char === ',' && !insideQuote) {
+              row.push(entry.trim().replace(/^["']|["']$/g, ''));
+              entry = '';
+            } else {
+              entry += char;
+            }
+          }
+          row.push(entry.trim().replace(/^["']|["']$/g, ''));
+          return row;
+        };
+
         for (const line of lines) {
-          const parts = line.split(",");
-          // Handle both 9-column and 10-column CSV (with or without condition)
+          const parts = parseCsvLine(line);
+          // Handle both 10-column (with condition) and 9-column (without condition) CSVs
           let name, category, condition = 'new', buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity;
           if (parts.length >= 10) {
             [, name, category, condition, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity] = parts;
-          } else {
+          } else if (parts.length >= 9) {
             [, name, category, buying_uom, selling_uom, conversion_factor, cost_price, selling_price, stock_quantity] = parts;
+          } else {
+            continue;
           }
           if (!name) continue;
+
           productsToInsert.push({
             name,
-            category,
+            category: category || 'General',
             condition: condition?.toLowerCase() === 'used' ? 'used' : 'new',
-            buying_uom,
-            selling_uom,
-            conversion_factor: parseFloat(conversion_factor),
-            cost_price: parseFloat(cost_price),
-            selling_price: parseFloat(selling_price),
-            stock_quantity: parseFloat(stock_quantity),
+            buying_uom: buying_uom || 'Piece',
+            selling_uom: selling_uom || 'Piece',
+            conversion_factor: parseFloat(conversion_factor) || 1,
+            cost_price: parseFloat(cost_price) || 0,
+            selling_price: parseFloat(selling_price) || 0,
+            stock_quantity: parseFloat(stock_quantity) || 0,
             created_at: new Date().toISOString()
           });
         }
@@ -212,6 +266,8 @@ export default function Products() {
             await createProduct(p);
           }
           success(`Imported ${productsToInsert.length} products`);
+        } else {
+          showError("No valid product rows found in CSV.");
         }
       } catch (err) {
         showError(`Import failed: ${err.message}`);
