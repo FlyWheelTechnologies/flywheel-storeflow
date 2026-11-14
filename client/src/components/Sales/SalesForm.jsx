@@ -5,7 +5,7 @@ import { Label, Input, Select, ActionButton, SectionHeader, CardSection, FieldGr
 
 const ProductSearchField = ({ item, idx, items, setItems, products, inputStyle }) => {
   return (
-    <div style={{ position: 'relative', width: '100%' }}>
+    <div style={{ position: 'relative', width: '100%', zIndex: item.showDropdown ? 100 : 'auto' }}>
       <Input
         placeholder="Search code or name..."
         value={item.product_id ? (products.find(p => p.id === parseInt(item.product_id) || p.id === item.product_id)?.name || '') : item.searchQuery || ''}
@@ -24,17 +24,25 @@ const ProductSearchField = ({ item, idx, items, setItems, products, inputStyle }
       />
       {item.showDropdown && (
         <div className="search-dropdown" style={{
-          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-          background: 'white', border: '1px solid #e5e7eb', borderRadius: 8,
-          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', marginTop: 4,
-          maxHeight: 240, overflowY: 'auto'
+          position: 'absolute',
+          top: '100%',
+          left: 0,
+          width: 'max(100%, 340px)',
+          zIndex: 1000,
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          borderRadius: 10,
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+          marginTop: 6,
+          maxHeight: 280,
+          overflowY: 'auto'
         }}>
           {products.filter(p =>
             !item.searchQuery ||
             (p.name?.toLowerCase() || '').includes(item.searchQuery.toLowerCase()) ||
             (p.item_code?.toLowerCase() || '').includes(item.searchQuery.toLowerCase())
           ).length === 0 ? (
-            <div style={{ padding: '12px 16px', color: '#9ca3af', fontSize: 13, textAlign: 'center' }}>
+            <div style={{ padding: '14px 16px', color: '#9ca3af', fontSize: 13, textAlign: 'center' }}>
               ⚠️ Product not found
             </div>
           ) : (
@@ -45,8 +53,15 @@ const ProductSearchField = ({ item, idx, items, setItems, products, inputStyle }
             ).map(p => (
               <div
                 key={p.id}
-                style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid #f3f4f6', transition: 'background 0.2s' }}
+                style={{
+                  padding: '10px 14px',
+                  cursor: 'pointer',
+                  borderBottom: '1px solid #f1f5f9',
+                  transition: 'background 0.15s ease'
+                }}
                 className="search-item"
+                onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
                 onClick={() => {
                   const newItems = [...items];
                   newItems[idx].product_id = p.id;
@@ -57,9 +72,26 @@ const ProductSearchField = ({ item, idx, items, setItems, products, inputStyle }
                   setItems(newItems);
                 }}
               >
-                <div style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{p.name}</div>
-                <div style={{ fontSize: 11, color: '#6b7280' }}>
-                  {p.item_code} • {p.stock_quantity} {p.selling_uom} available
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 3 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: '#0f172a' }}>{p.name}</div>
+                  {p.condition && (
+                    <span style={{
+                      fontSize: 10,
+                      fontWeight: 800,
+                      padding: '1px 6px',
+                      borderRadius: 4,
+                      background: p.condition === 'used' ? '#fef3c7' : '#ecfdf5',
+                      color: p.condition === 'used' ? '#b45309' : '#047857',
+                      textTransform: 'uppercase',
+                      flexShrink: 0
+                    }}>
+                      {p.condition === 'used' ? 'Used' : 'New'}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11.5, color: '#64748b' }}>
+                  <span>{p.item_code ? `${p.item_code} • ` : ''}{p.stock_quantity} {p.selling_uom || 'units'} available</span>
+                  <span style={{ fontWeight: 700, color: '#059669' }}>{formatCurrency(p.selling_price)}</span>
                 </div>
               </div>
             ))
@@ -294,8 +326,8 @@ const SalesForm = ({
         <SectionHeader number="02">Items Selection</SectionHeader>
         
         {/* Desktop Table View */}
-        <div className="table-wrapper desktop-only">
-          <table className="stock-table" style={{ marginBottom: 16 }}>
+        <div className="desktop-only" style={{ overflow: 'visible', marginBottom: 16 }}>
+          <table className="stock-table" style={{ width: '100%', borderCollapse: 'collapse', overflow: 'visible' }}>
             <thead>
               <tr>
                 <th>Product</th>
@@ -307,9 +339,9 @@ const SalesForm = ({
             </thead>
             <tbody>
               {items.map((item, idx) => (
-                <tr key={idx}>
-                  <td style={{ position: 'relative' }}>
-                    <ProductSearchField item={item} idx={idx} items={items} setItems={setItems} products={products} inputStyle={{ minWidth: 250 }} />
+                <tr key={idx} style={{ position: 'relative', zIndex: item.showDropdown ? 50 : (items.length - idx) }}>
+                  <td style={{ position: 'relative', zIndex: item.showDropdown ? 60 : (items.length - idx) }}>
+                    <ProductSearchField item={item} idx={idx} items={items} setItems={setItems} products={products} inputStyle={{ minWidth: 260 }} />
                   </td>
                   <td>
                     <Input type="number" min="1" value={item.quantity} onChange={e => {
@@ -338,9 +370,9 @@ const SalesForm = ({
         </div>
 
         {/* Mobile Vertical Item Cards View */}
-        <div className="mobile-only sales-item-cards">
+        <div className="mobile-only sales-item-cards" style={{ overflow: 'visible' }}>
           {items.map((item, idx) => (
-            <div key={idx} className="sales-item-card">
+            <div key={idx} className="sales-item-card" style={{ overflow: 'visible', position: 'relative', zIndex: item.showDropdown ? 50 : (items.length - idx) }}>
               <div className="sales-item-card__header">
                 <span className="sales-item-card__title">Item #{idx + 1}</span>
                 {items.length > 1 && (
@@ -353,7 +385,7 @@ const SalesForm = ({
                   </button>
                 )}
               </div>
-              <div style={{ marginBottom: 8 }}>
+              <div style={{ marginBottom: 8, position: 'relative', zIndex: item.showDropdown ? 60 : 1 }}>
                 <Label>Product</Label>
                 <ProductSearchField item={item} idx={idx} items={items} setItems={setItems} products={products} inputStyle={{ width: '100%' }} />
               </div>
