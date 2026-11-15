@@ -48,8 +48,8 @@ const NAV_ITEMS = [
     id: "accounting", label: "Accounting",
     icon: <BookOpen size={18} weight="duotone" />,
     children: [
-      { id: "daily-report", label: "Entries", path: "/reports/daily", roles: ['admin', 'auditor'] },
-      { id: "expenses", label: "Expenses", path: "/expenses", roles: ['admin', 'auditor'] },
+      { id: "daily-report", label: "Entries", path: "/reports/daily", roles: ['admin', 'auditor', 'super_admin'] },
+      { id: "expenses", label: "Expenses", path: "/expenses", roles: ['admin', 'auditor', 'super_admin'] },
       { id: "deposits", label: "Deposits", path: "/deposits" },
     ],
   },
@@ -167,13 +167,17 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   };
 
   const filteredItems = NAV_ITEMS.filter(item => {
+    if (user?.role === 'super_admin') return true;
     if (item.roles && !item.roles.includes(user?.role)) return false;
     return true;
   }).map(item => {
     if (item.children) {
       return {
         ...item,
-        children: item.children.filter(child => !child.roles || child.roles.includes(user?.role))
+        children: item.children.filter(child => {
+          if (user?.role === 'super_admin') return true;
+          return !child.roles || child.roles.includes(user?.role);
+        })
       };
     }
     return item;
