@@ -1,0 +1,53 @@
+name: Scheduled Store Summary Digest
+
+on:
+  schedule:
+    # Runs every day at 18:00 UTC (6:00 PM Ghana / GMT)
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+    inputs:
+      frequency:
+        description: 'Digest Frequency (daily or weekly)'
+        required: true
+        default: 'daily'
+        type: choice
+        options:
+          - daily
+          - weekly
+
+jobs:
+  send-summary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch Store Summary
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            FREQ="${{ github.event.inputs.frequency }}"
+          else
+            DAY_OF_WEEK=$(date -u +%u)
+            if [ "$DAY_OF_WEEK" -eq 6 ]; then
+              FREQ="weekly"
+            else
+              FREQ="daily"
+            fi
+          fi
+
+          echo "Dispatching $FREQ summary digest at $(date -u)..."
+
+          HTTP_RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://ongyutrabagetgdebdib.supabase.co/functions/v1/send-store-summary" \
+            -H "Content-Type: application/json" \
+            -H "apikey: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}" \
+            -d "{\"frequency\": \"$FREQ\"}")
+
+          HTTP_CODE=$(echo "$HTTP_RESPONSE" | tail -n1)
+          BODY=$(echo "$HTTP_RESPONSE" | sed '$d')
+
+          echo "HTTP Status Code: $HTTP_CODE"
+          echo "Response Body: $BODY"
+
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "::error::Edge function failed with HTTP status $HTTP_CODE"
+            exit 1
+          fi
