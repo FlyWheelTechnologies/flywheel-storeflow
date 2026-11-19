@@ -508,7 +508,7 @@ export default function LandingPage() {
             <div className="lp-trust-label">Offline-ready & cloud sync</div>
           </div>
           <div className="lp-trust-item">
-            <div className="lp-trust-number">600+</div>
+            <div className="lp-trust-number">6000+</div>
             <div className="lp-trust-label"> Products stored securely</div>
           </div>
         </div>
