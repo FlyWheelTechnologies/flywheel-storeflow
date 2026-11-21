@@ -10,6 +10,20 @@ import posthog from 'posthog-js';
 let isInitialized = false;
 
 /**
+ * Drop cross-origin "Script error." events. The browser hides the message and stack,
+ * so these events carry no diagnostic data.
+ */
+export function dropMaskedScriptErrors(event) {
+  if (event?.event !== '$exception') return event;
+  const exceptions = event.properties?.$exception_list;
+  if (!Array.isArray(exceptions) || exceptions.length === 0) return event;
+  const isMasked = exceptions.every(
+    (ex) => ex?.value === 'Script error.' && !ex?.stacktrace?.frames?.length
+  );
+  return isMasked ? null : event;
+}
+
+/**
  * Initialize PostHog client
  */
 export function initPostHog() {
@@ -32,6 +46,9 @@ export function initPostHog() {
       autocapture: true,
       capture_pageview: true,
       capture_pageleave: true,
+      // posthog-js captures uncaught errors and unhandled rejections itself
+      capture_exceptions: true,
+      before_send: dropMaskedScriptErrors,
       session_recording: {
         maskAllInputs: false,
         maskInputOptions: {
@@ -46,17 +63,6 @@ export function initPostHog() {
     if (typeof window !== 'undefined') {
       if (import.meta.env.DEV) {
         window.__posthog = posthog;
-      }
-
-      // Automatically capture uncaught Javascript errors and unhandled promise rejections
-      if (!window.__posthog_error_listeners_attached) {
-        window.addEventListener('error', (event) => {
-          captureException(event.error || event.message, { source: 'window.onerror' });
-        });
-        window.addEventListener('unhandledrejection', (event) => {
-          captureException(event.reason, { source: 'window.onunhandledrejection' });
-        });
-        window.__posthog_error_listeners_attached = true;
       }
     }
 
@@ -128,11 +134,7 @@ export function captureEvent(eventName, properties = {}) {
 export function captureException(error, context = {}) {
   try {
     if (isInitialized) {
-      posthog.capture('$exception', {
-        $exception_message: error?.message || String(error),
-        $exception_stack_trace_raw: error?.stack,
-        ...context
-      });
+      posthog.captureException(error, context);
     } else {
       console.error(`[Diagnostics Error Captured]`, error, context);
     }
