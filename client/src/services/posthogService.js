@@ -30,7 +30,8 @@ export function initPostHog() {
     posthog.init(apiKey, {
       api_host: apiHost,
       autocapture: true,
-      capture_pageview: true,
+      // BrowserRouter changes routes with the history API, so page-load capture alone misses them
+      capture_pageview: 'history_change',
       capture_pageleave: true,
       session_recording: {
         maskAllInputs: false,
